@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Annotate</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #0f0f23;
+    color: #e0e0e0;
+    font-family: 'Courier New', monospace;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    overflow: hidden;
+    user-select: none;
+  }
+
+  #status-bar {
+    background: #16213e;
+    padding: 6px 16px;
+    font-size: 13px;
+    display: flex;
+    justify-content: space-between;
+    border-bottom: 1px solid #333;
+    flex-shrink: 0;
+  }
+  #status-bar .labeled { color: #4ade80; }
+  #status-bar .skipped { color: #fbbf24; }
+
+  #canvas-container {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 0;
+    padding: 8px;
+  }
+  canvas {
+    max-width: 100%;
+    max-height: 100%;
+  }
+
+  #shortcut-bar {
+    background: #16213e;
+    padding: 6px 16px;
+    font-size: 11px;
+    color: #a0a0b0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    justify-content: center;
+    border-top: 1px solid #333;
+    flex-shrink: 0;
+  }
+  kbd {
+    background: #2a2a4a;
+    padding: 1px 5px;
+    border-radius: 3px;
+    color: #e0e0e0;
+    border: 1px solid #444;
+    font-family: inherit;
+  }
+  .confirm { color: #4ade80; }
+  .skip-label { color: #fbbf24; }
+
+  #done-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 15, 35, 0.95);
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    font-size: 20px;
+    gap: 16px;
+  }
+  #done-overlay.visible { display: flex; }
+</style>
+</head>
+<body>
+
+<div id="status-bar">
+  <span id="filename">Loading...</span>
+  <span id="progress"></span>
+  <span class="labeled" id="labeled-count"></span>
+  <span class="skipped" id="skipped-count"></span>
+</div>
+
+<div id="canvas-container">
+  <canvas id="canvas"></canvas>
+</div>
+
+<div id="shortcut-bar">
+  <span><kbd>&#8592;&#8593;&#8595;&#8594;</kbd> Move</span>
+  <span><kbd>Shift</kbd> Fine</span>
+  <span><kbd>[ ]</kbd> Width</span>
+  <span><kbd>{ }</kbd> Height</span>
+  <span><kbd>Enter</kbd> <span class="confirm">Confirm</span></span>
+  <span><kbd>S</kbd> <span class="skip-label">Skip</span></span>
+  <span><kbd>Z</kbd> Back</span>
+  <span><kbd>R</kbd> Reset</span>
+  <span><kbd>Q</kbd> Quit</span>
+</div>
+
+<div id="done-overlay">
+  <div id="done-title">All images processed!</div>
+  <div id="done-stats"></div>
+</div>
+
+<script>
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+
+let state = null;       // server state
+let img = null;         // current Image object
+let imgW = 0, imgH = 0; // natural image dimensions
+
+// Box in normalized coords [0,1] relative to image
+let box = { x: 0.4, y: 0.45, w: 0.2, h: 0.1 };
+
+const COARSE = 20; // px
+const FINE = 3;    // px
+const SIZE_STEP_COARSE = 10; // px
+const SIZE_STEP_FINE = 3;    // px
+
+async function loadState() {
+  const resp = await fetch('/api/state');
+  state = await resp.json();
+  box = { ...state.last_box };
+  loadCurrentImage();
+}
+
+function loadCurrentImage() {
+  if (state.current_index >= state.total) {
+    showDone();
+    return;
+  }
+
+  const filename = state.images[state.current_index];
+  updateStatus(filename);
+
+  img = new Image();
+  img.onload = () => {
+    imgW = img.naturalWidth;
+    imgH = img.naturalHeight;
+    resizeCanvas();
+    draw();
+  };
+  img.src = '/photos/' + filename;
+}
+
+function resizeCanvas() {
+  const container = document.getElementById('canvas-container');
+  const maxW = container.clientWidth - 16;
+  const maxH = container.clientHeight - 16;
+
+  const scale = Math.min(maxW / imgW, maxH / imgH);
+  canvas.width = Math.floor(imgW * scale);
+  canvas.height = Math.floor(imgH * scale);
+}
+
+function draw() {
+  if (!img) return;
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+  // Draw bounding box
+  const bx = (box.x - box.w / 2) * canvas.width;
+  const by = (box.y - box.h / 2) * canvas.height;
+  const bw = box.w * canvas.width;
+  const bh = box.h * canvas.height;
+
+  ctx.strokeStyle = '#00ff88';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(bx, by, bw, bh);
+
+  // Semi-transparent fill
+  ctx.fillStyle = 'rgba(0, 255, 136, 0.08)';
+  ctx.fillRect(bx, by, bw, bh);
+
+  // Corner handles
+  const hs = 6;
+  ctx.fillStyle = '#00ff88';
+  ctx.fillRect(bx - hs/2, by - hs/2, hs, hs);
+  ctx.fillRect(bx + bw - hs/2, by - hs/2, hs, hs);
+  ctx.fillRect(bx - hs/2, by + bh - hs/2, hs, hs);
+  ctx.fillRect(bx + bw - hs/2, by + bh - hs/2, hs, hs);
+}
+
+function updateStatus(filename) {
+  document.getElementById('filename').textContent = filename || '';
+  document.getElementById('progress').textContent =
+    (state.current_index + 1) + ' / ' + state.total;
+  document.getElementById('labeled-count').textContent =
+    state.labeled.length + ' labeled';
+  document.getElementById('skipped-count').textContent =
+    state.skipped.length + ' skipped';
+}
+
+function showDone() {
+  document.getElementById('done-overlay').classList.add('visible');
+  document.getElementById('done-stats').textContent =
+    state.labeled.length + ' labeled, ' + state.skipped.length + ' skipped';
+}
+
+async function confirmLabel() {
+  const filename = state.images[state.current_index];
+  const nextIndex = state.current_index + 1;
+
+  await fetch('/api/label', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ filename, box, next_index: nextIndex }),
+  });
+
+  if (!state.labeled.includes(filename)) state.labeled.push(filename);
+  state.skipped = state.skipped.filter(function(f) { return f !== filename; });
+  state.current_index = nextIndex;
+  state.last_box = { x: box.x, y: box.y, w: box.w, h: box.h };
+  loadCurrentImage();
+}
+
+async function skipImage() {
+  const filename = state.images[state.current_index];
+  const nextIndex = state.current_index + 1;
+
+  await fetch('/api/skip', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ filename, next_index: nextIndex }),
+  });
+
+  if (!state.skipped.includes(filename)) state.skipped.push(filename);
+  state.labeled = state.labeled.filter(function(f) { return f !== filename; });
+  state.current_index = nextIndex;
+  loadCurrentImage();
+}
+
+function goBack() {
+  if (state.current_index <= 0) return;
+  state.current_index--;
+
+  fetch('/api/goto', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ index: state.current_index }),
+  }).then(function() { loadCurrentImage(); });
+}
+
+function resetBox() {
+  box = { x: 0.5, y: 0.5, w: 0.2, h: 0.1 };
+  draw();
+}
+
+document.addEventListener('keydown', function(e) {
+  if (state && state.current_index >= state.total) return;
+
+  var step = e.shiftKey ? FINE : COARSE;
+  var sizeStep = e.shiftKey ? SIZE_STEP_FINE : SIZE_STEP_COARSE;
+
+  switch (e.key) {
+    case 'ArrowLeft':
+      e.preventDefault();
+      box.x = Math.max(box.w / 2, box.x - step / imgW);
+      draw();
+      break;
+    case 'ArrowRight':
+      e.preventDefault();
+      box.x = Math.min(1 - box.w / 2, box.x + step / imgW);
+      draw();
+      break;
+    case 'ArrowUp':
+      e.preventDefault();
+      box.y = Math.max(box.h / 2, box.y - step / imgH);
+      draw();
+      break;
+    case 'ArrowDown':
+      e.preventDefault();
+      box.y = Math.min(1 - box.h / 2, box.y + step / imgH);
+      draw();
+      break;
+    case '[':
+      box.w = Math.max(0.02, box.w - sizeStep / imgW);
+      draw();
+      break;
+    case ']':
+      box.w = Math.min(1, box.w + sizeStep / imgW);
+      draw();
+      break;
+    case '{':
+      box.h = Math.max(0.02, box.h - sizeStep / imgH);
+      draw();
+      break;
+    case '}':
+      box.h = Math.min(1, box.h + sizeStep / imgH);
+      draw();
+      break;
+    case 'Enter':
+      e.preventDefault();
+      confirmLabel();
+      break;
+    case 's':
+    case 'S':
+      skipImage();
+      break;
+    case 'z':
+    case 'Z':
+      goBack();
+      break;
+    case 'r':
+    case 'R':
+      resetBox();
+      break;
+    case 'q':
+    case 'Q':
+      fetch('/api/goto', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ index: state.current_index }),
+      }).then(function() {
+        document.body.textContent = '';
+        var msg = document.createElement('div');
+        msg.style.cssText = 'display:flex;align-items:center;justify-content:center;height:100vh;font-size:20px;color:#e0e0e0;';
+        msg.textContent = 'Progress saved. You can close this tab.';
+        document.body.appendChild(msg);
+      });
+      break;
+  }
+});
+
+// Auto-resize canvas on window resize
+window.addEventListener('resize', function() {
+  if (img && imgW) {
+    resizeCanvas();
+    draw();
+  }
+});
+
+// Start
+loadState();
+</script>
+</body>
+</html>
