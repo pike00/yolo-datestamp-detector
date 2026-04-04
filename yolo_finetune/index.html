@@ -39,6 +39,24 @@
   canvas {
     max-width: 100%;
     max-height: 100%;
+    cursor: crosshair;
+  }
+
+  .box-type {
+    font-size: 12px;
+    margin-top: 5px;
+    padding: 5px;
+    border-radius: 4px;
+  }
+
+  .box-type.model {
+    background-color: #ffd700;
+    color: #333;
+  }
+
+  .box-type.user {
+    background-color: #00aa00;
+    color: white;
   }
 
   #shortcut-bar {
@@ -52,6 +70,52 @@
     justify-content: center;
     border-top: 1px solid #333;
     flex-shrink: 0;
+  }
+
+  #button-bar {
+    background: #16213e;
+    padding: 8px 16px;
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+    flex-wrap: wrap;
+    border-top: 1px solid #333;
+    flex-shrink: 0;
+  }
+  button {
+    background: #2a2a4a;
+    color: #e0e0e0;
+    border: 1px solid #444;
+    padding: 6px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 12px;
+  }
+  button:active {
+    background: #3a3a5a;
+  }
+  button.primary {
+    background: #00aa44;
+    color: #fff;
+    border-color: #00ff88;
+  }
+  button.warning {
+    background: #aa8800;
+    border-color: #ffcc00;
+  }
+
+  #draw-mode {
+    position: fixed;
+    bottom: 120px;
+    right: 16px;
+    background: #2a2a4a;
+    padding: 8px 12px;
+    border-radius: 4px;
+    border: 1px solid #00ff88;
+    color: #00ff88;
+    font-size: 12px;
+    pointer-events: none;
   }
   kbd {
     background: #2a2a4a;
@@ -91,16 +155,23 @@
   <canvas id="canvas"></canvas>
 </div>
 
+<div id="button-bar">
+  <button id="btn-reset" class="primary">🔄 Reset Box</button>
+  <button id="btn-confirm" class="primary">✓ Confirm (Enter)</button>
+  <button id="btn-skip" class="warning">⊘ Skip (S)</button>
+  <button id="btn-back">← Back (Z)</button>
+</div>
+
 <div id="shortcut-bar">
-  <span><kbd>&#8592;&#8593;&#8595;&#8594;</kbd> Move corner</span>
-  <span><kbd>Shift</kbd> Move box</span>
-  <span><kbd>Tab</kbd> <span id="corner-indicator">Corner: BR</span></span>
+  <span><kbd>Tap image</kbd> Draw box (2 taps: corner 1 → corner 2)</span>
+  <span><kbd>Drag corners</kbd> Adjust box</span>
   <span><kbd>Enter</kbd> <span class="confirm">Confirm</span></span>
   <span><kbd>S</kbd> <span class="skip-label">Skip</span></span>
   <span><kbd>Z</kbd> Back</span>
   <span><kbd>R</kbd> Reset</span>
-  <span><kbd>Q</kbd> Quit</span>
 </div>
+
+<div id="draw-mode">Tap image to draw</div>
 
 <div id="done-overlay">
   <div id="done-title">All images processed!</div>
@@ -118,11 +189,14 @@ let imgW = 0, imgH = 0; // natural image dimensions
 // Box in normalized coords [0,1] relative to image (center + size)
 let box = { x: 0.4, y: 0.45, w: 0.2, h: 0.1 };
 
-// 'br' = bottom-right corner active, 'tl' = top-left corner active
-let activeCorner = 'br';
-
 const COARSE = 20; // px
 const FINE = 3;    // px
+
+// Touch/stylus drawing state
+let drawMode = false;
+let cornerCount = 0;
+let corner1 = null;
+let draggingCorner = null;
 
 async function loadState() {
   const resp = await fetch('/api/state');
@@ -165,46 +239,49 @@ function draw() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
+  // Determine box color based on source
+  const isModelPrediction = box.model_confidence !== undefined;
+  const boxColor = isModelPrediction ? '#FFD700' : '#00FF00';  // Yellow for model, green for user
+  const lineWidth = isModelPrediction ? 3 : 2;
+
   // Draw bounding box
   const bx = (box.x - box.w / 2) * canvas.width;
   const by = (box.y - box.h / 2) * canvas.height;
   const bw = box.w * canvas.width;
   const bh = box.h * canvas.height;
 
-  ctx.strokeStyle = '#00ff88';
-  ctx.lineWidth = 2;
+  ctx.strokeStyle = boxColor;
+  ctx.lineWidth = lineWidth;
   ctx.strokeRect(bx, by, bw, bh);
 
   // Semi-transparent fill
-  ctx.fillStyle = 'rgba(0, 255, 136, 0.08)';
+  if (isModelPrediction) {
+    ctx.fillStyle = 'rgba(255, 215, 0, 0.08)';
+  } else {
+    ctx.fillStyle = 'rgba(0, 255, 0, 0.08)';
+  }
   ctx.fillRect(bx, by, bw, bh);
 
-  // Corner handles — active corner highlighted yellow
+  // Corner handles
   var hs = 8;
-  var activeHs = 12;
-  var normalColor = '#00ff88';
-  var activeColor = '#ffdd00';
-
-  // Top-left
-  ctx.fillStyle = (activeCorner === 'tl') ? activeColor : normalColor;
-  var tlHs = (activeCorner === 'tl') ? activeHs : hs;
-  ctx.fillRect(bx - tlHs/2, by - tlHs/2, tlHs, tlHs);
-
-  // Top-right
-  ctx.fillStyle = normalColor;
+  ctx.fillStyle = boxColor;
+  ctx.fillRect(bx - hs/2, by - hs/2, hs, hs);
   ctx.fillRect(bx + bw - hs/2, by - hs/2, hs, hs);
-
-  // Bottom-left
   ctx.fillRect(bx - hs/2, by + bh - hs/2, hs, hs);
+  ctx.fillRect(bx + bw - hs/2, by + bh - hs/2, hs, hs);
 
-  // Bottom-right
-  ctx.fillStyle = (activeCorner === 'br') ? activeColor : normalColor;
-  var brHs = (activeCorner === 'br') ? activeHs : hs;
-  ctx.fillRect(bx + bw - brHs/2, by + bh - brHs/2, brHs, brHs);
+  // Show confidence if model prediction
+  if (isModelPrediction) {
+    const conf = box.model_confidence;
+    ctx.fillStyle = '#FFD700';
+    ctx.font = '14px monospace';
+    ctx.fillText('Model: ' + (conf * 100).toFixed(0) + '%', 10, 30);
+  }
 }
 
 function updateStatus(filename) {
-  document.getElementById('filename').textContent = filename || '';
+  const mode = state.mode === 'correct' ? '(CORRECT MODE)' : '';
+  document.getElementById('filename').textContent = (filename || '') + ' ' + mode;
   document.getElementById('progress').textContent =
     (state.current_index + 1) + ' / ' + state.total;
   document.getElementById('labeled-count').textContent =
@@ -268,20 +345,18 @@ function resetBox() {
   draw();
 }
 
-function moveCorner(dx, dy) {
-  // Convert center+size to corners
+// Shift+arrow: move the edge in that direction
+// e.g. Shift+Left moves the left edge left, Shift+Right moves the right edge right
+function moveEdge(direction, step) {
   var x1 = box.x - box.w / 2;
   var y1 = box.y - box.h / 2;
   var x2 = box.x + box.w / 2;
   var y2 = box.y + box.h / 2;
 
-  if (activeCorner === 'tl') {
-    x1 = Math.max(0, Math.min(x2 - 0.02, x1 + dx));
-    y1 = Math.max(0, Math.min(y2 - 0.02, y1 + dy));
-  } else {
-    x2 = Math.min(1, Math.max(x1 + 0.02, x2 + dx));
-    y2 = Math.min(1, Math.max(y1 + 0.02, y2 + dy));
-  }
+  if (direction === 'left')  x1 = Math.max(0, Math.min(x2 - 0.02, x1 - step));
+  if (direction === 'right') x2 = Math.min(1, Math.max(x1 + 0.02, x2 + step));
+  if (direction === 'up')    y1 = Math.max(0, Math.min(y2 - 0.02, y1 - step));
+  if (direction === 'down')  y2 = Math.min(1, Math.max(y1 + 0.02, y2 + step));
 
   box.w = x2 - x1;
   box.h = y2 - y1;
@@ -294,41 +369,137 @@ function moveBox(dx, dy) {
   box.y = Math.min(1 - box.h / 2, Math.max(box.h / 2, box.y + dy));
 }
 
+// Touch/Stylus Canvas Events - Drag-to-define box
+let isDrawing = false;
+
+canvas.addEventListener('pointerdown', function(e) {
+  if (!img) return;
+
+  const rect = canvas.getBoundingClientRect();
+  const x = (e.clientX - rect.left) / canvas.width;
+  const y = (e.clientY - rect.top) / canvas.height;
+
+  // Check if clicking on an existing corner handle to adjust
+  const bx = (box.x - box.w / 2);
+  const by = (box.y - box.h / 2);
+  const bx2 = bx + box.w;
+  const by2 = by + box.h;
+  const threshold = 0.04;
+
+  if (Math.abs(x - bx) < threshold && Math.abs(y - by) < threshold) {
+    draggingCorner = 'tl';
+  } else if (Math.abs(x - bx2) < threshold && Math.abs(y - by) < threshold) {
+    draggingCorner = 'tr';
+  } else if (Math.abs(x - bx) < threshold && Math.abs(y - by2) < threshold) {
+    draggingCorner = 'bl';
+  } else if (Math.abs(x - bx2) < threshold && Math.abs(y - by2) < threshold) {
+    draggingCorner = 'br';
+  } else {
+    // Start new box: tap-drag-release to define corners
+    corner1 = { x, y };
+    isDrawing = true;
+    document.getElementById('draw-mode').textContent = 'Dragging... release to finish';
+  }
+
+  e.preventDefault();
+});
+
+canvas.addEventListener('pointermove', function(e) {
+  if (!img) return;
+
+  const rect = canvas.getBoundingClientRect();
+  const x = (e.clientX - rect.left) / canvas.width;
+  const y = (e.clientY - rect.top) / canvas.height;
+
+  // If adjusting existing corner
+  if (draggingCorner) {
+    let x1 = box.x - box.w / 2;
+    let y1 = box.y - box.h / 2;
+    let x2 = box.x + box.w / 2;
+    let y2 = box.y + box.h / 2;
+
+    if (draggingCorner === 'tl') { x1 = x; y1 = y; }
+    else if (draggingCorner === 'tr') { x2 = x; y1 = y; }
+    else if (draggingCorner === 'bl') { x1 = x; y2 = y; }
+    else if (draggingCorner === 'br') { x2 = x; y2 = y; }
+
+    x1 = Math.max(0, Math.min(x1, 1));
+    y1 = Math.max(0, Math.min(y1, 1));
+    x2 = Math.max(0, Math.min(x2, 1));
+    y2 = Math.max(0, Math.min(y2, 1));
+
+    if (x2 - x1 > 0.02 && y2 - y1 > 0.02) {
+      box.w = x2 - x1;
+      box.h = y2 - y1;
+      box.x = (x1 + x2) / 2;
+      box.y = (y1 + y2) / 2;
+      draw();
+    }
+  }
+  // If drawing new box
+  else if (isDrawing && corner1) {
+    let x1 = Math.min(corner1.x, x);
+    let y1 = Math.min(corner1.y, y);
+    let x2 = Math.max(corner1.x, x);
+    let y2 = Math.max(corner1.y, y);
+
+    box.w = x2 - x1;
+    box.h = y2 - y1;
+    box.x = (x1 + x2) / 2;
+    box.y = (y1 + y2) / 2;
+    draw();
+  }
+
+  e.preventDefault();
+});
+
+canvas.addEventListener('pointerup', function() {
+  if (isDrawing) {
+    isDrawing = false;
+    corner1 = null;
+    document.getElementById('draw-mode').textContent = 'Box drawn. Drag corners to adjust, then confirm →';
+  }
+  draggingCorner = null;
+});
+
+// Button handlers
+document.getElementById('btn-confirm').addEventListener('click', confirmLabel);
+document.getElementById('btn-skip').addEventListener('click', skipImage);
+document.getElementById('btn-back').addEventListener('click', goBack);
+document.getElementById('btn-reset').addEventListener('click', resetBox);
+
 document.addEventListener('keydown', function(e) {
   if (state && state.current_index >= state.total) return;
 
-  var step = COARSE;
+  var step = e.shiftKey ? FINE : COARSE;
 
   switch (e.key) {
-    case 'Tab':
-      e.preventDefault();
-      activeCorner = (activeCorner === 'br') ? 'tl' : 'br';
-      document.getElementById('corner-indicator').textContent =
-        'Corner: ' + (activeCorner === 'br' ? 'BR' : 'TL');
-      draw();
-      break;
     case 'ArrowLeft':
       e.preventDefault();
-      if (e.shiftKey) { moveBox(-step / imgW, 0); }
-      else { moveCorner(-step / imgW, 0); }
+      if (e.shiftKey) { moveEdge('left', FINE / imgW); }
+      else if (e.altKey) { moveEdge('right', -FINE / imgW); }
+      else { moveBox(-COARSE / imgW, 0); }
       draw();
       break;
     case 'ArrowRight':
       e.preventDefault();
-      if (e.shiftKey) { moveBox(step / imgW, 0); }
-      else { moveCorner(step / imgW, 0); }
+      if (e.shiftKey) { moveEdge('right', FINE / imgW); }
+      else if (e.altKey) { moveEdge('left', -FINE / imgW); }
+      else { moveBox(COARSE / imgW, 0); }
       draw();
       break;
     case 'ArrowUp':
       e.preventDefault();
-      if (e.shiftKey) { moveBox(0, -step / imgH); }
-      else { moveCorner(0, -step / imgH); }
+      if (e.shiftKey) { moveEdge('up', FINE / imgH); }
+      else if (e.altKey) { moveEdge('down', -FINE / imgH); }
+      else { moveBox(0, -COARSE / imgH); }
       draw();
       break;
     case 'ArrowDown':
       e.preventDefault();
-      if (e.shiftKey) { moveBox(0, step / imgH); }
-      else { moveCorner(0, step / imgH); }
+      if (e.shiftKey) { moveEdge('down', FINE / imgH); }
+      else if (e.altKey) { moveEdge('up', -FINE / imgH); }
+      else { moveBox(0, COARSE / imgH); }
       draw();
       break;
     case 'Enter':
