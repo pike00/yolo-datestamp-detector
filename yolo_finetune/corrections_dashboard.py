@@ -50,8 +50,8 @@ class DashboardHandler(SimpleHTTPRequestHandler):
             try:
                 body = self.rfile.read(int(content_length))
                 data = json.loads(body)
-            except json.JSONDecodeError:
-                self.send_error(400, "Invalid JSON")
+            except (ValueError, json.JSONDecodeError):
+                self.send_error(400, "Invalid Content-Length or JSON")
                 return
 
             result = handle_action(data)
