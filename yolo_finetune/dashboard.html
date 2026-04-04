@@ -383,8 +383,238 @@
     </div>
 
     <script>
-        // JavaScript will be added in next tasks
-        console.log("Dashboard HTML loaded");
+        // Global state
+        let queue = [];
+        let currentFilter = "all";
+        let currentSort = "created";
+        let selectedFile = null;
+        let currentImage = null;
+        let currentBox = { x: 0.5, y: 0.5, w: 0.2, h: 0.1 };
+        let editMode = false;
+
+        const canvas = document.getElementById("canvas");
+        const ctx = canvas.getContext("2d");
+
+        // Initialize dashboard
+        async function initDashboard() {
+            try {
+                const response = await fetch("/api/queue");
+                queue = await response.json();
+                renderQueueList();
+                setupFilterButtons();
+                setupSortDropdown();
+            } catch (error) {
+                console.error("Error loading queue:", error);
+            }
+        }
+
+        // Render queue list
+        function renderQueueList() {
+            const queueList = document.getElementById("queueList");
+            queueList.textContent = "";
+
+            const filteredQueue = queue.files.filter(f => {
+                if (currentFilter === "all") return true;
+                return f.status === currentFilter;
+            });
+
+            const sortedQueue = sortQueue(filteredQueue);
+
+            for (const file of sortedQueue) {
+                const item = document.createElement("div");
+                item.className = "queue-item";
+                if (selectedFile && selectedFile.stem === file.stem) {
+                    item.classList.add("active");
+                }
+
+                const confidence = file.inference_data?.confidence || 0;
+                const confidenceStr = confidence > 0 ? `${(confidence * 100).toFixed(0)}%` : "—";
+
+                // Build item content safely
+                const stemDiv = document.createElement("div");
+                stemDiv.className = "queue-item-stem";
+                stemDiv.textContent = file.stem;
+                item.appendChild(stemDiv);
+
+                const metaDiv = document.createElement("div");
+                metaDiv.className = "queue-item-meta";
+
+                const sourceBadge = document.createElement("span");
+                sourceBadge.className = `meta-badge source-${file.source}`;
+                sourceBadge.textContent = file.source;
+                metaDiv.appendChild(sourceBadge);
+
+                const statusBadge = document.createElement("span");
+                statusBadge.className = `meta-badge status-${file.status.replace("_", "_")}`;
+                statusBadge.textContent = file.status;
+                metaDiv.appendChild(statusBadge);
+
+                if (file.inference_data?.confidence > 0) {
+                    const confBadge = document.createElement("span");
+                    confBadge.className = "meta-badge";
+                    confBadge.textContent = confidenceStr;
+                    metaDiv.appendChild(confBadge);
+                }
+
+                item.appendChild(metaDiv);
+                item.addEventListener("click", () => selectFile(file));
+                queueList.appendChild(item);
+            }
+        }
+
+        // Sort queue
+        function sortQueue(files) {
+            const sorted = [...files];
+            switch (currentSort) {
+                case "created":
+                    sorted.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+                    break;
+                case "reviewed":
+                    sorted.sort((a, b) => {
+                        const aTime = a.last_reviewed_at ? new Date(a.last_reviewed_at) : new Date(0);
+                        const bTime = b.last_reviewed_at ? new Date(b.last_reviewed_at) : new Date(0);
+                        return bTime - aTime;
+                    });
+                    break;
+                case "confidence":
+                    sorted.sort((a, b) => {
+                        const aConf = a.inference_data?.confidence || 0;
+                        const bConf = b.inference_data?.confidence || 0;
+                        return bConf - aConf;
+                    });
+                    break;
+            }
+            return sorted;
+        }
+
+        // Setup filter buttons
+        function setupFilterButtons() {
+            const filters = document.getElementById("filters");
+            filters.querySelectorAll("button").forEach(btn => {
+                btn.addEventListener("click", () => {
+                    filters.querySelectorAll("button").forEach(b => b.classList.remove("active"));
+                    btn.classList.add("active");
+                    currentFilter = btn.dataset.filter;
+                    renderQueueList();
+                });
+            });
+        }
+
+        // Setup sort dropdown
+        function setupSortDropdown() {
+            const sortBy = document.getElementById("sortBy");
+            sortBy.addEventListener("change", (e) => {
+                currentSort = e.target.value;
+                renderQueueList();
+            });
+        }
+
+        // Select a file from queue
+        async function selectFile(file) {
+            selectedFile = file;
+            currentBox = file.user_correction || file.inference_data || { x: 0.5, y: 0.5, w: 0.2, h: 0.1 };
+            updateBoxInputs();
+            updateInfoPanel();
+            await loadImage();
+            renderQueueList();
+            updateHeader();
+        }
+
+        // Load image from server
+        async function loadImage() {
+            return new Promise((resolve) => {
+                const img = new Image();
+                img.onload = () => {
+                    currentImage = img;
+                    drawCanvas();
+                    resolve();
+                };
+                img.onerror = () => {
+                    console.error("Failed to load image");
+                    resolve();
+                };
+                img.src = `/api/image/${selectedFile.stem}`;
+            });
+        }
+
+        // Draw canvas with image and box overlay
+        function drawCanvas() {
+            if (!currentImage) {
+                ctx.fillStyle = "#333";
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.fillStyle = "#999";
+                ctx.font = "14px sans-serif";
+                ctx.textAlign = "center";
+                ctx.fillText("No image loaded", canvas.width / 2, canvas.height / 2);
+                return;
+            }
+
+            // Clear canvas and draw image
+            canvas.width = currentImage.width;
+            canvas.height = currentImage.height;
+            ctx.drawImage(currentImage, 0, 0);
+
+            // Draw bounding box
+            const x = currentBox.x * canvas.width;
+            const y = currentBox.y * canvas.height;
+            const w = currentBox.w * canvas.width;
+            const h = currentBox.h * canvas.height;
+
+            // Determine box color based on source and state
+            let boxColor = "#888"; // Gray for originals
+            if (selectedFile.source === "inference") {
+                boxColor = "#ffff00"; // Yellow for predictions
+            }
+            if (selectedFile.user_correction) {
+                boxColor = "#00ff00"; // Green for edited
+            }
+
+            // Draw box
+            ctx.strokeStyle = boxColor;
+            ctx.lineWidth = 2;
+            ctx.strokeRect(x, y, w, h);
+
+            // Draw corners
+            const cornerSize = 6;
+            ctx.fillStyle = boxColor;
+            ctx.fillRect(x - cornerSize / 2, y - cornerSize / 2, cornerSize, cornerSize);
+            ctx.fillRect(x + w - cornerSize / 2, y - cornerSize / 2, cornerSize, cornerSize);
+            ctx.fillRect(x - cornerSize / 2, y + h - cornerSize / 2, cornerSize, cornerSize);
+            ctx.fillRect(x + w - cornerSize / 2, y + h - cornerSize / 2, cornerSize, cornerSize);
+        }
+
+        // Update box coordinate inputs
+        function updateBoxInputs() {
+            document.getElementById("boxX").value = currentBox.x.toFixed(2);
+            document.getElementById("boxY").value = currentBox.y.toFixed(2);
+            document.getElementById("boxW").value = currentBox.w.toFixed(2);
+            document.getElementById("boxH").value = currentBox.h.toFixed(2);
+        }
+
+        // Update info panel
+        function updateInfoPanel() {
+            document.getElementById("infoSource").textContent = selectedFile.source;
+            document.getElementById("infoStatus").textContent = selectedFile.status;
+            const confidence = selectedFile.inference_data?.confidence || 0;
+            document.getElementById("infoConfidence").textContent = confidence > 0 ? `${(confidence * 100).toFixed(0)}%` : "—";
+        }
+
+        // Update header
+        function updateHeader() {
+            if (!selectedFile) {
+                document.getElementById("canvasHeader").textContent = "Select a file from the queue";
+            } else {
+                const position = queue.files.indexOf(selectedFile) + 1;
+                const total = queue.files.length;
+                document.getElementById("canvasHeader").textContent = `${selectedFile.stem} (${selectedFile.source}) — Position ${position}/${total}`;
+            }
+        }
+
+        // Initialize on load
+        window.addEventListener("load", () => {
+            initDashboard();
+            updateHeader();
+        });
     </script>
 </body>
 </html>
