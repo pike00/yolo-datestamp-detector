@@ -144,15 +144,83 @@ def prepare():
     print("Ready for annotation. Run: python annotate.py")
 
 
-if __name__ == "__main__":
+def finalize():
+    """
+    Move annotated images from to_annotate to corrections.
+    Check that each image has a corresponding label file.
+    """
+    if not TO_ANNOTATE_DIR.exists() or not list(TO_ANNOTATE_DIR.glob("*")):
+        print(f"No images in {TO_ANNOTATE_DIR} to finalize.")
+        return
+
+    images = sorted(TO_ANNOTATE_DIR.glob("*.jpg")) + sorted(TO_ANNOTATE_DIR.glob("*.JPG"))
+    if not images:
+        print("No images found.")
+        return
+
+    print(f"Finalizing {len(images)} images from {TO_ANNOTATE_DIR}...")
+
+    CORRECTIONS_DIR.mkdir(parents=True, exist_ok=True)
+    labeled_count = 0
+    skipped_count = 0
+
+    for img in images:
+        stem = img.stem
+        dst_img = CORRECTIONS_DIR / img.name
+
+        # Move image
+        dst_img.write_bytes(img.read_bytes())
+        img.unlink()
+
+        # Check for label file
+        label_file = BASE_DIR / "dataset" / "labels" / f"{stem}.txt"
+        if label_file.exists():
+            dst_label = CORRECTIONS_DIR / f"{stem}.txt"
+            dst_label.write_bytes(label_file.read_bytes())
+            labeled_count += 1
+        else:
+            # Image was skipped (no box) — will be negative example
+            skipped_count += 1
+
+    print(f"✓ Moved {labeled_count} labeled images to {CORRECTIONS_DIR}")
+    print(f"✓ Moved {skipped_count} skipped (negative) images to {CORRECTIONS_DIR}")
+    print(f"✓ Cleared {TO_ANNOTATE_DIR}")
+
+
+def status():
+    """Show current feedback loop status."""
+    corrections_in_dir = sum(1 for p in CORRECTIONS_DIR.glob("*.txt")) if CORRECTIONS_DIR.exists() else 0
+    skipped_in_dir = sum(1 for p in CORRECTIONS_DIR.glob("*.jpg")) - corrections_in_dir if CORRECTIONS_DIR.exists() else 0
+    to_annotate_count = sum(1 for p in TO_ANNOTATE_DIR.glob("*.jpg")) if TO_ANNOTATE_DIR.exists() else 0
+
+    print("\n=== Feedback Loop Status ===")
+    print(f"Accumulated corrections: {corrections_in_dir} labeled + {skipped_in_dir} skipped (negative)")
+    print(f"Pending annotation: {to_annotate_count} images in {TO_ANNOTATE_DIR}")
+
+    if CORRECTIONS_META_FILE.exists():
+        meta = load_corrections_meta()
+        with_boxes = sum(1 for v in meta.values() if v.get("x") is not None)
+        print(f"Model predictions saved: {with_boxes} with boxes, {len(meta) - with_boxes} no detection")
+
+
+def main():
+    """Parse command-line arguments and dispatch."""
     if len(sys.argv) < 2:
-        print("Usage: python feedback.py <command>")
-        print("Commands: prepare")
+        print("Usage: python feedback.py {prepare|finalize|status}")
         sys.exit(1)
 
-    command = sys.argv[1]
+    command = sys.argv[1].lower()
+
     if command == "prepare":
         prepare()
+    elif command == "finalize":
+        finalize()
+    elif command == "status":
+        status()
     else:
         print(f"Unknown command: {command}")
         sys.exit(1)
+
+
+if __name__ == "__main__":
+    main()
