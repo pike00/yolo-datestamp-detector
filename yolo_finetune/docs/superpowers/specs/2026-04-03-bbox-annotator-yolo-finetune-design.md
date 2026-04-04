@@ -60,10 +60,17 @@ Browser-based: Python `http.server` backend serves the UI and a REST API. The fr
 
 ### Display
 
-- Dark background, photo centered and scaled to fit viewport.
+- Dark background, photo scaled to fill the majority of the viewport (max-fit, preserving aspect ratio).
+- Minimal chrome: thin status bar top, compact shortcut reference bottom. The image canvas should occupy ~90% of the window height.
 - Green bounding box overlay with corner handles.
 - Top status bar: filename, progress (N/M), labeled count, skipped count.
-- Bottom bar: keyboard shortcut reference.
+- Bottom bar: keyboard shortcut reference (single line).
+
+### Focus
+
+- The page auto-focuses the canvas element on load via `autofocus` and a `window.onload` focus call.
+- No other focusable elements (no buttons, inputs, or links) that could steal keyboard focus.
+- All interaction is via `keydown` listeners on the document — focus cannot be lost.
 
 ### Persistence
 
