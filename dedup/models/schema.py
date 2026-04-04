@@ -107,7 +107,7 @@ class FinalReport(Base):
     """Summary statistics after pipeline completion."""
     __tablename__ = "final_report"
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
+    id = Column(Integer, primary_key=True)  # DuckDB: let it auto-increment without explicit autoincrement=True
     stage_completed = Column(String(32), nullable=False)
     total_files_analyzed = Column(Integer, nullable=False, default=0)
     unique_files = Column(Integer, nullable=False, default=0)
