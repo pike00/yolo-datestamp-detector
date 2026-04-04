@@ -518,6 +518,7 @@
             await loadImage();
             renderQueueList();
             updateHeader();
+            updateButtonStates();
         }
 
         // Load image from server
@@ -610,9 +611,201 @@
             }
         }
 
+        // Setup action button handlers
+        function setupActionButtons() {
+            document.getElementById("confirmBtn").addEventListener("click", () => performAction("confirmed"));
+            document.getElementById("editBtn").addEventListener("click", () => {
+                editMode = !editMode;
+                document.getElementById("editBtn").textContent = editMode ? "Exit Edit Mode" : "Edit Mode";
+            });
+            document.getElementById("noStampBtn").addEventListener("click", () => performAction("no_stamp"));
+            document.getElementById("skipBtn").addEventListener("click", () => performAction("skipped"));
+            document.getElementById("nextBtn").addEventListener("click", () => selectNextFile());
+            document.getElementById("trainBtn").addEventListener("click", () => triggerTraining());
+        }
+
+        // Perform action
+        async function performAction(action) {
+            if (!selectedFile) return;
+
+            try {
+                const response = await fetch("/api/action", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        stem: selectedFile.stem,
+                        action: action,
+                        box: action !== "no_stamp" ? currentBox : null
+                    })
+                });
+
+                const result = await response.json();
+                if (result.success) {
+                    // Refresh queue and move to next
+                    await initDashboard();
+                    selectNextFile();
+                } else {
+                    console.error("Action failed:", result.error);
+                }
+            } catch (error) {
+                console.error("Error performing action:", error);
+            }
+        }
+
+        // Select next file
+        function selectNextFile() {
+            const filteredQueue = queue.files.filter(f => {
+                if (currentFilter === "all") return true;
+                return f.status === currentFilter;
+            });
+
+            if (!selectedFile) {
+                if (filteredQueue.length > 0) selectFile(filteredQueue[0]);
+                return;
+            }
+
+            const currentIndex = filteredQueue.indexOf(selectedFile);
+            if (currentIndex < filteredQueue.length - 1) {
+                selectFile(filteredQueue[currentIndex + 1]);
+            }
+        }
+
+        // Trigger training
+        async function triggerTraining() {
+            const trainBtn = document.getElementById("trainBtn");
+            const trainingStatus = document.getElementById("trainingStatus");
+
+            trainBtn.disabled = true;
+            trainingStatus.style.display = "block";
+            trainingStatus.textContent = "Training in progress...";
+
+            try {
+                const response = await fetch("/api/train", { method: "POST" });
+                const result = await response.json();
+
+                if (result.success) {
+                    trainingStatus.textContent = "Training completed!";
+                    await initDashboard();
+                    selectedFile = null;
+                    currentImage = null;
+                    renderQueueList();
+                    updateHeader();
+                    drawCanvas();
+                } else {
+                    trainingStatus.textContent = `Error: ${result.error}`;
+                }
+            } catch (error) {
+                trainingStatus.textContent = `Error: ${error.message}`;
+                console.error("Training failed:", error);
+            } finally {
+                trainBtn.disabled = false;
+                setTimeout(() => {
+                    trainingStatus.style.display = "none";
+                }, 3000);
+            }
+        }
+
+        // Keyboard controls
+        function setupKeyboardControls() {
+            document.addEventListener("keydown", (e) => {
+                if (!selectedFile) return;
+
+                const pixelSize = 20;
+                const finePixelSize = 3;
+                const canvasWidth = currentImage ? currentImage.width : 1;
+                const canvasHeight = currentImage ? currentImage.height : 1;
+
+                const moveStep = e.shiftKey ? finePixelSize / canvasWidth : pixelSize / canvasWidth;
+                const moveStepY = e.shiftKey ? finePixelSize / canvasHeight : pixelSize / canvasHeight;
+                const sizeStep = 0.05;
+
+                switch (e.key) {
+                    case "ArrowLeft":
+                        currentBox.x = Math.max(0, currentBox.x - moveStep);
+                        drawCanvas();
+                        updateBoxInputs();
+                        e.preventDefault();
+                        break;
+                    case "ArrowRight":
+                        currentBox.x = Math.min(1 - currentBox.w, currentBox.x + moveStep);
+                        drawCanvas();
+                        updateBoxInputs();
+                        e.preventDefault();
+                        break;
+                    case "ArrowUp":
+                        currentBox.y = Math.max(0, currentBox.y - moveStepY);
+                        drawCanvas();
+                        updateBoxInputs();
+                        e.preventDefault();
+                        break;
+                    case "ArrowDown":
+                        currentBox.y = Math.min(1 - currentBox.h, currentBox.y + moveStepY);
+                        drawCanvas();
+                        updateBoxInputs();
+                        e.preventDefault();
+                        break;
+                    case "[":
+                        currentBox.w = Math.max(0.05, currentBox.w - sizeStep);
+                        drawCanvas();
+                        updateBoxInputs();
+                        e.preventDefault();
+                        break;
+                    case "]":
+                        currentBox.w = Math.min(1 - currentBox.x, currentBox.w + sizeStep);
+                        drawCanvas();
+                        updateBoxInputs();
+                        e.preventDefault();
+                        break;
+                    case "{":
+                        currentBox.h = Math.max(0.05, currentBox.h - sizeStep);
+                        drawCanvas();
+                        updateBoxInputs();
+                        e.preventDefault();
+                        break;
+                    case "}":
+                        currentBox.h = Math.min(1 - currentBox.y, currentBox.h + sizeStep);
+                        drawCanvas();
+                        updateBoxInputs();
+                        e.preventDefault();
+                        break;
+                    case "Enter":
+                        performAction("confirmed");
+                        e.preventDefault();
+                        break;
+                    case "s":
+                    case "S":
+                        performAction("no_stamp");
+                        e.preventDefault();
+                        break;
+                    case "z":
+                    case "Z":
+                        // Go back - not implemented yet
+                        e.preventDefault();
+                        break;
+                    case "q":
+                    case "Q":
+                        // Quit - would close the app
+                        e.preventDefault();
+                        break;
+                }
+            });
+        }
+
+        // Update button states
+        function updateButtonStates() {
+            const hasFile = selectedFile !== null;
+            document.getElementById("confirmBtn").disabled = !hasFile;
+            document.getElementById("editBtn").disabled = !hasFile;
+            document.getElementById("noStampBtn").disabled = !hasFile;
+            document.getElementById("skipBtn").disabled = !hasFile;
+            document.getElementById("nextBtn").disabled = !hasFile;
+        }
+
         // Initialize on load
         window.addEventListener("load", () => {
             initDashboard();
+            setupActionButtons();
+            setupKeyboardControls();
             updateHeader();
         });
     </script>
