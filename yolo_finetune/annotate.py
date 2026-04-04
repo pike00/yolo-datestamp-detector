@@ -76,13 +76,28 @@ def load_progress():
     """Load or initialize annotation progress."""
     if PROGRESS_FILE.exists():
         with open(PROGRESS_FILE) as f:
-            return json.load(f)
-    return {
-        "current_index": 0,
-        "last_box": {"x": 0.4, "y": 0.45, "w": 0.2, "h": 0.1},
-        "labeled": [],
-        "skipped": [],
-    }
+            data = json.load(f)
+    else:
+        data = {
+            "current_index": 0,
+            "last_box": {"x": 0.4, "y": 0.45, "w": 0.2, "h": 0.1},
+            "labeled": [],
+            "skipped": [],
+        }
+
+    # In correct mode, pre-load predictions for all images
+    if ARGS.mode == "correct":
+        files = get_image_files()
+        for filename in files:
+            stem = Path(filename).stem
+            if stem not in data.get("labeled", []) and stem not in data.get("skipped", []):
+                if stem in PREDICTIONS_META:
+                    pred = PREDICTIONS_META[stem]
+                    if pred.get("x") is not None:
+                        # Pre-populate with model prediction
+                        data[f"prediction_{stem}"] = pred
+
+    return data
 
 
 def save_progress(progress):
@@ -174,13 +189,34 @@ class AnnotationHandler(http.server.SimpleHTTPRequestHandler):
     def _get_state(self):
         images = get_image_files()
         progress = load_progress()
+        current_idx = progress.get("current_index", 0)
+
+        # Load box: use prediction if in correct mode, else use last_box or default
+        box = progress.get("last_box") or {"x": 0.4, "y": 0.45, "w": 0.2, "h": 0.1}
+
+        if current_idx < len(images):
+            current_file = images[current_idx]
+            stem = Path(current_file).stem
+
+            if ARGS.mode == "correct" and stem in PREDICTIONS_META:
+                pred = PREDICTIONS_META[stem]
+                if pred.get("x") is not None:
+                    box = {
+                        "x": pred["x"],
+                        "y": pred["y"],
+                        "w": pred["w"],
+                        "h": pred["h"],
+                    }
+                    box["model_confidence"] = pred.get("confidence", 0)  # Mark as from model
+
         return {
             "images": images,
             "total": len(images),
-            "current_index": progress["current_index"],
-            "last_box": progress["last_box"],
+            "current_index": current_idx,
+            "box": box,
             "labeled": progress["labeled"],
             "skipped": progress["skipped"],
+            "mode": ARGS.mode,
         }
 
     def _handle_label(self, body):
