@@ -6,7 +6,9 @@
 
 import json
 import sys
+import subprocess
 from pathlib import Path
+from datetime import datetime
 from http.server import HTTPServer, SimpleHTTPRequestHandler
 
 BASE_DIR = Path(__file__).parent
@@ -55,6 +57,9 @@ class DashboardHandler(SimpleHTTPRequestHandler):
                 return
 
             result = handle_action(data)
+            self.serve_json(result)
+        elif self.path == "/api/train":
+            result = train()
             self.serve_json(result)
         else:
             self.send_error(404)
@@ -199,8 +204,80 @@ def get_queue():
 
 
 def handle_action(data):
-    """Placeholder - will be implemented in Task 3."""
-    return {"error": "Action handler not yet implemented"}
+    """Handle user actions (confirm, edit, skip, no_stamp)."""
+    stem = data["stem"]
+    action = data["action"]
+    box = data.get("box")  # {x, y, w, h} - normalized coordinates
+
+    queue = load_queue()
+    file_entry = next((f for f in queue["files"] if f["stem"] == stem), None)
+
+    if not file_entry:
+        return {"error": "File not found"}
+
+    # Update queue entry
+    file_entry["status"] = "reviewed"
+    file_entry["last_reviewed_at"] = datetime.now().isoformat()
+    file_entry["user_correction"] = {
+        "x": box["x"] if box else None,
+        "y": box["y"] if box else None,
+        "w": box["w"] if box else None,
+        "h": box["h"] if box else None,
+        "action": action,
+    }
+
+    # Perform action-specific operations
+    if action == "confirmed" or action == "edited":
+        # Save label file
+        label_content = f"0 {box['x']} {box['y']} {box['w']} {box['h']}\n"
+        label_path = LABELS_DIR / f"{stem}.txt"
+        label_path.write_text(label_content)
+
+    elif action == "no_stamp":
+        # Add to skipped images
+        skipped = set()
+        if SKIPPED_FILE.exists():
+            skipped = {line.strip() for line in SKIPPED_FILE.read_text().splitlines()}
+        skipped.add(stem)
+        SKIPPED_FILE.write_text("\n".join(sorted(skipped)) + "\n")
+
+    elif action == "skipped":
+        # Mark as needs_fix for re-inference
+        file_entry["status"] = "needs_fix"
+
+    save_queue(queue)
+    return {"success": True, "status": file_entry["status"]}
+
+
+def train():
+    """Trigger training with accumulated corrections."""
+    try:
+        result = subprocess.run(
+            ["python", str(BASE_DIR / "train.py")],
+            cwd=str(BASE_DIR),
+            capture_output=True,
+            text=True,
+            timeout=3600
+        )
+
+        if result.returncode == 0:
+            # Clear corrections after successful training
+            for f in CORRECTIONS_DIR.glob("*"):
+                if f.is_file():
+                    f.unlink()
+
+            # Reset all statuses to pending for re-inference
+            queue = load_queue()
+            for f in queue["files"]:
+                f["status"] = "pending"
+            save_queue(queue)
+
+            return {"success": True, "message": "Training completed"}
+        else:
+            return {"success": False, "error": result.stderr}
+
+    except Exception as e:
+        return {"success": False, "error": str(e)}
 
 
 def main():
