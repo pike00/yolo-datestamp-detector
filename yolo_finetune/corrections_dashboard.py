@@ -110,9 +110,92 @@ class DashboardHandler(SimpleHTTPRequestHandler):
             print(f"HTTP {args[0]}: {args[1]}")
 
 
+def load_queue():
+    """Load corrections queue from JSON, or create if doesn't exist."""
+    if QUEUE_FILE.exists():
+        with open(QUEUE_FILE) as f:
+            return json.load(f)
+    return {"files": [], "last_inference_run": None}
+
+
+def save_queue(queue):
+    """Save queue to JSON."""
+    with open(QUEUE_FILE, "w") as f:
+        json.dump(queue, f, indent=2)
+
+
+def load_corrections_meta():
+    """Load inference predictions from corrections_meta.json."""
+    if CORRECTIONS_META_FILE.exists():
+        with open(CORRECTIONS_META_FILE) as f:
+            return json.load(f)
+    return {}
+
+
+def discover_files():
+    """Discover all files (originals + inference results) and return queue."""
+    from datetime import datetime
+
+    queue = load_queue()
+    existing_stems = {f["stem"] for f in queue["files"]}
+    corrections_meta = load_corrections_meta()
+
+    # Scan original samples
+    for ext in (".jpg", ".JPG"):
+        for img_path in SAMPLE_DIR.glob(f"*{ext}"):
+            stem = img_path.stem
+            if stem not in existing_stems:
+                queue["files"].append({
+                    "stem": stem,
+                    "source": "original",
+                    "status": "pending",
+                    "created_at": datetime.now().isoformat(),
+                    "last_reviewed_at": None,
+                    "inference_data": None,
+                    "user_correction": None,
+                })
+                existing_stems.add(stem)
+
+    # Scan inference results
+    for img_path in INFER_OUTPUT_DIR.glob("*_detected.jpg"):
+        stem = img_path.stem.replace("_detected", "")
+        if stem not in existing_stems:
+            inference_data = corrections_meta.get(stem, {
+                "x": None, "y": None, "w": None, "h": None, "confidence": 0.0
+            })
+            queue["files"].append({
+                "stem": stem,
+                "source": "inference",
+                "status": "pending",
+                "created_at": datetime.now().isoformat(),
+                "last_reviewed_at": None,
+                "inference_data": inference_data,
+                "user_correction": None,
+            })
+            existing_stems.add(stem)
+        else:
+            # Update inference data for existing file
+            for f in queue["files"]:
+                if f["stem"] == stem and f["source"] == "inference":
+                    f["inference_data"] = corrections_meta.get(stem, {
+                        "x": None, "y": None, "w": None, "h": None, "confidence": 0.0
+                    })
+
+    # Mark already-labeled files as reviewed
+    labeled_stems = {p.stem for p in LABELS_DIR.glob("*.txt")}
+    for f in queue["files"]:
+        if f["stem"] in labeled_stems and f["status"] == "pending":
+            f["status"] = "reviewed"
+
+    save_queue(queue)
+    return queue
+
+
 def get_queue():
-    """Placeholder - will be implemented in Task 2."""
-    return {"files": [], "error": "Queue not yet implemented"}
+    """Get current queue with all files."""
+    discover_files()  # Update discoveries
+    queue = load_queue()
+    return queue
 
 
 def handle_action(data):
