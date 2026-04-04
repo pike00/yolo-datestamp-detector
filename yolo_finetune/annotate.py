@@ -1,5 +1,9 @@
+# /// script
+# requires-python = ">=3.14"
+# ///
 """Annotation server — serves UI and REST API for bounding box labeling."""
 
+import argparse
 import http.server
 import json
 import os
@@ -10,12 +14,48 @@ from urllib.parse import urlparse, parse_qs
 
 PORT = 8888
 BASE_DIR = Path(__file__).parent
-IMAGE_DIR = BASE_DIR.parent / "photo_mapping_samples"
+
+
+def parse_args():
+    """Parse command-line arguments."""
+    parser = argparse.ArgumentParser(description="Annotate bounding boxes on images")
+    parser.add_argument("--mode", choices=["annotate", "correct"], default="annotate",
+                        help="annotate: label new images; correct: review model predictions")
+    return parser.parse_args()
+
+
+ARGS = parse_args()
+
+# Determine image source based on mode
+if ARGS.mode == "correct":
+    IMAGE_DIR = BASE_DIR / "dataset" / "to_annotate"
+    CORRECTIONS_METADATA_PATH = BASE_DIR / "dataset" / "corrections" / "corrections_meta.json"
+else:
+    IMAGE_DIR = BASE_DIR.parent / "photo_mapping_samples"
+    CORRECTIONS_METADATA_PATH = None
+
 DATASET_DIR = BASE_DIR / "dataset"
 LABELS_DIR = DATASET_DIR / "labels"
 IMAGES_DIR = DATASET_DIR / "images"
-PROGRESS_FILE = BASE_DIR / "progress.json"
+
+# Use different progress files for different modes
+if ARGS.mode == "correct":
+    PROGRESS_FILE = BASE_DIR / "progress_correct.json"
+else:
+    PROGRESS_FILE = BASE_DIR / "progress.json"
+
 SKIPPED_FILE = BASE_DIR / "skipped.txt"
+
+
+def load_predictions_metadata():
+    """Load model predictions from corrections_meta.json if in correct mode."""
+    if ARGS.mode == "correct" and CORRECTIONS_METADATA_PATH and CORRECTIONS_METADATA_PATH.exists():
+        with open(CORRECTIONS_METADATA_PATH) as f:
+            return json.load(f)
+    return {}
+
+
+PREDICTIONS_META = load_predictions_metadata()
 
 
 def get_image_files():
@@ -216,8 +256,8 @@ def main():
     print(f"Starting server on http://localhost:{PORT}")
     print("Open that URL in your browser to begin annotating.")
 
+    socketserver.TCPServer.allow_reuse_address = True
     with socketserver.TCPServer(("", PORT), AnnotationHandler) as httpd:
-        httpd.allow_reuse_address = True
         try:
             httpd.serve_forever()
         except KeyboardInterrupt:
