@@ -196,8 +196,8 @@ class AnnotationHandler(http.server.SimpleHTTPRequestHandler):
         self.wfile.write(json.dumps(data).encode())
 
     def log_message(self, format, *args):
-        # Suppress request logs except errors
-        if args and isinstance(args[0], str) and args[0].startswith("4"):
+        # Suppress request logs except errors (args[1] is the status code)
+        if len(args) >= 2 and str(args[1]).startswith(("4", "5")):
             super().log_message(format, *args)
 
 
