@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Corrections Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #1e1e1e;
+            color: #e0e0e0;
+            overflow: hidden;
+        }
+
+        .container {
+            display: flex;
+            height: 100vh;
+        }
+
+        /* LEFT SIDEBAR: QUEUE VIEW */
+        .queue-view {
+            width: 300px;
+            background: #252525;
+            border-right: 1px solid #3e3e3e;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .queue-header {
+            padding: 15px;
+            border-bottom: 1px solid #3e3e3e;
+        }
+
+        .queue-header h2 {
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+
+        .filter-buttons {
+            display: flex;
+            gap: 5px;
+            flex-wrap: wrap;
+            margin-bottom: 10px;
+        }
+
+        .filter-buttons button {
+            padding: 4px 8px;
+            font-size: 11px;
+            background: #3e3e3e;
+            border: 1px solid #555;
+            color: #e0e0e0;
+            cursor: pointer;
+            border-radius: 3px;
+            transition: all 0.2s;
+        }
+
+        .filter-buttons button:hover {
+            background: #4e4e4e;
+        }
+
+        .filter-buttons button.active {
+            background: #007acc;
+            border-color: #0098ff;
+        }
+
+        .sort-options {
+            display: flex;
+            gap: 5px;
+        }
+
+        .sort-options select {
+            padding: 4px 8px;
+            font-size: 11px;
+            background: #3e3e3e;
+            border: 1px solid #555;
+            color: #e0e0e0;
+            cursor: pointer;
+            border-radius: 3px;
+        }
+
+        .queue-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 10px;
+        }
+
+        .queue-item {
+            padding: 10px;
+            margin-bottom: 8px;
+            background: #2d2d2d;
+            border: 1px solid #3e3e3e;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .queue-item:hover {
+            background: #353535;
+            border-color: #4e4e4e;
+        }
+
+        .queue-item.active {
+            background: #1e3a5f;
+            border-color: #007acc;
+        }
+
+        .queue-item-stem {
+            font-weight: 600;
+            font-size: 12px;
+            margin-bottom: 5px;
+        }
+
+        .queue-item-meta {
+            display: flex;
+            gap: 5px;
+            flex-wrap: wrap;
+            font-size: 10px;
+        }
+
+        .meta-badge {
+            padding: 2px 6px;
+            background: #3e3e3e;
+            border-radius: 2px;
+        }
+
+        .source-original {
+            background: #4a5568;
+        }
+
+        .source-inference {
+            background: #744210;
+        }
+
+        .status-pending {
+            background: #5f4a00;
+        }
+
+        .status-reviewed {
+            background: #0a4a0a;
+        }
+
+        .status-needs_fix {
+            background: #4a1010;
+        }
+
+        /* CENTER: CANVAS EDITOR */
+        .canvas-editor {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: #1e1e1e;
+            overflow: hidden;
+        }
+
+        .canvas-header {
+            padding: 10px 15px;
+            background: #252525;
+            border-bottom: 1px solid #3e3e3e;
+            font-size: 12px;
+            color: #a0a0a0;
+        }
+
+        .canvas-container {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #000;
+            overflow: hidden;
+        }
+
+        #canvas {
+            max-width: 100%;
+            max-height: 100%;
+            cursor: crosshair;
+        }
+
+        #canvas.disabled {
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+
+        /* RIGHT SIDEBAR: ACTION PANEL */
+        .action-panel {
+            width: 250px;
+            background: #252525;
+            border-left: 1px solid #3e3e3e;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+            padding: 15px;
+        }
+
+        .action-panel h3 {
+            font-size: 12px;
+            font-weight: 600;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            color: #a0a0a0;
+        }
+
+        .action-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-bottom: 15px;
+        }
+
+        .action-buttons button {
+            padding: 8px 12px;
+            font-size: 12px;
+            background: #3e3e3e;
+            border: 1px solid #555;
+            color: #e0e0e0;
+            cursor: pointer;
+            border-radius: 3px;
+            transition: all 0.2s;
+        }
+
+        .action-buttons button:hover:not(:disabled) {
+            background: #4e4e4e;
+        }
+
+        .action-buttons button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .action-buttons button.confirm {
+            background: #0a6a0a;
+            border-color: #0f9d0f;
+        }
+
+        .action-buttons button.confirm:hover:not(:disabled) {
+            background: #0d8a0d;
+        }
+
+        .action-buttons button.skip {
+            background: #4a1010;
+            border-color: #8a2020;
+        }
+
+        .action-buttons button.skip:hover:not(:disabled) {
+            background: #5a1515;
+        }
+
+        .info-section {
+            margin-bottom: 15px;
+        }
+
+        .info-label {
+            font-size: 10px;
+            color: #a0a0a0;
+            margin-bottom: 5px;
+            text-transform: uppercase;
+        }
+
+        .info-value {
+            font-size: 11px;
+            padding: 8px;
+            background: #1e1e1e;
+            border: 1px solid #3e3e3e;
+            border-radius: 3px;
+            word-break: break-all;
+        }
+
+        .train-button {
+            background: #0070c0;
+            border-color: #0098ff;
+            color: white;
+            margin-top: auto;
+            padding: 10px 12px;
+            font-weight: 600;
+        }
+
+        .train-button:hover:not(:disabled) {
+            background: #0080d0;
+        }
+
+        .train-button:disabled {
+            background: #555;
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .training-status {
+            padding: 10px;
+            background: #1e3a5f;
+            border: 1px solid #007acc;
+            border-radius: 3px;
+            font-size: 11px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- LEFT: QUEUE VIEW -->
+        <div class="queue-view">
+            <div class="queue-header">
+                <h2>Queue</h2>
+                <div class="filter-buttons" id="filters">
+                    <button class="active" data-filter="all">All</button>
+                    <button data-filter="pending">Pending</button>
+                    <button data-filter="reviewed">Reviewed</button>
+                    <button data-filter="needs_fix">Needs Fix</button>
+                </div>
+                <div class="sort-options">
+                    <select id="sortBy">
+                        <option value="created">Date Added</option>
+                        <option value="reviewed">Last Reviewed</option>
+                        <option value="confidence">Confidence</option>
+                    </select>
+                </div>
+            </div>
+            <div class="queue-list" id="queueList"></div>
+        </div>
+
+        <!-- CENTER: CANVAS EDITOR -->
+        <div class="canvas-editor">
+            <div class="canvas-header" id="canvasHeader">
+                Select a file from the queue
+            </div>
+            <div class="canvas-container">
+                <canvas id="canvas"></canvas>
+            </div>
+        </div>
+
+        <!-- RIGHT: ACTION PANEL -->
+        <div class="action-panel">
+            <h3>Actions</h3>
+            <div class="action-buttons">
+                <button class="confirm" id="confirmBtn" disabled>Confirm</button>
+                <button id="editBtn" disabled>Edit Mode</button>
+                <button id="noStampBtn" disabled>Mark No Stamp</button>
+                <button class="skip" id="skipBtn" disabled>Skip</button>
+                <button id="nextBtn" disabled>Next</button>
+            </div>
+
+            <h3>Box Coordinates</h3>
+            <div class="info-section">
+                <div class="info-label">X</div>
+                <input type="number" id="boxX" min="0" max="1" step="0.01" class="info-value" style="width: 100%; padding: 4px;">
+            </div>
+            <div class="info-section">
+                <div class="info-label">Y</div>
+                <input type="number" id="boxY" min="0" max="1" step="0.01" class="info-value" style="width: 100%; padding: 4px;">
+            </div>
+            <div class="info-section">
+                <div class="info-label">Width</div>
+                <input type="number" id="boxW" min="0" max="1" step="0.01" class="info-value" style="width: 100%; padding: 4px;">
+            </div>
+            <div class="info-section">
+                <div class="info-label">Height</div>
+                <input type="number" id="boxH" min="0" max="1" step="0.01" class="info-value" style="width: 100%; padding: 4px;">
+            </div>
+
+            <h3>Info</h3>
+            <div class="info-section">
+                <div class="info-label">Source</div>
+                <div class="info-value" id="infoSource">—</div>
+            </div>
+            <div class="info-section">
+                <div class="info-label">Confidence</div>
+                <div class="info-value" id="infoConfidence">—</div>
+            </div>
+            <div class="info-section">
+                <div class="info-label">Status</div>
+                <div class="info-value" id="infoStatus">—</div>
+            </div>
+
+            <button class="train-button" id="trainBtn">Train Now</button>
+            <div class="training-status" id="trainingStatus" style="display: none;"></div>
+        </div>
+    </div>
+
+    <script>
+        // JavaScript will be added in next tasks
+        console.log("Dashboard HTML loaded");
+    </script>
+</body>
+</html>

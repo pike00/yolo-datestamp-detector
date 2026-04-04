@@ -111,8 +111,13 @@ class DashboardHandler(SimpleHTTPRequestHandler):
     def log_message(self, format, *args):
         """Log HTTP requests and errors."""
         # Log errors (status >= 400) but suppress routine requests
-        if len(args) > 1 and args[0] >= 400:
-            print(f"HTTP {args[0]}: {args[1]}")
+        if len(args) > 0:
+            try:
+                status = int(args[0]) if isinstance(args[0], str) else args[0]
+                if status >= 400:
+                    print(f"HTTP {status}: {args[1] if len(args) > 1 else ''}")
+            except (ValueError, IndexError, TypeError):
+                pass
 
 
 def load_queue():
