@@ -1,3 +1,6 @@
+# /// script
+# requires-python = ">=3.14"
+# ///
 #!/usr/bin/env python3
 """Unified corrections dashboard for YOLO feedback loop."""
 
@@ -5,8 +8,6 @@ import json
 import sys
 from pathlib import Path
 from http.server import HTTPServer, SimpleHTTPRequestHandler
-from datetime import datetime
-import subprocess
 
 BASE_DIR = Path(__file__).parent
 DATASET_DIR = BASE_DIR / "dataset"
@@ -41,8 +42,18 @@ class DashboardHandler(SimpleHTTPRequestHandler):
     def do_POST(self):
         """Handle POST requests."""
         if self.path == "/api/action":
-            body = self.rfile.read(int(self.headers["Content-Length"]))
-            data = json.loads(body)
+            content_length = self.headers.get("Content-Length")
+            if not content_length:
+                self.send_error(400, "Missing Content-Length header")
+                return
+
+            try:
+                body = self.rfile.read(int(content_length))
+                data = json.loads(body)
+            except json.JSONDecodeError:
+                self.send_error(400, "Invalid JSON")
+                return
+
             result = handle_action(data)
             self.serve_json(result)
         else:
@@ -93,8 +104,10 @@ class DashboardHandler(SimpleHTTPRequestHandler):
         self.send_error(404)
 
     def log_message(self, format, *args):
-        """Suppress default logging."""
-        pass
+        """Log HTTP requests and errors."""
+        # Log errors (status >= 400) but suppress routine requests
+        if len(args) > 1 and args[0] >= 400:
+            print(f"HTTP {args[0]}: {args[1]}")
 
 
 def get_queue():
