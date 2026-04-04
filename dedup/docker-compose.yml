@@ -1,0 +1,23 @@
+version: '3.9'
+
+services:
+  dedup:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - /mnt/823c9bf9-838a-4591-a00f-ae361fcb4792/Photos/img:/mnt/hdd:ro
+      - /home/will/photo_project:/workspace:rw
+    environment:
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID}
+      - HDD_SOURCE_PATH=/mnt/hdd
+      - SSD_STAGING_PATH=/workspace/staging
+      - SSD_ORIGINALS_PATH=/workspace/originals
+      - SSD_DB_PATH=/workspace/dedup.duckdb
+      - THREAD_WORKERS=4
+      - RETRY_LIMIT=2
+      - RUN_STAGES=0,1,2,3,4,5
+    working_dir: /app
+    env_file:
+      - .env
