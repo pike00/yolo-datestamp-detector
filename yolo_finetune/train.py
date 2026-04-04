@@ -1,3 +1,10 @@
+# /// script
+# requires-python = ">=3.14"
+# dependencies = [
+#     "ultralytics>=8.0",
+#     "pyyaml",
+# ]
+# ///
 """YOLO fine-tuning on annotated bounding box data."""
 
 import random
@@ -19,6 +26,33 @@ VAL_RATIO = 0.2
 
 def setup_dataset():
     """Split labeled + skipped images into train/val with YOLO directory structure."""
+    # Merge corrections into main dataset before collecting
+    CORRECTIONS_DIR = BASE_DIR / "dataset" / "corrections"
+    if CORRECTIONS_DIR.exists():
+        print(f"Merging corrections from {CORRECTIONS_DIR}...")
+
+        # Merge labeled images (copy .txt files)
+        for label_file in CORRECTIONS_DIR.glob("*.txt"):
+            dst_label = LABELS_DIR / label_file.name
+            if not dst_label.exists():
+                dst_label.write_bytes(label_file.read_bytes())
+
+        # Merge skipped images (add to skipped.txt)
+        correction_images = {p.stem for p in CORRECTIONS_DIR.glob("*.jpg")}
+        correction_images |= {p.stem for p in CORRECTIONS_DIR.glob("*.JPG")}
+        correction_labeled = {p.stem for p in CORRECTIONS_DIR.glob("*.txt")}
+        correction_skipped = correction_images - correction_labeled
+
+        if correction_skipped:
+            existing_skipped = set()
+            if SKIPPED_FILE.exists():
+                existing_skipped = {
+                    line.strip() for line in SKIPPED_FILE.read_text().splitlines()
+                }
+
+            new_skipped = existing_skipped | correction_skipped
+            SKIPPED_FILE.write_text("\n".join(sorted(new_skipped)) + "\n")
+
     # Collect labeled images (those with a .txt in labels/)
     labeled = sorted(p.stem for p in LABELS_DIR.glob("*.txt"))
     if not labeled:
