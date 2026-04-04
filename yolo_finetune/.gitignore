@@ -1,0 +1,7 @@
+dataset/
+runs/
+progress.json
+skipped.txt
+__pycache__/
+*.pyc
+.superpowers/
