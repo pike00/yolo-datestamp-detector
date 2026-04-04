@@ -282,18 +282,22 @@ document.addEventListener('keydown', function(e) {
       break;
     case '[':
       box.w = Math.max(0.02, box.w - sizeStep / imgW);
+      box.x = Math.min(1 - box.w / 2, Math.max(box.w / 2, box.x));
       draw();
       break;
     case ']':
       box.w = Math.min(1, box.w + sizeStep / imgW);
+      box.x = Math.min(1 - box.w / 2, Math.max(box.w / 2, box.x));
       draw();
       break;
     case '{':
       box.h = Math.max(0.02, box.h - sizeStep / imgH);
+      box.y = Math.min(1 - box.h / 2, Math.max(box.h / 2, box.y));
       draw();
       break;
     case '}':
       box.h = Math.min(1, box.h + sizeStep / imgH);
+      box.y = Math.min(1 - box.h / 2, Math.max(box.h / 2, box.y));
       draw();
       break;
     case 'Enter':
