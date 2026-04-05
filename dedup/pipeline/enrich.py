@@ -1,7 +1,7 @@
 import logging
 import os
 from utils.db import get_session, close_session
-from utils.exif import read_exif_metadata, is_media_file
+from utils.exif import read_exif_metadata, is_media_file, EMPTY_RESULT
 from utils.threading import ThreadedExecutor
 from models import SourceFile, UniqueFile
 
@@ -32,12 +32,7 @@ def enrich_hash(args: tuple) -> dict:
                     break  # Found good EXIF, stop
 
         if metadata is None:
-            metadata = {
-                "exif_score": 0.0,
-                "exif_datetime": None,
-                "exif_gps": None,
-                "exif_fields_count": 0,
-            }
+            metadata = EMPTY_RESULT.copy()
 
         # Upsert unique_files entry with EXIF data
         unique_file = UniqueFile(
