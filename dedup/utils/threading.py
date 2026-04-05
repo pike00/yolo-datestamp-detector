@@ -43,13 +43,16 @@ class ThreadedExecutor:
             futures = {executor.submit(fn, item): item for item in to_process}
 
             completed = 0
+            total = len(to_process)
+            log_interval = max(1, total // 100)  # Log every ~1%
             for future in as_completed(futures):
                 try:
                     result = future.result()
                     results.append(result)
                     completed += 1
-                    if completed % 10 == 0:
-                        logger.debug(f"{task_name}: {completed}/{len(to_process)} items processed")
+                    if completed % log_interval == 0 or completed == total:
+                        pct = completed * 100 // total
+                        logger.info(f"{task_name}: {completed}/{total} ({pct}%)")
                 except Exception as e:
                     item = futures[future]
                     logger.error(f"{task_name}: Error processing {item}: {e}")
