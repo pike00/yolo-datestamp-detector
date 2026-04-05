@@ -1,4 +1,4 @@
-# Phase 2 Dedup Pipeline
+# Dedup Pipeline (PostgreSQL + Docker)
 
 Docker-based multi-threaded deduplication pipeline for 77K media files (467GB → 45K unique).
 
@@ -6,219 +6,267 @@ Docker-based multi-threaded deduplication pipeline for 77K media files (467GB �
 
 ### Prerequisites
 - Docker and Docker Compose installed
-- Telegram bot token and chat ID (get from BotFather on Telegram)
-- 1.2TB free SSD space for staging and dedup
+- Telegram bot token and chat ID (optional, for notifications)
+- 1.2TB free SSD space for staging and originals
 
 ### Setup
 
-1. **Copy environment template:**
+1. **Review/edit environment:**
 ```bash
 cd /home/will/photo_project/dedup
-cp .env.example .env
+cat .env  # Check PostgreSQL credentials and paths
 ```
 
-2. **Fill in Telegram credentials in .env:**
-```bash
-TELEGRAM_BOT_TOKEN=your_bot_token_here
-TELEGRAM_CHAT_ID=your_chat_id_here
-```
-
-3. **Build Docker image:**
+2. **Build Docker image and start services:**
 ```bash
 docker-compose build
+docker-compose up -d postgres  # Start database first
+docker-compose up dedup        # Run pipeline
 ```
 
-4. **Run the pipeline:**
-```bash
-docker-compose up
-```
-
-The pipeline will run all 6 stages (0-5) overnight and send a Telegram notification on completion.
+The pipeline will run all 4 stages (0-3) and send a Telegram notification on completion.
 
 ## Architecture
 
-### Six Sequential Stages
+### Four Sequential Stages
 
 | Stage | Name | Duration | Purpose |
 |-------|------|----------|---------|
-| 0 | Preflight Copy | 2-3 hrs | HDD → SSD staging (467GB) |
-| 1 | Load | 5-10 min | Parse SHA256SUMS.txt → `file_paths` table |
-| 2 | Enrich | 1-2 hrs | Read EXIF metadata (4 threads) |
-| 3 | Select | 1-2 min | Choose canonical per hash group |
-| 4 | Copy | 2-4 hrs | Copy canonicals to `originals/` (4 threads) |
-| 5 | Verify | 1-2 hrs | Re-hash verification (4 threads) |
+| 0 | **Ingest** | 2-3 hrs | HDD → SSD staging, compute SHA-256 hashes |
+| 1 | **Enrich** | 1-2 hrs | Extract EXIF metadata (4 threads) |
+| 2 | **Deduplicate** | 1-2 min | Select canonical per hash using priority rules |
+| 3 | **Export** | 2-4 hrs | Copy canonicals to `originals/` and verify (4 threads) |
 
-**Total Time:** 6-12 hours (typically ~8 hrs)
+**Total Time:** 5-10 hours (typically ~7 hrs)
 
 ### Key Design Decisions
 
-- **Hash-based file names**: `originals/<hash>.<ext>` (collision-proof)
-- **DuckDB checkpoint storage**: Each stage reads/writes DB; resumable on interrupt
-- **Multi-threaded I/O**: Stages 2, 4, 5 use ThreadPoolExecutor (4 workers default)
-- **Folder cohesion tiebreaker**: When EXIF scores tie, prefer files from dominant source folder
+- **Hash-based file names**: `originals/<hash>.<ext>` (collision-proof, content-addressable)
+- **PostgreSQL with connection pooling**: Robust relational DB with better concurrency than DuckDB
+- **2-table schema**: Simplified schema (SourceFile + UniqueFile) vs 6+ tables
+- **Priority-based canonical selection**:
+  1. EXIF score (metadata richness)
+  2. Folder priority: `iCloudPhotos > Photos > 20230513 ios Photos > Pictures > Desktop > *`
+  3. Shortest path (tiebreaker)
 - **Resumability**: Every stage checks DB; skips completed work
+
+### Reorganized Code Structure
+
+```
+dedup/
+├── pipeline/               # New: 4 focused stages
+│   ├── ingest.py          # Copy + hash
+│   ├── enrich.py          # EXIF extraction only
+│   ├── deduplicate.py     # Canonical selection
+│   └── export.py          # Copy + verify
+├── models/schema.py       # 2 tables: SourceFile, UniqueFile
+├── utils/
+│   ├── db.py             # PostgreSQL with pooling (was DuckDB)
+│   ├── exif.py           # EXIF metadata extraction
+│   ├── threading.py      # Multi-threaded executor
+│   └── notifications.py  # Telegram alerts
+├── config.py             # Environment-based config
+└── main.py              # Orchestrator
+```
 
 ## Database Schema
 
-DuckDB at `/home/will/photo_project/dedup.duckdb` contains 7 tables:
+PostgreSQL at `postgres://dedup:dedup_local_dev@localhost:5432/dedup` contains 2 tables:
 
-- **file_paths**: All 95K files from SHA256SUMS.txt (hash, path, size, source_folder, ext)
-- **files**: EXIF metadata per unique hash (exif_score, datetime, gps, fields_count)
-- **canonicals**: Selected canonical per hash (duplicate_count, verified flag)
-- **copy_progress**: Stage 4 progress (status: pending/done/error, copied_path)
-- **staging_progress**: Stage 0 progress (source_path, staging_path, status)
-- **final_report**: Pipeline summary (total_files, unique_count, space_saved, duration)
-
-Query examples:
+### `source_files`
+All discovered files with their content hash.
 ```sql
--- How many files copied?
-SELECT COUNT(*) FROM copy_progress WHERE status='done';
+path              TEXT PRIMARY KEY   -- relative path from HDD root
+sha256            TEXT NOT NULL      -- content hash
+size              BIGINT             -- file size in bytes
+source_folder     TEXT               -- top-level folder (Desktop, iCloudPhotos, etc.)
+filename          TEXT               -- basename
+extension         TEXT               -- file extension (.jpg, .mov, etc.)
+ingested_at       TIMESTAMP          -- creation time
+```
 
--- Space saved?
-SELECT SUM(total_size_saved_bytes) / 1e9 AS gb_saved FROM canonicals;
+### `unique_files`
+One row per unique SHA-256 hash with canonical selection and export tracking.
+```sql
+sha256            TEXT PRIMARY KEY   -- content hash
+canonical_path    TEXT NOT NULL      -- selected canonical relative path
+selection_reason  TEXT               -- "exif", "folder_priority", "shortest_path", "only_copy"
+duplicate_count   INT                -- number of duplicates eliminated
+exif_score        FLOAT              -- EXIF metadata richness (0-1)
+exif_datetime     TIMESTAMP          -- DateTimeOriginal from EXIF
+exif_gps          TEXT               -- GPS coordinates if present
+exif_fields_count INT                -- number of EXIF fields
+export_status     TEXT               -- "pending" / "copied" / "verified" / "error" / "mismatch"
+export_path       TEXT               -- destination path in originals/
+verified_hash     TEXT               -- re-computed hash after copy (for verification)
+error_msg         TEXT               -- error message if export_status='error'
+retry_count       INT                -- retry attempts
+created_at        TIMESTAMP          -- entry creation time
+updated_at        TIMESTAMP          -- last update time
+```
 
--- Errors?
-SELECT hash, error_msg FROM copy_progress WHERE status='error' LIMIT 10;
+### Monitoring Queries
+
+```sql
+-- Total unique files and duplicates
+SELECT COUNT(*) as unique_files, SUM(duplicate_count) as duplicates_eliminated
+FROM unique_files;
+
+-- Export status summary
+SELECT export_status, COUNT(*) FROM unique_files GROUP BY export_status;
+
+-- Space saved by source folder
+SELECT 
+  sf.source_folder, 
+  COUNT(DISTINCT sf.sha256) as copies_eliminated
+FROM source_files sf
+JOIN unique_files uf ON sf.sha256 = uf.sha256
+WHERE sf.path != uf.canonical_path
+GROUP BY sf.source_folder
+ORDER BY 2 DESC;
+
+-- Files with EXIF metadata
+SELECT COUNT(*) FROM unique_files WHERE exif_fields_count > 0;
+
+-- Verification failures
+SELECT sha256, error_msg FROM unique_files WHERE export_status IN ('error', 'mismatch');
 ```
 
 ## Configuration
 
-Edit `.env` to override defaults:
+### Environment Variables (.env)
 
 ```bash
-# Paths (defaults point to /home/will/photo_project/)
+# Storage paths
 HDD_SOURCE_PATH=/mnt/823c9bf9-838a-4591-a00f-ae361fcb4792/Photos/img/
 SSD_STAGING_PATH=/home/will/photo_project/staging/
 SSD_ORIGINALS_PATH=/home/will/photo_project/originals/
-SSD_DB_PATH=/home/will/photo_project/dedup.duckdb
 
-# Threading
-THREAD_WORKERS=4
-RETRY_LIMIT=2
+# PostgreSQL database
+DB_HOST=postgres                    # Docker service name
+DB_PORT=5432                        # PostgreSQL port
+DB_NAME=dedup                       # Database name
+DB_USER=dedup                       # Database user
+DB_PASSWORD=dedup_local_dev         # Database password
 
-# Stages (comma-separated, e.g., skip stage 0 with "1,2,3,4,5")
-RUN_STAGES=0,1,2,3,4,5
+# Pipeline control
+THREAD_WORKERS=4                    # Threads per stage (increase for faster I/O)
+RETRY_LIMIT=2                       # Retries on transient errors
 
-# Telegram
-TELEGRAM_BOT_TOKEN=your_token
-TELEGRAM_CHAT_ID=your_chat_id
+# Stages to run (0=ingest, 1=enrich, 2=deduplicate, 3=export)
+RUN_STAGES=0,1,2,3                  # Run all stages (or "2,3" to skip ingestion)
+
+# Telegram notifications (optional)
+TELEGRAM_BOT_TOKEN=disabled         # Set to actual token for alerts
+TELEGRAM_CHAT_ID=disabled           # Set to actual chat ID for alerts
 ```
 
 ## Monitoring Progress
 
 ### While Running
 
-**In Docker logs:**
+**Docker logs:**
 ```bash
-docker-compose logs -f dedup
+docker-compose logs -f dedup       # Pipeline logs
+docker-compose logs -f postgres    # Database logs
 ```
 
-**Query DB from host:**
+**Query database from host:**
 ```bash
-duckdb /home/will/photo_project/dedup.duckdb
-SELECT stage_completed, COUNT(*) FROM final_report;
-SELECT status, COUNT(*) FROM copy_progress GROUP BY status;
+docker exec dedup-postgres psql -U dedup -d dedup -c \
+  "SELECT export_status, COUNT(*) FROM unique_files GROUP BY export_status;"
 ```
 
 ### Resume After Interrupt
 
-The pipeline is fully resumable:
+The pipeline is fully resumable. Each stage checks the DB and skips completed work:
 ```bash
-# Just restart it
-docker-compose up
+# Restart where it left off
+docker-compose up dedup
 
-# Or skip completed stages
-sed -i 's/RUN_STAGES=.*/RUN_STAGES=3,4,5/' .env  # Skip 0-2, resume from stage 3
-docker-compose up
+# Or skip already-completed stages
+sed -i 's/RUN_STAGES=.*/RUN_STAGES=2,3/' .env  # Skip stages 0-1, resume from dedup
+docker-compose up dedup
 ```
+
+## Staging Path Handling
+
+**Important**: The pipeline preserves relative directory structure in staging:
+- Source: `/mnt/hdd/Desktop/photo.jpg`
+- Staging: `/staging/Desktop/photo.jpg` (preserves Desktop folder)
+- Database: `path = "Desktop/photo.jpg"` (relative, no leading slash)
+
+This allows easy resumption and debugging. If staging is deleted, Stage 0 will re-copy from scratch.
 
 ## Debugging
 
 ### Common Issues
 
 **"Source file not found"**
-- Stage 0 copy didn't complete or staging/ was deleted
-- Solution: Delete `staging/` and `dedup.duckdb`, restart from Stage 0
+- Staging directory was deleted or incomplete copy from Stage 0
+- Solution: Remove staging and run `RUN_STAGES=0` to re-ingest, or `RUN_STAGES=0,1,2,3` to restart full pipeline
 
 **"Hash mismatch in verification"**
-- File was corrupted during copy or HDD changed
-- Check: `SELECT hash, verification_hash FROM canonicals WHERE verified=False LIMIT 10`
-- Solution: Manually inspect file, re-copy, or accept loss
+- File corrupted during copy or HDD changed
+- Check: `SELECT sha256 FROM unique_files WHERE export_status='mismatch';`
+- Solution: Inspect file, re-export, or accept loss
 
 **"Out of disk space"**
-- SSD filled during copy (need ~500GB + 350GB working space = 850GB)
-- Solution: Free space, or reduce THREAD_WORKERS in .env to slow down copy rate
+- SSD filled during export (need ~500GB staging + ~350GB originals = 850GB working space)
+- Solution: Free space or reduce THREAD_WORKERS to slow down I/O
 
-### Useful Queries
-
+**PostgreSQL won't start**
 ```bash
-duckdb /home/will/photo_project/dedup.duckdb
+# Check logs
+docker-compose logs postgres
 
-# How many unique files per source folder?
-SELECT source_folder, COUNT(DISTINCT hash) FROM file_paths GROUP BY source_folder;
-
-# Files with EXIF metadata?
-SELECT COUNT(*) FROM files WHERE exif_fields_count > 0;
-
-# Duplicates by size saved?
-SELECT source_folder, SUM(total_size_saved_bytes) / 1e9 FROM canonicals 
-JOIN files ON canonicals.hash = files.hash
-GROUP BY source_folder ORDER BY 2 DESC;
+# Try full reset
+docker-compose down -v
+docker-compose up postgres
 ```
+
+## Performance Tuning
+
+- **THREAD_WORKERS**: Default 4. Increase to 8+ for faster I/O on high-speed storage, decrease to 2 if HDD is bottleneck
+- **Connection pool**: Edit `utils/db.py` line `pool_size=10` to tune PostgreSQL connection pool
+- **Batch insert size**: Edit `pipeline/ingest.py` or other stages if memory usage is high
+
+## Architecture Notes
+
+### Why PostgreSQL?
+- Full ACID semantics for data safety
+- Connection pooling handles concurrent threads efficiently
+- Better query performance than embedded DuckDB for complex dedup logic
+- Easier to inspect/debug with standard SQL tools
+- Can be backed up/restored separately from Docker
+
+### Why 2 Tables?
+- `SourceFile`: immutable record of all discovered files
+- `UniqueFile`: dedup results (canonical selection, export status, EXIF)
+- Simpler schema = easier queries and less confusion about data flow
+
+### Staging Strategy
+- Preserves source folder structure for transparency
+- Allows resumption without re-copying all files
+- Filesystem-based tracking (not in DB) for staging progress
 
 ## Testing
 
-Run the test suite locally:
+Run tests locally (requires PostgreSQL client libraries):
 ```bash
 cd /home/will/photo_project/dedup
 python -m pytest tests/ -v
 ```
 
-Expected output: 7 tests passing (6 schema tests + 1 integration test).
-
-## Troubleshooting
-
-**Container won't start:**
-- Check .env is present: `ls .env`
-- Check Telegram token is set: `grep TELEGRAM .env`
-- View build logs: `docker-compose build --no-cache`
-
-**Tests fail:**
-- Ensure Python dependencies installed: `pip install -r requirements.txt`
-- Clear pytest cache: `rm -rf .pytest_cache __pycache__`
-
-**Pipeline hangs:**
-- Check HDD is mounted: `ls /mnt/823c9bf9-838a-4591-a00f-ae361fcb4792/Photos/img/`
-- Check SSD has space: `df -h /home/will/photo_project/`
-- View container logs: `docker-compose logs dedup`
-
-## Performance Tuning
-
-- **THREAD_WORKERS**: Default 4. Increase to 8 for faster HDD→SSD copy (Stage 0), decrease to 2 if HDD is slow
-- **Batch size**: Edit `stage1_load.py` line ~50 (`if len(new_entries) >= 1000`) to tune DB batch inserts
-- **Skip stages**: Use RUN_STAGES=3,4,5 to skip expensive Stage 0-1 if already complete
-
-## Architecture Notes
-
-### Why DuckDB?
-- Embedded (no server required in Docker)
-- Fast columnar storage
-- Supports SQLAlchemy ORM
-- SQL queries for monitoring
-
-### Why SQLAlchemy?
-- Type-safe ORM
-- Vendor-agnostic (can swap to Postgres if needed)
-- Automatic schema creation and migrations
-
-### Why Hash-Based Names?
-- Eliminates duplicate filenames (iCloudPhotos and Desktop both have `photo_001.jpg`)
-- Content-addressable (can verify integrity by re-hashing)
-- No chance of collision (SHA-256)
+Or test with Docker:
+```bash
+docker-compose exec dedup python -m pytest tests/ -v
+```
 
 ## Support
 
-For issues or questions, check:
-1. Docker container logs: `docker-compose logs dedup`
-2. DuckDB error table: `SELECT * FROM final_report ORDER BY timestamp DESC LIMIT 1`
-3. Stage-specific logs in container: stored to stderr during execution
+For issues:
+1. Check Docker logs: `docker-compose logs dedup`
+2. Query database: `docker exec dedup-postgres psql -U dedup -d dedup`
+3. Check staging directory exists: `ls -la /home/will/photo_project/staging/`
+4. Verify HDD is mounted: `ls /mnt/823c9bf9-838a-4591-a00f-ae361fcb4792/Photos/img/`

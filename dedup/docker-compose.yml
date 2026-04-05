@@ -1,10 +1,30 @@
 version: '3.9'
 
 services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: dedup-postgres
+    environment:
+      POSTGRES_DB: dedup
+      POSTGRES_USER: dedup
+      POSTGRES_PASSWORD: dedup_local_dev
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dedup -d dedup"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   dedup:
     build:
       context: .
       dockerfile: Dockerfile
+    depends_on:
+      postgres:
+        condition: service_healthy
     volumes:
       - /mnt/823c9bf9-838a-4591-a00f-ae361fcb4792/Photos/img:/mnt/hdd:ro
       - /home/will/photo_project:/workspace:rw
@@ -14,10 +34,17 @@ services:
       - HDD_SOURCE_PATH=/mnt/hdd
       - SSD_STAGING_PATH=/workspace/staging
       - SSD_ORIGINALS_PATH=/workspace/originals
-      - SSD_DB_PATH=/workspace/dedup.duckdb
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_NAME=dedup
+      - DB_USER=dedup
+      - DB_PASSWORD=dedup_local_dev
       - THREAD_WORKERS=4
       - RETRY_LIMIT=2
-      - RUN_STAGES=0,1,2,3,4,5
+      - RUN_STAGES=0,1,2,3,4
     working_dir: /app
     env_file:
       - .env
+
+volumes:
+  postgres_data:

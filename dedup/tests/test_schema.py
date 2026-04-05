@@ -2,7 +2,7 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from datetime import datetime
-from models.schema import Base, FilePath, File, Canonical, CopyProgress, StagingProgress, FinalReport
+from models.schema import Base, SourceFile, UniqueFile
 
 
 @pytest.fixture
@@ -16,111 +16,93 @@ def db_session():
     session.close()
 
 
-def test_filePath_creation(db_session):
-    """Test FilePath table creation and insertion."""
-    fp = FilePath(
-        hash="abc123def456",
-        path="/mnt/hdd/Photos/img/Desktop/photo.jpg",
+def test_source_file_creation(db_session):
+    """Test SourceFile table creation and insertion."""
+    sf = SourceFile(
+        path="Desktop/photo.jpg",
+        sha256="abc123def456",
         size=1024000,
         source_folder="Desktop",
         filename="photo.jpg",
         extension="jpg",
     )
-    db_session.add(fp)
+    db_session.add(sf)
     db_session.commit()
 
-    result = db_session.query(FilePath).filter_by(hash="abc123def456").first()
+    result = db_session.query(SourceFile).filter_by(sha256="abc123def456").first()
     assert result.filename == "photo.jpg"
     assert result.source_folder == "Desktop"
     assert result.size == 1024000
 
 
-def test_file_creation(db_session):
-    """Test File table creation and EXIF metadata storage."""
-    f = File(
-        hash="abc123def456",
-        canonical_path="/mnt/staging/Desktop/photo.jpg",
+def test_unique_file_creation(db_session):
+    """Test UniqueFile table creation and EXIF metadata storage."""
+    uf = UniqueFile(
+        sha256="abc123def456",
+        canonical_path="Desktop/photo.jpg",
+        selection_reason="folder_priority",
         exif_score=0.85,
         exif_datetime=datetime(2020, 1, 15),
         exif_gps="37.7749,-122.4194",
         exif_fields_count=18,
-        folder_source="Desktop",
-        selected_reason="best_exif",
+        duplicate_count=2,
+        export_status="pending",
     )
-    db_session.add(f)
+    db_session.add(uf)
     db_session.commit()
 
-    result = db_session.query(File).filter_by(hash="abc123def456").first()
+    result = db_session.query(UniqueFile).filter_by(sha256="abc123def456").first()
     assert result.exif_score == 0.85
     assert result.exif_fields_count == 18
+    assert result.duplicate_count == 2
+    assert result.export_status == "pending"
 
 
-def test_canonical_creation(db_session):
-    """Test Canonical table for dedup results."""
-    c = Canonical(
-        hash="abc123def456",
-        canonical_path="/mnt/staging/Desktop/photo.jpg",
-        duplicate_count=3,
-        total_size_saved_bytes=3072000,
-        verified=False,
-    )
-    db_session.add(c)
-    db_session.commit()
-
-    result = db_session.query(Canonical).filter_by(hash="abc123def456").first()
-    assert result.duplicate_count == 3
-    assert result.verified is False
-
-
-def test_copyProgress_creation(db_session):
-    """Test CopyProgress table for tracking Stage 4."""
-    cp = CopyProgress(
-        hash="abc123def456",
-        status="pending",
+def test_unique_file_export_tracking(db_session):
+    """Test UniqueFile export status tracking."""
+    uf = UniqueFile(
+        sha256="def456ghi789",
+        canonical_path="Photos/image.jpg",
+        selection_reason="shortest_path",
+        export_status="pending",
         retry_count=0,
     )
-    db_session.add(cp)
+    db_session.add(uf)
     db_session.commit()
 
-    result = db_session.query(CopyProgress).filter_by(hash="abc123def456").first()
-    assert result.status == "pending"
+    result = db_session.query(UniqueFile).filter_by(sha256="def456ghi789").first()
+    assert result.export_status == "pending"
     assert result.retry_count == 0
 
-
-def test_stagingProgress_creation(db_session):
-    """Test StagingProgress table for tracking Stage 0."""
-    sp = StagingProgress(
-        source_path="/mnt/hdd/Photos/img/Desktop/photo.jpg",
-        staging_path="/home/will/photo_project/staging/Desktop/photo.jpg",
-        status="done",
-        bytes_copied=1024000,
-    )
-    db_session.add(sp)
+    # Simulate export
+    result.export_status = "copied"
+    result.export_path = "/originals/def456ghi789.jpg"
     db_session.commit()
 
-    result = db_session.query(StagingProgress).filter_by(
-        source_path="/mnt/hdd/Photos/img/Desktop/photo.jpg"
-    ).first()
-    assert result.status == "done"
+    updated = db_session.query(UniqueFile).filter_by(sha256="def456ghi789").first()
+    assert updated.export_status == "copied"
+    assert updated.export_path == "/originals/def456ghi789.jpg"
 
 
-def test_finalReport_creation(db_session):
-    """Test FinalReport table."""
-    fr = FinalReport(
-        stage_completed="5",
-        total_files_analyzed=95519,
-        unique_files=45838,
-        duplicate_files_removed=49681,
-        total_space_saved_gb=280.0,
-        files_by_source={"Desktop": 41797, "iCloudPhotos": 9373},
-        duration_seconds=28800,
-        errors_encountered=0,
-        verified_copies=45838,
-        failed_verifications=0,
+def test_unique_file_verification(db_session):
+    """Test UniqueFile verification tracking."""
+    uf = UniqueFile(
+        sha256="xyz123abc456",
+        canonical_path="iCloudPhotos/sunset.jpg",
+        selection_reason="exif",
+        export_status="copied",
+        export_path="/originals/xyz123abc456.jpg",
+        verified_hash=None,
     )
-    db_session.add(fr)
+    db_session.add(uf)
     db_session.commit()
 
-    result = db_session.query(FinalReport).first()
-    assert result.unique_files == 45838
-    assert result.total_space_saved_gb == 280.0
+    # Simulate verification
+    result = db_session.query(UniqueFile).filter_by(sha256="xyz123abc456").first()
+    result.export_status = "verified"
+    result.verified_hash = "xyz123abc456"
+    db_session.commit()
+
+    verified = db_session.query(UniqueFile).filter_by(sha256="xyz123abc456").first()
+    assert verified.export_status == "verified"
+    assert verified.verified_hash == "xyz123abc456"
