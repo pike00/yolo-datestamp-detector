@@ -84,15 +84,10 @@ def deduplicate() -> None:
 
     session = get_session()
 
-    # Get hashes that need canonical selection
-    unresolved = session.query(UniqueFile).filter_by(selection_reason="preliminary").all()
+    # Process all hashes (re-runnable)
+    unresolved = session.query(UniqueFile).all()
 
     logger.info(f"Found {len(unresolved)} hashes to deduplicate")
-
-    if not unresolved:
-        logger.info("Stage 2: All hashes already deduplicated, skipping")
-        close_session(session)
-        return
 
     # Process each hash
     updated = 0

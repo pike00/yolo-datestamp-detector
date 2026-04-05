@@ -40,7 +40,7 @@ services:
       - DB_PASSWORD=dedup_local_dev
       - THREAD_WORKERS=4
       - RETRY_LIMIT=2
-      - RUN_STAGES=0,1,2,3,4
+      - RUN_STAGES=0,1,2,3
     working_dir: /app
     env_file:
       - .env
