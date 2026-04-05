@@ -19,7 +19,7 @@ def get_connection_string() -> str:
     db_user = os.getenv("DB_USER", "dedup")
     db_password = os.getenv("DB_PASSWORD", "dedup_local_dev")
 
-    return f"postgresql://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}"
+    return f"postgresql+psycopg://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}"
 
 
 def init_db() -> None:

@@ -5,6 +5,7 @@ RUN apt-get update && apt-get install -y \
     exiftool \
     build-essential \
     postgresql-client \
+    libpq-dev \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
