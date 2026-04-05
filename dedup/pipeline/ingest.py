@@ -98,12 +98,16 @@ def ingest(
 
     # Collect all file paths
     all_files = []
+    dir_count = 0
     for dirpath, dirnames, filenames in os.walk(source_dir):
+        dir_count += 1
+        if dir_count % 100 == 0:
+            logger.debug(f"Scanning: {dirpath} ({len(all_files)} files so far)")
         for filename in filenames:
             source_path = os.path.join(dirpath, filename)
             all_files.append((source_path, source_dir, staging_dir))
 
-    logger.info(f"Found {len(all_files)} files to ingest")
+    logger.info(f"Found {len(all_files)} files to ingest ({dir_count} directories scanned)")
 
     # Pre-load completed paths for O(1) skip logic
     session = get_session()
