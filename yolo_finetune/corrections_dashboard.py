@@ -14,15 +14,13 @@ from http.server import HTTPServer, SimpleHTTPRequestHandler
 BASE_DIR = Path(__file__).parent
 DATASET_DIR = BASE_DIR / "dataset"
 LABELS_DIR = DATASET_DIR / "labels"
-CORRECTIONS_DIR = DATASET_DIR / "corrections"
+SCANMYPHOTOS_DIR = BASE_DIR / "scanmyphotos"
 QUEUE_FILE = BASE_DIR / "corrections_queue.json"
-CORRECTIONS_META_FILE = BASE_DIR / "corrections_meta.json"
-INFER_OUTPUT_DIR = BASE_DIR / "infer_output"
-SAMPLE_DIR = BASE_DIR.parent / "photo_mapping_samples"
+PREDICTIONS_FILE = BASE_DIR / "scanmyphotos_predictions.json"
 SKIPPED_FILE = BASE_DIR / "skipped.txt"
+STATUS_FILE = BASE_DIR / "worker_status.json"
 
 # Create required directories
-CORRECTIONS_DIR.mkdir(parents=True, exist_ok=True)
 LABELS_DIR.mkdir(parents=True, exist_ok=True)
 
 
@@ -35,6 +33,8 @@ class DashboardHandler(SimpleHTTPRequestHandler):
             self.serve_file("dashboard.html", "text/html")
         elif self.path == "/api/queue":
             self.serve_json(get_queue())
+        elif self.path == "/api/worker-status":
+            self.serve_json(get_worker_status())
         elif self.path.startswith("/api/image/"):
             stem = self.path.split("/")[-1]
             self.serve_image(stem)
@@ -59,7 +59,7 @@ class DashboardHandler(SimpleHTTPRequestHandler):
             result = handle_action(data)
             self.serve_json(result)
         elif self.path == "/api/train":
-            result = train()
+            result = start_worker()
             self.serve_json(result)
         else:
             self.send_error(404)
@@ -84,29 +84,16 @@ class DashboardHandler(SimpleHTTPRequestHandler):
         self.wfile.write(json.dumps(data).encode())
 
     def serve_image(self, stem):
-        """Serve an image file."""
-        # Try infer_output first (with _detected suffix)
-        infer_path = INFER_OUTPUT_DIR / f"{stem}_detected.jpg"
-        if infer_path.exists():
+        """Serve an image file from scanmyphotos/."""
+        img_path = SCANMYPHOTOS_DIR / f"{stem}.jpg"
+        if img_path.exists():
             self.send_response(200)
             self.send_header("Content-type", "image/jpeg")
             self.end_headers()
-            with open(infer_path, "rb") as f:
+            with open(img_path, "rb") as f:
                 self.wfile.write(f.read())
-            return
-
-        # Try original samples
-        for ext in (".jpg", ".JPG"):
-            orig_path = SAMPLE_DIR / f"{stem}{ext}"
-            if orig_path.exists():
-                self.send_response(200)
-                self.send_header("Content-type", "image/jpeg")
-                self.end_headers()
-                with open(orig_path, "rb") as f:
-                    self.wfile.write(f.read())
-                return
-
-        self.send_error(404)
+        else:
+            self.send_error(404)
 
     def log_message(self, format, *args):
         """Log HTTP requests and errors."""
@@ -125,7 +112,7 @@ def load_queue():
     if QUEUE_FILE.exists():
         with open(QUEUE_FILE) as f:
             return json.load(f)
-    return {"files": [], "last_inference_run": None}
+    return {"files": [], "stats": {}}
 
 
 def save_queue(queue):
@@ -134,85 +121,83 @@ def save_queue(queue):
         json.dump(queue, f, indent=2)
 
 
-def load_corrections_meta():
-    """Load inference predictions from corrections_meta.json."""
-    if CORRECTIONS_META_FILE.exists():
-        with open(CORRECTIONS_META_FILE) as f:
+def load_predictions():
+    """Load model predictions from scanmyphotos_predictions.json."""
+    if PREDICTIONS_FILE.exists():
+        with open(PREDICTIONS_FILE) as f:
             return json.load(f)
     return {}
 
 
 def discover_files():
-    """Discover all files (originals + inference results) and return queue."""
-    from datetime import datetime
-
+    """Build queue from scanmyphotos/ directory."""
     queue = load_queue()
     existing_stems = {f["stem"] for f in queue["files"]}
-    corrections_meta = load_corrections_meta()
+    predictions = load_predictions()
 
-    # Scan original samples
-    for ext in (".jpg", ".JPG"):
-        for img_path in SAMPLE_DIR.glob(f"*{ext}"):
-            stem = img_path.stem
-            if stem not in existing_stems:
-                queue["files"].append({
-                    "stem": stem,
-                    "source": "original",
-                    "status": "pending",
-                    "created_at": datetime.now().isoformat(),
-                    "last_reviewed_at": None,
-                    "inference_data": None,
-                    "user_correction": None,
-                })
-                existing_stems.add(stem)
-
-    # Scan inference results
-    for img_path in INFER_OUTPUT_DIR.glob("*_detected.jpg"):
-        stem = img_path.stem.replace("_detected", "")
-        if stem not in existing_stems:
-            inference_data = corrections_meta.get(stem, {
-                "x": None, "y": None, "w": None, "h": None, "confidence": 0.0
-            })
-            queue["files"].append({
-                "stem": stem,
-                "source": "inference",
-                "status": "pending",
-                "created_at": datetime.now().isoformat(),
-                "last_reviewed_at": None,
-                "inference_data": inference_data,
-                "user_correction": None,
-            })
-            existing_stems.add(stem)
-        else:
-            # Update inference data for existing file
-            for f in queue["files"]:
-                if f["stem"] == stem and f["source"] == "inference":
-                    f["inference_data"] = corrections_meta.get(stem, {
-                        "x": None, "y": None, "w": None, "h": None, "confidence": 0.0
-                    })
-
-    # Mark already-labeled files as reviewed
     labeled_stems = {p.stem for p in LABELS_DIR.glob("*.txt")}
+    skipped_stems = set()
+    if SKIPPED_FILE.exists():
+        skipped_stems = {line.strip() for line in SKIPPED_FILE.read_text().splitlines() if line.strip()}
+
+    for img_path in sorted(SCANMYPHOTOS_DIR.glob("*.jpg")):
+        stem = img_path.stem
+        if stem in existing_stems:
+            continue
+
+        disc = int(stem.split("_")[0][1:]) if stem.startswith("d") else 0
+        original_num = stem.split("_", 1)[1] if "_" in stem else stem
+        display_name = f"D{disc} - {original_num}"
+
+        status = "pending"
+        if stem in labeled_stems:
+            status = "labeled"
+        elif stem in skipped_stems:
+            status = "no_stamp"
+
+        queue["files"].append({
+            "stem": stem,
+            "disc": disc,
+            "display_name": display_name,
+            "status": status,
+            "created_at": datetime.now().isoformat(),
+            "last_reviewed_at": None,
+            "prediction": predictions.get(stem),
+            "user_correction": None,
+        })
+        existing_stems.add(stem)
+
     for f in queue["files"]:
+        if f["stem"] in predictions:
+            f["prediction"] = predictions[f["stem"]]
         if f["stem"] in labeled_stems and f["status"] == "pending":
-            f["status"] = "reviewed"
+            f["status"] = "labeled"
+        elif f["stem"] in skipped_stems and f["status"] == "pending":
+            f["status"] = "no_stamp"
+
+    statuses = [f["status"] for f in queue["files"]]
+    queue["stats"] = {
+        "total": len(queue["files"]),
+        "pending": statuses.count("pending"),
+        "labeled": statuses.count("labeled"),
+        "no_stamp": statuses.count("no_stamp"),
+        "skipped": statuses.count("skipped"),
+    }
 
     save_queue(queue)
     return queue
 
 
 def get_queue():
-    """Get current queue with all files."""
-    discover_files()  # Update discoveries
-    queue = load_queue()
-    return queue
+    """Get current queue, discovering new files."""
+    return discover_files()
 
 
 def handle_action(data):
     """Handle user actions (confirm, edit, skip, no_stamp)."""
     stem = data["stem"]
     action = data["action"]
-    box = data.get("box")  # {x, y, w, h} - normalized coordinates
+    box = data.get("box")
 
     queue = load_queue()
     file_entry = next((f for f in queue["files"] if f["stem"] == stem), None)
@@ -220,8 +205,6 @@ def handle_action(data):
     if not file_entry:
         return {"error": "File not found"}
 
-    # Update queue entry
-    file_entry["status"] = "reviewed"
     file_entry["last_reviewed_at"] = datetime.now().isoformat()
     file_entry["user_correction"] = {
         "x": box["x"] if box else None,
@@ -231,58 +214,81 @@ def handle_action(data):
         "action": action,
     }
 
-    # Perform action-specific operations
-    if action == "confirmed" or action == "edited":
-        # Save label file
+    if action in ("confirmed", "edited"):
         label_content = f"0 {box['x']} {box['y']} {box['w']} {box['h']}\n"
         label_path = LABELS_DIR / f"{stem}.txt"
         label_path.write_text(label_content)
+        file_entry["status"] = "labeled"
 
     elif action == "no_stamp":
-        # Add to skipped images
         skipped = set()
         if SKIPPED_FILE.exists():
-            skipped = {line.strip() for line in SKIPPED_FILE.read_text().splitlines()}
+            skipped = {line.strip() for line in SKIPPED_FILE.read_text().splitlines() if line.strip()}
         skipped.add(stem)
         SKIPPED_FILE.write_text("\n".join(sorted(skipped)) + "\n")
+        file_entry["status"] = "no_stamp"
 
     elif action == "skipped":
-        # Mark as needs_fix for re-inference
-        file_entry["status"] = "needs_fix"
+        file_entry["status"] = "skipped"
+
+    statuses = [f["status"] for f in queue["files"]]
+    queue["stats"] = {
+        "total": len(queue["files"]),
+        "pending": statuses.count("pending"),
+        "labeled": statuses.count("labeled"),
+        "no_stamp": statuses.count("no_stamp"),
+        "skipped": statuses.count("skipped"),
+    }
 
     save_queue(queue)
-    return {"success": True, "status": file_entry["status"]}
+    return {"success": True, "status": file_entry["status"], "stats": queue["stats"]}
 
 
-def train():
-    """Trigger training with accumulated corrections."""
-    try:
-        result = subprocess.run(
-            ["python", str(BASE_DIR / "train.py")],
-            cwd=str(BASE_DIR),
-            capture_output=True,
-            text=True,
-            timeout=3600
-        )
+_worker_process = None
 
-        if result.returncode == 0:
-            # Clear corrections after successful training
-            for f in CORRECTIONS_DIR.glob("*"):
-                if f.is_file():
-                    f.unlink()
 
-            # Reset all statuses to pending for re-inference
-            queue = load_queue()
-            for f in queue["files"]:
-                f["status"] = "pending"
-            save_queue(queue)
+def start_worker():
+    """Start background train + infer worker."""
+    global _worker_process
 
-            return {"success": True, "message": "Training completed"}
-        else:
-            return {"success": False, "error": result.stderr}
+    if _worker_process and _worker_process.poll() is None:
+        return {"error": "Worker already running"}
 
-    except Exception as e:
-        return {"success": False, "error": str(e)}
+    with open(STATUS_FILE, "w") as f:
+        json.dump({"phase": "starting", "progress": 0, "total": 0, "message": "Starting training..."}, f)
+
+    _worker_process = subprocess.Popen(
+        [
+            "bash", "-c",
+            f"uv run {BASE_DIR / 'train.py'} && uv run {BASE_DIR / 'infer_all.py'}"
+        ],
+        cwd=str(BASE_DIR),
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+    )
+
+    return {"success": True, "message": "Worker started"}
+
+
+def get_worker_status():
+    """Read current worker status from file."""
+    global _worker_process
+
+    status = {"phase": "idle", "progress": 0, "total": 0, "message": "No worker running"}
+
+    if STATUS_FILE.exists():
+        try:
+            with open(STATUS_FILE) as f:
+                status = json.load(f)
+        except (json.JSONDecodeError, IOError):
+            pass
+
+    if _worker_process and _worker_process.poll() is not None:
+        _worker_process = None
+        if status.get("phase") not in ("done", "error"):
+            status = {"phase": "error", "progress": 0, "total": 0, "message": "Worker exited unexpectedly"}
+
+    return status
 
 
 def main():
