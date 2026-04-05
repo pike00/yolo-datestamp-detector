@@ -1,0 +1,41 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+dedup/.venv
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Working directories (large files, not tracked)
+staging/
+originals/
+needs_date/
+
+# Database files
+dedup.duckdb
+*.db
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Cache and temporary files
+.pytest_cache/
+.mypy_cache/
+*.log
+*.tmp

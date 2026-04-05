@@ -1,0 +1,652 @@
+[
+  {
+    "filename": "00000001.jpg",
+    "detected": true,
+    "ocr_text": "***",
+    "valid_date": false
+  },
+  {
+    "filename": "00000002.jpg",
+    "detected": false
+  },
+  {
+    "filename": "00000003.jpg",
+    "detected": true,
+    "ocr_text": ":",
+    "valid_date": false
+  },
+  {
+    "filename": "00000004.jpg",
+    "detected": true,
+    "ocr_text": "AMOUNT",
+    "valid_date": false
+  },
+  {
+    "filename": "00000005.jpg",
+    "detected": true,
+    "ocr_text": "8 28'99",
+    "valid_date": true,
+    "date": {
+      "month": 8,
+      "day": 28,
+      "year": 1999,
+      "raw": "8 28'99"
+    }
+  },
+  {
+    "filename": "00000006.jpg",
+    "detected": true,
+    "ocr_text": "4.00",
+    "valid_date": false
+  },
+  {
+    "filename": "00000007.jpg",
+    "detected": true,
+    "ocr_text": "***",
+    "valid_date": false
+  },
+  {
+    "filename": "00000008.jpg",
+    "detected": true,
+    "ocr_text": "- 1 10 3 : 99",
+    "valid_date": false
+  },
+  {
+    "filename": "00000009.jpg",
+    "detected": true,
+    "ocr_text": "IT RM",
+    "valid_date": false
+  },
+  {
+    "filename": "00000010.jpg",
+    "detected": true,
+    "ocr_text": "-",
+    "valid_date": false
+  },
+  {
+    "filename": "00000011.jpg",
+    "detected": true,
+    "ocr_text": "12.30",
+    "valid_date": false
+  },
+  {
+    "filename": "00000012.jpg",
+    "detected": false
+  },
+  {
+    "filename": "00000013.jpg",
+    "detected": true,
+    "ocr_text": "AMOUNT",
+    "valid_date": false
+  },
+  {
+    "filename": "00000014.jpg",
+    "detected": true,
+    "ocr_text": "***",
+    "valid_date": false
+  },
+  {
+    "filename": "00000015.jpg",
+    "detected": true,
+    "ocr_text": "ITEMS AND ONCLUSIONS WITH ON ALL",
+    "valid_date": false
+  },
+  {
+    "filename": "00000016.jpg",
+    "detected": true,
+    "ocr_text": "IT RICE",
+    "valid_date": false
+  },
+  {
+    "filename": "00000017.jpg",
+    "detected": true,
+    "ocr_text": "IN IN'S!",
+    "valid_date": false
+  },
+  {
+    "filename": "00000018.jpg",
+    "detected": true,
+    "ocr_text": "CASHIER",
+    "valid_date": false
+  },
+  {
+    "filename": "00000019.jpg",
+    "detected": true,
+    "ocr_text": "$6.25",
+    "valid_date": false
+  },
+  {
+    "filename": "00000020.jpg",
+    "detected": true,
+    "ocr_text": "$1124939",
+    "valid_date": false
+  },
+  {
+    "filename": "00000021.jpg",
+    "detected": true,
+    "ocr_text": "GN",
+    "valid_date": false
+  },
+  {
+    "filename": "00000022.jpg",
+    "detected": true,
+    "ocr_text": "LITTLE",
+    "valid_date": false
+  },
+  {
+    "filename": "00000023.jpg",
+    "detected": true,
+    "ocr_text": "ITEM",
+    "valid_date": false
+  },
+  {
+    "filename": "00000024.jpg",
+    "detected": true,
+    "ocr_text": "11.99",
+    "valid_date": false
+  },
+  {
+    "filename": "00000025.jpg",
+    "detected": true,
+    "ocr_text": "12.00",
+    "valid_date": false
+  },
+  {
+    "filename": "00000026.jpg",
+    "detected": true,
+    "ocr_text": "PAX BAND BHD",
+    "valid_date": false
+  },
+  {
+    "filename": "00000027.jpg",
+    "detected": true,
+    "ocr_text": "(608)",
+    "valid_date": false
+  },
+  {
+    "filename": "00000028.jpg",
+    "detected": true,
+    "ocr_text": "CASHIER",
+    "valid_date": false
+  },
+  {
+    "filename": "00000029.jpg",
+    "detected": true,
+    "ocr_text": "EPSIA",
+    "valid_date": false
+  },
+  {
+    "filename": "00000030.jpg",
+    "detected": true,
+    "ocr_text": "-133",
+    "valid_date": false
+  },
+  {
+    "filename": "00000031.jpg",
+    "detected": true,
+    "ocr_text": "***",
+    "valid_date": false
+  },
+  {
+    "filename": "00000032.jpg",
+    "detected": true,
+    "ocr_text": "***",
+    "valid_date": false
+  },
+  {
+    "filename": "00000033.jpg",
+    "detected": true,
+    "ocr_text": "13.49",
+    "valid_date": false
+  },
+  {
+    "filename": "00000034.jpg",
+    "detected": true,
+    "ocr_text": "***",
+    "valid_date": false
+  },
+  {
+    "filename": "00000035.jpg",
+    "detected": true,
+    "ocr_text": ":",
+    "valid_date": false
+  },
+  {
+    "filename": "00000036.jpg",
+    "detected": true,
+    "ocr_text": "-",
+    "valid_date": false
+  },
+  {
+    "filename": "00000037.jpg",
+    "detected": true,
+    "ocr_text": "R 399",
+    "valid_date": false
+  },
+  {
+    "filename": "00000038.jpg",
+    "detected": true,
+    "ocr_text": "3.99",
+    "valid_date": false
+  },
+  {
+    "filename": "00000039.jpg",
+    "detected": true,
+    "ocr_text": "12 3.99",
+    "valid_date": false
+  },
+  {
+    "filename": "00000040.jpg",
+    "detected": false
+  },
+  {
+    "filename": "00000041.jpg",
+    "detected": true,
+    "ocr_text": "- MAS.88",
+    "valid_date": false
+  },
+  {
+    "filename": "00000042.jpg",
+    "detected": true,
+    "ocr_text": "CASHIER:",
+    "valid_date": false
+  },
+  {
+    "filename": "00000043.jpg",
+    "detected": true,
+    "ocr_text": "12 : 33",
+    "valid_date": false
+  },
+  {
+    "filename": "00000044.jpg",
+    "detected": true,
+    "ocr_text": "CASHIER ***",
+    "valid_date": false
+  },
+  {
+    "filename": "00000045.jpg",
+    "detected": true,
+    "ocr_text": "***",
+    "valid_date": false
+  },
+  {
+    "filename": "00000046.jpg",
+    "detected": true,
+    "ocr_text": "3'00",
+    "valid_date": false
+  },
+  {
+    "filename": "00000047.jpg",
+    "detected": true,
+    "ocr_text": "3'99",
+    "valid_date": false
+  },
+  {
+    "filename": "00000048.jpg",
+    "detected": true,
+    "ocr_text": "12 : 33",
+    "valid_date": false
+  },
+  {
+    "filename": "00000049.jpg",
+    "detected": true,
+    "ocr_text": "12 3'99",
+    "valid_date": true,
+    "date": {
+      "month": 12,
+      "day": 3,
+      "year": 1999,
+      "raw": "12 3'99"
+    }
+  },
+  {
+    "filename": "00000050.jpg",
+    "detected": true,
+    "ocr_text": "SR:",
+    "valid_date": false
+  },
+  {
+    "filename": "00000051.jpg",
+    "detected": true,
+    "ocr_text": ".00",
+    "valid_date": false
+  },
+  {
+    "filename": "00000052.jpg",
+    "detected": true,
+    "ocr_text": "........",
+    "valid_date": false
+  },
+  {
+    "filename": "00000053.jpg",
+    "detected": true,
+    "ocr_text": "3'00",
+    "valid_date": false
+  },
+  {
+    "filename": "00000054.jpg",
+    "detected": true,
+    "ocr_text": "***",
+    "valid_date": false
+  },
+  {
+    "filename": "00000055.jpg",
+    "detected": true,
+    "ocr_text": "12 999",
+    "valid_date": true,
+    "date": {
+      "month": 12,
+      "day": 9,
+      "year": 1999,
+      "raw": "12 999"
+    }
+  },
+  {
+    "filename": "00000056.jpg",
+    "detected": true,
+    "ocr_text": "13 3'00",
+    "valid_date": true,
+    "date": {
+      "month": 3,
+      "day": 13,
+      "year": 2000,
+      "raw": "13 3'00",
+      "ambiguous": true
+    }
+  },
+  {
+    "filename": "00000057.jpg",
+    "detected": true,
+    "ocr_text": "12 M*99 *",
+    "valid_date": false
+  },
+  {
+    "filename": "00000058.jpg",
+    "detected": true,
+    "ocr_text": "***",
+    "valid_date": false
+  },
+  {
+    "filename": "00000059.jpg",
+    "detected": true,
+    "ocr_text": "***",
+    "valid_date": false
+  },
+  {
+    "filename": "00000060.jpg",
+    "detected": true,
+    "ocr_text": "12 9'99",
+    "valid_date": true,
+    "date": {
+      "month": 12,
+      "day": 9,
+      "year": 1999,
+      "raw": "12 9'99"
+    }
+  },
+  {
+    "filename": "00000061.jpg",
+    "detected": true,
+    "ocr_text": ".13 V'CS",
+    "valid_date": false
+  },
+  {
+    "filename": "00000062.jpg",
+    "detected": true,
+    "ocr_text": "CASH",
+    "valid_date": false
+  },
+  {
+    "filename": "00000063.jpg",
+    "detected": true,
+    "ocr_text": "***",
+    "valid_date": false
+  },
+  {
+    "filename": "00000064.jpg",
+    "detected": true,
+    "ocr_text": "12 4'99",
+    "valid_date": true,
+    "date": {
+      "month": 12,
+      "day": 4,
+      "year": 1999,
+      "raw": "12 4'99"
+    }
+  },
+  {
+    "filename": "00000065.jpg",
+    "detected": true,
+    "ocr_text": "-***",
+    "valid_date": false
+  },
+  {
+    "filename": "00000066.jpg",
+    "detected": true,
+    "ocr_text": "12 3.99",
+    "valid_date": false
+  },
+  {
+    "filename": "00000067.jpg",
+    "detected": true,
+    "ocr_text": "12 3'99",
+    "valid_date": true,
+    "date": {
+      "month": 12,
+      "day": 3,
+      "year": 1999,
+      "raw": "12 3'99"
+    }
+  },
+  {
+    "filename": "00000068.jpg",
+    "detected": true,
+    "ocr_text": "-",
+    "valid_date": false
+  },
+  {
+    "filename": "00000069.jpg",
+    "detected": true,
+    "ocr_text": "Y/PAXMY",
+    "valid_date": false
+  },
+  {
+    "filename": "00000070.jpg",
+    "detected": true,
+    "ocr_text": "SR:00-4,8-1,4, JALAN PERMAS",
+    "valid_date": false
+  },
+  {
+    "filename": "00000071.jpg",
+    "detected": true,
+    "ocr_text": "8.29\"KIES SDN CASHIER",
+    "valid_date": false
+  },
+  {
+    "filename": "00000072.jpg",
+    "detected": true,
+    "ocr_text": "***",
+    "valid_date": false
+  },
+  {
+    "filename": "00000073.jpg",
+    "detected": true,
+    "ocr_text": "CASHIER",
+    "valid_date": false
+  },
+  {
+    "filename": "00000074.jpg",
+    "detected": true,
+    "ocr_text": "GARDEN AND FOOD WITH ONCLUSIVE",
+    "valid_date": false
+  },
+  {
+    "filename": "00000075.jpg",
+    "detected": true,
+    "ocr_text": "TC : 33",
+    "valid_date": false
+  },
+  {
+    "filename": "00000076.jpg",
+    "detected": true,
+    "ocr_text": "PLEASE",
+    "valid_date": false
+  },
+  {
+    "filename": "00000077.jpg",
+    "detected": true,
+    "ocr_text": "***",
+    "valid_date": false
+  },
+  {
+    "filename": "00000078.jpg",
+    "detected": true,
+    "ocr_text": "***",
+    "valid_date": false
+  },
+  {
+    "filename": "00000079.jpg",
+    "detected": true,
+    "ocr_text": "TAX 2'99",
+    "valid_date": false
+  },
+  {
+    "filename": "00000080.jpg",
+    "detected": true,
+    "ocr_text": "12 3'09",
+    "valid_date": true,
+    "date": {
+      "month": 12,
+      "day": 3,
+      "year": 2009,
+      "raw": "12 3'09"
+    }
+  },
+  {
+    "filename": "00000081.jpg",
+    "detected": true,
+    "ocr_text": "***",
+    "valid_date": false
+  },
+  {
+    "filename": "00000082.jpg",
+    "detected": true,
+    "ocr_text": "KIA",
+    "valid_date": false
+  },
+  {
+    "filename": "00000083.jpg",
+    "detected": true,
+    "ocr_text": "13 3'99",
+    "valid_date": true,
+    "date": {
+      "month": 3,
+      "day": 13,
+      "year": 1999,
+      "raw": "13 3'99",
+      "ambiguous": true
+    }
+  },
+  {
+    "filename": "00000084.jpg",
+    "detected": true,
+    "ocr_text": "***",
+    "valid_date": false
+  },
+  {
+    "filename": "00000085.jpg",
+    "detected": true,
+    "ocr_text": "AMOUNT",
+    "valid_date": false
+  },
+  {
+    "filename": "00000086.jpg",
+    "detected": true,
+    "ocr_text": "***",
+    "valid_date": false
+  },
+  {
+    "filename": "00000087.jpg",
+    "detected": true,
+    "ocr_text": "***",
+    "valid_date": false
+  },
+  {
+    "filename": "00000088.jpg",
+    "detected": true,
+    "ocr_text": "TAX",
+    "valid_date": false
+  },
+  {
+    "filename": "00000089.jpg",
+    "detected": true,
+    "ocr_text": "$10.33",
+    "valid_date": false
+  },
+  {
+    "filename": "00000090.jpg",
+    "detected": true,
+    "ocr_text": "***",
+    "valid_date": false
+  },
+  {
+    "filename": "00000091.jpg",
+    "detected": true,
+    "ocr_text": "12 : 33",
+    "valid_date": false
+  },
+  {
+    "filename": "00000092.jpg",
+    "detected": true,
+    "ocr_text": "WARDS AND FOR",
+    "valid_date": false
+  },
+  {
+    "filename": "00000093.jpg",
+    "detected": true,
+    "ocr_text": "***",
+    "valid_date": false
+  },
+  {
+    "filename": "00000094.jpg",
+    "detected": true,
+    "ocr_text": "3.00",
+    "valid_date": false
+  },
+  {
+    "filename": "00000095.jpg",
+    "detected": true,
+    "ocr_text": "***",
+    "valid_date": false
+  },
+  {
+    "filename": "00000096.jpg",
+    "detected": true,
+    "ocr_text": "***",
+    "valid_date": false
+  },
+  {
+    "filename": "00000097.jpg",
+    "detected": true,
+    "ocr_text": "***",
+    "valid_date": false
+  },
+  {
+    "filename": "00000098.jpg",
+    "detected": true,
+    "ocr_text": "***",
+    "valid_date": false
+  },
+  {
+    "filename": "00000099.jpg",
+    "detected": true,
+    "ocr_text": "CASH",
+    "valid_date": false
+  },
+  {
+    "filename": "00000100.jpg",
+    "detected": true,
+    "ocr_text": "***",
+    "valid_date": false
+  }
+]
