@@ -48,6 +48,12 @@ def enrich_hash(args: tuple) -> dict:
             exif_datetime=metadata["exif_datetime"],
             exif_gps=metadata["exif_gps"],
             exif_fields_count=metadata["exif_fields_count"],
+            exif_data=metadata["exif_data"],
+            camera_make=metadata["camera_make"],
+            camera_model=metadata["camera_model"],
+            image_width=metadata["image_width"],
+            image_height=metadata["image_height"],
+            mime_type=metadata["mime_type"],
             duplicate_count=len(candidates) - 1,
             export_status="pending",
         )

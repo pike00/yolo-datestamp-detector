@@ -9,6 +9,7 @@ from sqlalchemy import (
     Index,
     BigInteger,
 )
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.declarative import declarative_base
 
 Base = declarative_base()
@@ -45,6 +46,12 @@ class UniqueFile(Base):
     exif_datetime = Column(DateTime, nullable=True)
     exif_gps = Column(String(128), nullable=True)
     exif_fields_count = Column(Integer, nullable=False, default=0)
+    exif_data = Column(JSONB, nullable=True)  # Full exiftool output
+    camera_make = Column(String(128), nullable=True)
+    camera_model = Column(String(128), nullable=True)
+    image_width = Column(Integer, nullable=True)
+    image_height = Column(Integer, nullable=True)
+    mime_type = Column(String(64), nullable=True)
 
     # Export/verification tracking
     export_status = Column(String(32), nullable=False, default="pending")  # pending/copied/verified/error
