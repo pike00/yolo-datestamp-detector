@@ -18,7 +18,7 @@ DATASET_DIR = BASE_DIR / "dataset"
 IMAGES_DIR = DATASET_DIR / "images"
 LABELS_DIR = DATASET_DIR / "labels"
 SKIPPED_FILE = BASE_DIR / "skipped.txt"
-IMAGE_SOURCE = BASE_DIR.parent / "photo_mapping_samples"
+IMAGE_SOURCE = BASE_DIR / "scanmyphotos"
 
 SEED = 42
 VAL_RATIO = 0.2
