@@ -488,7 +488,7 @@
         let selectedStems = new Set();
         let preloadedImage = null;
         let preloadedStem = null;
-        let lastConfirmedBox = { x: 0.5, y: 0.9, w: 0.2, h: 0.06 };
+        let lastConfirmedBox = null;
 
         const canvas = document.getElementById("canvas");
         const ctx = canvas.getContext("2d");
@@ -498,6 +498,14 @@
             try {
                 const response = await fetch("/api/queue");
                 queue = await response.json();
+                // Find the most recently reviewed file's box as default
+                const reviewed = queue.files
+                    .filter(f => f.user_correction && f.user_correction.x !== null && f.user_correction.action === "confirmed")
+                    .sort((a, b) => (b.last_reviewed_at || "").localeCompare(a.last_reviewed_at || ""));
+                if (reviewed.length > 0) {
+                    const c = reviewed[0].user_correction;
+                    lastConfirmedBox = { x: c.x, y: c.y, w: c.w, h: c.h };
+                }
                 renderQueueList();
                 updateProgressBar();
             } catch (error) {
@@ -658,8 +666,10 @@
                 currentBox = file.user_correction;
             } else if (file.prediction) {
                 currentBox = file.prediction;
-            } else {
+            } else if (lastConfirmedBox) {
                 currentBox = { ...lastConfirmedBox };
+            } else {
+                currentBox = { x: 0.5, y: 0.9, w: 0.2, h: 0.06 };
             }
             updateBoxInputs();
             updateInfoPanel();
