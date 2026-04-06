@@ -147,7 +147,11 @@ def setup_dataset():
 
 def train(data_yaml):
     """Run YOLOv8 fine-tuning. Resumes from previous best.pt if available."""
+    import os
     from ultralytics import YOLO
+
+    # Enable TensorBoard logging
+    os.environ["COMET_MODE"] = "disabled"
 
     best_pt = BASE_DIR / "runs" / "detect" / "train" / "weights" / "best.pt"
     if best_pt.exists():
@@ -156,6 +160,9 @@ def train(data_yaml):
     else:
         print("No previous model found, starting from yolov8n.pt")
         model = YOLO("yolov8n.pt")
+
+    from ultralytics import settings
+    settings.update({"tensorboard": True})
 
     model.train(
         data=str(data_yaml),
