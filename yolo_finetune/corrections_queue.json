@@ -10724,11 +10724,17 @@
       "stem": "d1_00000599",
       "disc": 1,
       "display_name": "D1 - 00000599",
-      "status": "pending",
+      "status": "labeled",
       "created_at": "2026-04-05T19:06:14.134260",
-      "last_reviewed_at": null,
+      "last_reviewed_at": "2026-04-05T21:44:02.760924",
       "prediction": null,
-      "user_correction": null
+      "user_correction": {
+        "x": 0.8520005253491909,
+        "y": 0.8795451580653354,
+        "w": 0.14242792202170937,
+        "h": 0.045022895853962686,
+        "action": "confirmed"
+      }
     },
     {
       "stem": "d1_00000600",
@@ -10750,11 +10756,17 @@
       "stem": "d1_00000601",
       "disc": 1,
       "display_name": "D1 - 00000601",
-      "status": "pending",
+      "status": "no_stamp",
       "created_at": "2026-04-05T19:06:14.134271",
-      "last_reviewed_at": null,
+      "last_reviewed_at": "2026-04-05T21:44:05.736554",
       "prediction": null,
-      "user_correction": null
+      "user_correction": {
+        "x": null,
+        "y": null,
+        "w": null,
+        "h": null,
+        "action": "no_stamp"
+      }
     },
     {
       "stem": "d1_00000602",
@@ -10904,11 +10916,17 @@
       "stem": "d1_00000611",
       "disc": 1,
       "display_name": "D1 - 00000611",
-      "status": "pending",
+      "status": "labeled",
       "created_at": "2026-04-05T19:06:14.134330",
-      "last_reviewed_at": null,
+      "last_reviewed_at": "2026-04-05T21:44:12.745140",
       "prediction": null,
-      "user_correction": null
+      "user_correction": {
+        "x": 0.8538756539187267,
+        "y": 0.8696964383473265,
+        "w": 0.14298525467376388,
+        "h": 0.04447083564047505,
+        "action": "confirmed"
+      }
     },
     {
       "stem": "d1_00000612",
@@ -108741,9 +108759,9 @@
   ],
   "stats": {
     "total": 7455,
-    "pending": 6852,
-    "labeled": 418,
-    "no_stamp": 181,
+    "pending": 6849,
+    "labeled": 420,
+    "no_stamp": 182,
     "skipped": 4
   }
 }
