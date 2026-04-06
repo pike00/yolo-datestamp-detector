@@ -434,7 +434,6 @@
             <h3>Actions</h3>
             <div class="action-buttons">
                 <button class="confirm" id="confirmBtn" disabled>Confirm [Enter]</button>
-                <button id="editBtn" disabled>Edit Mode [E]</button>
                 <button id="noStampBtn" disabled>No Stamp [S]</button>
                 <button class="skip" id="skipBtn" disabled>Skip [X]</button>
                 <button id="rotateBtn" disabled>Rotate [R]</button>
@@ -886,7 +885,6 @@
             document.getElementById("nextBtn").addEventListener("click", () => selectNextFile());
             document.getElementById("trainBtn").addEventListener("click", () => triggerWorker());
 
-            document.getElementById("editBtn").addEventListener("click", toggleEditMode);
             document.getElementById("rotateBtn").addEventListener("click", rotateImage);
         }
 
