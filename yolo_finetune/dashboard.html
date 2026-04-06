@@ -488,6 +488,7 @@
         let selectedStems = new Set();
         let preloadedImage = null;
         let preloadedStem = null;
+        let lastConfirmedBox = { x: 0.5, y: 0.9, w: 0.2, h: 0.06 };
 
         const canvas = document.getElementById("canvas");
         const ctx = canvas.getContext("2d");
@@ -653,9 +654,12 @@
         // Select a file from queue
         async function selectFile(file) {
             selectedFile = file;
-            currentBox = file.prediction || { x: 0.5, y: 0.9, w: 0.2, h: 0.06 };
             if (file.user_correction && file.user_correction.x !== null) {
                 currentBox = file.user_correction;
+            } else if (file.prediction) {
+                currentBox = file.prediction;
+            } else {
+                currentBox = { ...lastConfirmedBox };
             }
             updateBoxInputs();
             updateInfoPanel();
@@ -819,6 +823,9 @@
 
                 const result = await response.json();
                 if (result.success) {
+                    if (action === "confirmed" || action === "edited") {
+                        lastConfirmedBox = { x: currentBox.x, y: currentBox.y, w: currentBox.w, h: currentBox.h };
+                    }
                     if (result.stats) queue.stats = result.stats;
                     updateProgressBar();
 
