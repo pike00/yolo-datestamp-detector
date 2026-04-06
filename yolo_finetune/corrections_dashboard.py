@@ -58,6 +58,21 @@ class DashboardHandler(SimpleHTTPRequestHandler):
 
             result = handle_action(data)
             self.serve_json(result)
+        elif self.path == "/api/bulk-action":
+            content_length = self.headers.get("Content-Length")
+            if not content_length:
+                self.send_error(400, "Missing Content-Length header")
+                return
+
+            try:
+                body = self.rfile.read(int(content_length))
+                data = json.loads(body)
+            except (ValueError, json.JSONDecodeError):
+                self.send_error(400, "Invalid Content-Length or JSON")
+                return
+
+            result = handle_bulk_action(data)
+            self.serve_json(result)
         elif self.path == "/api/train":
             result = start_worker()
             self.serve_json(result)
@@ -242,6 +257,45 @@ def handle_action(data):
 
     save_queue(queue)
     return {"success": True, "status": file_entry["status"], "stats": queue["stats"]}
+
+
+def handle_bulk_action(data):
+    """Handle bulk actions on multiple files."""
+    stems = data.get("stems", [])
+    action = data.get("action")
+
+    if not stems or action != "no_stamp":
+        return {"error": "Invalid bulk action"}
+
+    queue = load_queue()
+    stem_set = set(stems)
+
+    # Add all to skipped.txt
+    skipped = set()
+    if SKIPPED_FILE.exists():
+        skipped = {line.strip() for line in SKIPPED_FILE.read_text().splitlines() if line.strip()}
+    skipped |= stem_set
+    SKIPPED_FILE.write_text("\n".join(sorted(skipped)) + "\n")
+
+    # Update queue entries
+    for f in queue["files"]:
+        if f["stem"] in stem_set:
+            f["status"] = "no_stamp"
+            f["last_reviewed_at"] = datetime.now().isoformat()
+            f["user_correction"] = {"x": None, "y": None, "w": None, "h": None, "action": "no_stamp"}
+
+    # Recompute stats
+    statuses = [f["status"] for f in queue["files"]]
+    queue["stats"] = {
+        "total": len(queue["files"]),
+        "pending": statuses.count("pending"),
+        "labeled": statuses.count("labeled"),
+        "no_stamp": statuses.count("no_stamp"),
+        "skipped": statuses.count("skipped"),
+    }
+
+    save_queue(queue)
+    return {"success": True, "count": len(stems), "stats": queue["stats"]}
 
 
 _worker_process = None

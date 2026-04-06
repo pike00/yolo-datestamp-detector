@@ -112,6 +112,43 @@
             border-color: #007acc;
         }
 
+        .queue-item.selected {
+            background: #3a2a1e;
+            border-color: #cc7a00;
+        }
+
+        .queue-item.selected.active {
+            background: #2a3a4f;
+            border-color: #007acc;
+        }
+
+        .bulk-actions {
+            padding: 8px 10px;
+            border-top: 1px solid #3e3e3e;
+            display: none;
+        }
+
+        .bulk-actions button {
+            width: 100%;
+            padding: 6px 10px;
+            font-size: 11px;
+            background: #4a1010;
+            border: 1px solid #8a2020;
+            color: #e0e0e0;
+            cursor: pointer;
+            border-radius: 3px;
+        }
+
+        .bulk-actions button:hover {
+            background: #5a1515;
+        }
+
+        .bulk-actions .bulk-count {
+            font-size: 10px;
+            color: #a0a0a0;
+            margin-bottom: 5px;
+        }
+
         .queue-item-stem {
             font-weight: 600;
             font-size: 12px;
@@ -375,6 +412,10 @@
                 </div>
             </div>
             <div class="queue-list" id="queueList"></div>
+            <div class="bulk-actions" id="bulkActions">
+                <div class="bulk-count" id="bulkCount">0 selected</div>
+                <button id="bulkNoStampBtn">Mark Selected No Stamp</button>
+            </div>
         </div>
 
         <!-- CENTER: CANVAS EDITOR -->
@@ -444,6 +485,7 @@
         let currentImage = null;
         let currentBox = { x: 0.5, y: 0.9, w: 0.2, h: 0.06 };
         let workerPolling = null;
+        let selectedStems = new Set();
 
         const canvas = document.getElementById("canvas");
         const ctx = canvas.getContext("2d");
@@ -493,6 +535,9 @@
                 if (selectedFile && selectedFile.stem === file.stem) {
                     item.classList.add("active");
                 }
+                if (selectedStems.has(file.stem)) {
+                    item.classList.add("selected");
+                }
 
                 const confidence = file.prediction?.confidence || 0;
                 const confidenceStr = confidence > 0 ? (confidence * 100).toFixed(0) + "%" : "";
@@ -518,7 +563,40 @@
                 }
 
                 item.appendChild(metaDiv);
-                item.addEventListener("click", () => selectFile(file));
+                item.addEventListener("click", (e) => {
+                    if (e.ctrlKey || e.metaKey) {
+                        // Toggle individual selection
+                        if (selectedStems.has(file.stem)) {
+                            selectedStems.delete(file.stem);
+                        } else {
+                            selectedStems.add(file.stem);
+                        }
+                        updateBulkActions();
+                        renderQueueList();
+                    } else if (e.shiftKey && selectedFile) {
+                        // Range select from current to clicked
+                        const visibleFiles = sortQueue(queue.files.filter(f => {
+                            if (currentFilter === "all") return true;
+                            return f.status === currentFilter;
+                        }));
+                        const startIdx = visibleFiles.findIndex(f => f.stem === selectedFile.stem);
+                        const endIdx = visibleFiles.findIndex(f => f.stem === file.stem);
+                        if (startIdx >= 0 && endIdx >= 0) {
+                            const lo = Math.min(startIdx, endIdx);
+                            const hi = Math.max(startIdx, endIdx);
+                            for (let i = lo; i <= hi; i++) {
+                                selectedStems.add(visibleFiles[i].stem);
+                            }
+                        }
+                        updateBulkActions();
+                        renderQueueList();
+                    } else {
+                        // Normal click -- clear multi-select and select file
+                        selectedStems.clear();
+                        updateBulkActions();
+                        selectFile(file);
+                    }
+                });
                 queueList.appendChild(item);
             }
         }
@@ -878,12 +956,59 @@
             document.getElementById("nextBtn").disabled = !hasFile;
         }
 
+        // Update bulk action bar visibility
+        function updateBulkActions() {
+            const bulkDiv = document.getElementById("bulkActions");
+            const countDiv = document.getElementById("bulkCount");
+            if (selectedStems.size > 0) {
+                bulkDiv.style.display = "block";
+                countDiv.textContent = selectedStems.size + " selected";
+            } else {
+                bulkDiv.style.display = "none";
+            }
+        }
+
+        // Bulk mark as no stamp
+        async function bulkNoStamp() {
+            if (selectedStems.size === 0) return;
+
+            const stems = [...selectedStems];
+            try {
+                const response = await fetch("/api/bulk-action", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ stems: stems, action: "no_stamp" })
+                });
+
+                const result = await response.json();
+                if (result.success) {
+                    if (result.stats) queue.stats = result.stats;
+                    updateProgressBar();
+
+                    // Update local state
+                    for (const stem of stems) {
+                        const idx = queue.files.findIndex(f => f.stem === stem);
+                        if (idx >= 0) queue.files[idx].status = "no_stamp";
+                    }
+
+                    selectedStems.clear();
+                    updateBulkActions();
+                    renderQueueList();
+                } else {
+                    console.error("Bulk action failed:", result.error);
+                }
+            } catch (error) {
+                console.error("Error performing bulk action:", error);
+            }
+        }
+
         // Initialize on load
         window.addEventListener("load", async () => {
             setupFilterButtons();
             setupSortDropdown();
             setupActionButtons();
             setupKeyboardControls();
+            document.getElementById("bulkNoStampBtn").addEventListener("click", bulkNoStamp);
             await initDashboard();
             selectNextPending();
         });
