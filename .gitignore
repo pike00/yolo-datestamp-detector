@@ -37,6 +37,13 @@ Thumbs.db
 # Cache and temporary files
 .pytest_cache/
 .mypy_cache/
+.cache/
 *.log
 *.tmp
 .env.rotation
+
+# ML model weights and caches
+models/
+
+# Source images (large, read from HDD)
+yolo_finetune/scanmyphotos/
