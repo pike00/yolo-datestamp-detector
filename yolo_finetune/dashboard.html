@@ -1071,8 +1071,6 @@
                         performAction("skipped"); e.preventDefault(); break;
                     case "n": case "N":
                         selectNextFile(); e.preventDefault(); break;
-                    case "e": case "E":
-                        toggleEditMode(); e.preventDefault(); break;
                     case "r": case "R":
                         rotateImage(); e.preventDefault(); break;
                 }
@@ -1106,17 +1104,7 @@
             }).catch(err => console.error("Failed to save rotation:", err));
         }
 
-        // Edit mode: click-drag on canvas to draw bounding box
-        let editMode = false;
         let dragStart = null;
-
-        function toggleEditMode() {
-            editMode = !editMode;
-            const btn = document.getElementById("editBtn");
-            btn.textContent = editMode ? "Exit Edit [E]" : "Edit Mode [E]";
-            btn.classList.toggle("active", editMode);
-            canvas.style.cursor = editMode ? "crosshair" : "default";
-        }
 
         function canvasMouseDown(e) {
             if (!currentImage) return;
@@ -1164,7 +1152,6 @@
         function updateButtonStates() {
             const hasFile = selectedFile !== null;
             document.getElementById("confirmBtn").disabled = !hasFile;
-            document.getElementById("editBtn").disabled = !hasFile;
             document.getElementById("rotateBtn").disabled = !hasFile;
             document.getElementById("noStampBtn").disabled = !hasFile;
             document.getElementById("skipBtn").disabled = !hasFile;

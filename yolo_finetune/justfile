@@ -1,0 +1,44 @@
+# YOLO date stamp detector
+
+default:
+    @just --list
+
+# Train the model (resumes from previous best.pt if available)
+train:
+    uv run train.py
+
+# Run batch inference on pending images
+infer:
+    uv run infer_all.py
+
+# Start the corrections dashboard on :8889
+dashboard:
+    uv run corrections_dashboard.py
+
+# Train then infer (full cycle)
+cycle: train infer
+
+# Show training metrics in TensorBoard
+tensorboard:
+    uvx --python 3.12 --with "setuptools<82" tensorboard --logdir runs/detect
+
+# Show dataset stats
+stats:
+    @python3 -c "\
+    from pathlib import Path; \
+    import json; \
+    labels = {p.stem for p in Path('dataset/labels').glob('*.txt')}; \
+    skipped = {l.strip() for l in open('skipped.txt').readlines() if l.strip()} if Path('skipped.txt').exists() else set(); \
+    image_stems = {p.stem for p in Path('scanmyphotos').glob('*.jpg')}; \
+    preds = len(json.load(open('scanmyphotos_predictions.json'))) if Path('scanmyphotos_predictions.json').exists() else 0; \
+    reviewed = (labels | skipped) & image_stems; \
+    has_stamp = labels & image_stems; \
+    no_stamp = skipped & image_stems; \
+    remaining = len(image_stems) - len(reviewed); \
+    print(f'Images:      {len(image_stems)}'); \
+    print(f'Has stamp:   {len(has_stamp)}'); \
+    print(f'No stamp:    {len(no_stamp)}'); \
+    print(f'Reviewed:    {len(reviewed)} / {len(image_stems)}'); \
+    print(f'Remaining:   {remaining}'); \
+    print(f'Predictions: {preds}'); \
+    "
