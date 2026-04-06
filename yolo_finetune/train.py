@@ -3,6 +3,7 @@
 # dependencies = [
 #     "ultralytics>=8.0",
 #     "pyyaml",
+#     "tensorboard",
 # ]
 # ///
 """YOLO fine-tuning on annotated bounding box data."""
@@ -26,35 +27,39 @@ VAL_RATIO = 0.2
 
 def setup_dataset():
     """Split labeled + skipped images into train/val with YOLO directory structure."""
-    # Merge corrections into main dataset before collecting
-    CORRECTIONS_DIR = BASE_DIR / "dataset" / "corrections"
-    if CORRECTIONS_DIR.exists():
-        print(f"Merging corrections from {CORRECTIONS_DIR}...")
+    # Migrate old-style labels (00000080.txt) to new disc-prefixed names (d1_00000080.txt)
+    old_labels = [p for p in LABELS_DIR.glob("*.txt") if not p.stem.startswith("d")]
+    if old_labels:
+        print(f"Migrating {len(old_labels)} old-style labels to disc-prefixed names...")
+        for label_path in old_labels:
+            stem = label_path.stem
+            # Find matching image in scanmyphotos/
+            matches = list(IMAGE_SOURCE.glob(f"d*_{stem}.jpg"))
+            if matches:
+                new_stem = matches[0].stem  # e.g., d1_00000080
+                new_label = LABELS_DIR / f"{new_stem}.txt"
+                if not new_label.exists():
+                    shutil.copy2(label_path, new_label)
+                print(f"  {stem} -> {new_stem}")
 
-        # Merge labeled images (copy .txt files)
-        for label_file in CORRECTIONS_DIR.glob("*.txt"):
-            dst_label = LABELS_DIR / label_file.name
-            if not dst_label.exists():
-                dst_label.write_bytes(label_file.read_bytes())
-
-        # Merge skipped images (add to skipped.txt)
-        correction_images = {p.stem for p in CORRECTIONS_DIR.glob("*.jpg")}
-        correction_images |= {p.stem for p in CORRECTIONS_DIR.glob("*.JPG")}
-        correction_labeled = {p.stem for p in CORRECTIONS_DIR.glob("*.txt")}
-        correction_skipped = correction_images - correction_labeled
-
-        if correction_skipped:
-            existing_skipped = set()
-            if SKIPPED_FILE.exists():
-                existing_skipped = {
-                    line.strip() for line in SKIPPED_FILE.read_text().splitlines()
-                }
-
-            new_skipped = existing_skipped | correction_skipped
-            SKIPPED_FILE.write_text("\n".join(sorted(new_skipped)) + "\n")
+    # Migrate old-style skipped entries too
+    if SKIPPED_FILE.exists():
+        skipped_lines = [l.strip() for l in SKIPPED_FILE.read_text().splitlines() if l.strip()]
+        migrated = []
+        for entry in skipped_lines:
+            stem = Path(entry).stem
+            if stem.startswith("d"):
+                migrated.append(stem)
+                continue
+            matches = list(IMAGE_SOURCE.glob(f"d*_{stem}.jpg"))
+            if matches:
+                migrated.append(matches[0].stem)
+            else:
+                migrated.append(stem)
+        SKIPPED_FILE.write_text("\n".join(sorted(set(migrated))) + "\n")
 
     # Collect labeled images (those with a .txt in labels/)
-    labeled = sorted(p.stem for p in LABELS_DIR.glob("*.txt"))
+    labeled = sorted(p.stem for p in LABELS_DIR.glob("*.txt") if p.stem.startswith("d"))
     if not labeled:
         print("No labels found in dataset/labels/. Run annotate.py first.")
         raise SystemExit(1)
@@ -97,12 +102,9 @@ def setup_dataset():
         split = "val" if stem in val_stems else "train"
 
         # Find source image
-        src_img = None
-        for ext in (".jpg", ".JPG"):
-            candidate = IMAGE_SOURCE / f"{stem}{ext}"
-            if candidate.exists():
-                src_img = candidate
-                break
+        src_img = IMAGE_SOURCE / f"{stem}.jpg"
+        if not src_img.exists():
+            src_img = None
 
         if src_img is None:
             print(f"  Warning: no source image for {stem}, skipping")
@@ -144,10 +146,16 @@ def setup_dataset():
 
 
 def train(data_yaml):
-    """Run YOLOv8 fine-tuning."""
+    """Run YOLOv8 fine-tuning. Resumes from previous best.pt if available."""
     from ultralytics import YOLO
 
-    model = YOLO("yolov8n.pt")
+    best_pt = BASE_DIR / "runs" / "detect" / "train" / "weights" / "best.pt"
+    if best_pt.exists():
+        print(f"Resuming fine-tune from previous best: {best_pt}")
+        model = YOLO(str(best_pt))
+    else:
+        print("No previous model found, starting from yolov8n.pt")
+        model = YOLO("yolov8n.pt")
 
     model.train(
         data=str(data_yaml),
@@ -162,11 +170,11 @@ def train(data_yaml):
         verbose=True,
     )
 
-    best = BASE_DIR / "runs" / "detect" / "train" / "weights" / "best.pt"
-    if best.exists():
-        print(f"\nTraining complete! Best weights: {best}")
+    if best_pt.exists():
+        print(f"\nTraining complete! Best weights: {best_pt}")
+        print(f"TensorBoard: uv run tensorboard --logdir {BASE_DIR / 'runs' / 'detect'}")
     else:
-        print("\nTraining finished but no best.pt found — check logs above.")
+        print("\nTraining finished but no best.pt found -- check logs above.")
 
 
 def main():
