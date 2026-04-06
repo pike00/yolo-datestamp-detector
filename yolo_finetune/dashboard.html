@@ -20,7 +20,7 @@
 
         .container {
             display: flex;
-            height: 100vh;
+            height: calc(100vh - 30px);
         }
 
         /* LEFT SIDEBAR: QUEUE VIEW */
@@ -299,19 +299,72 @@
             font-size: 11px;
             text-align: center;
         }
+
+        .progress-bar {
+            padding: 8px 15px;
+            background: #252525;
+            border-bottom: 1px solid #3e3e3e;
+            font-size: 11px;
+            color: #a0a0a0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .progress-bar .stats {
+            display: flex;
+            gap: 15px;
+        }
+
+        .progress-bar .stat-value {
+            color: #e0e0e0;
+            font-weight: 600;
+        }
+
+        .worker-status {
+            padding: 8px 15px;
+            background: #1e3a5f;
+            border-bottom: 1px solid #007acc;
+            font-size: 11px;
+            display: none;
+        }
+
+        .worker-status .progress-fill {
+            height: 4px;
+            background: #007acc;
+            border-radius: 2px;
+            margin-top: 4px;
+            transition: width 0.3s;
+        }
     </style>
 </head>
 <body>
+    <div class="progress-bar" id="progressBar">
+        <div class="stats">
+            <span>Reviewed: <span class="stat-value" id="statReviewed">0</span> / <span class="stat-value" id="statTotal">0</span></span>
+            <span>Labels: <span class="stat-value" id="statLabeled">0</span></span>
+            <span>No stamp: <span class="stat-value" id="statNoStamp">0</span></span>
+            <span>Skipped: <span class="stat-value" id="statSkipped">0</span></span>
+        </div>
+        <span id="statPercent">0%</span>
+    </div>
+    <div class="worker-status" id="workerStatus">
+        <span id="workerMessage">Idle</span>
+        <div style="background: #333; border-radius: 2px; height: 4px;">
+            <div class="progress-fill" id="workerProgress" style="width: 0%;"></div>
+        </div>
+    </div>
     <div class="container">
         <!-- LEFT: QUEUE VIEW -->
         <div class="queue-view">
             <div class="queue-header">
                 <h2>Queue</h2>
                 <div class="filter-buttons" id="filters">
-                    <button class="active" data-filter="all">All</button>
-                    <button data-filter="pending">Pending</button>
-                    <button data-filter="reviewed">Reviewed</button>
-                    <button data-filter="needs_fix">Needs Fix</button>
+                    <button data-filter="all">All</button>
+                    <button class="active" data-filter="pending">Pending</button>
+                    <button data-filter="labeled">Labeled</button>
+                    <button data-filter="no_stamp">No Stamp</button>
+                    <button data-filter="skipped">Skipped</button>
                 </div>
                 <div class="sort-options">
                     <select id="sortBy">
@@ -377,20 +430,20 @@
                 <div class="info-value" id="infoStatus">—</div>
             </div>
 
-            <button class="train-button" id="trainBtn">Train Now</button>
+            <button class="train-button" id="trainBtn">Train + Re-infer</button>
             <div class="training-status" id="trainingStatus" style="display: none;"></div>
         </div>
     </div>
 
     <script>
         // Global state
-        let queue = [];
-        let currentFilter = "all";
+        let queue = { files: [], stats: {} };
+        let currentFilter = "pending";
         let currentSort = "created";
         let selectedFile = null;
         let currentImage = null;
-        let currentBox = { x: 0.5, y: 0.5, w: 0.2, h: 0.1 };
-        let editMode = false;
+        let currentBox = { x: 0.5, y: 0.9, w: 0.2, h: 0.06 };
+        let workerPolling = null;
 
         const canvas = document.getElementById("canvas");
         const ctx = canvas.getContext("2d");
@@ -401,11 +454,25 @@
                 const response = await fetch("/api/queue");
                 queue = await response.json();
                 renderQueueList();
-                setupFilterButtons();
-                setupSortDropdown();
+                updateProgressBar();
             } catch (error) {
                 console.error("Error loading queue:", error);
             }
+        }
+
+        // Update progress bar
+        function updateProgressBar() {
+            const s = queue.stats || {};
+            const reviewed = (s.labeled || 0) + (s.no_stamp || 0) + (s.skipped || 0);
+            const total = s.total || 0;
+            const pct = total > 0 ? ((reviewed / total) * 100).toFixed(1) : "0.0";
+
+            document.getElementById("statReviewed").textContent = reviewed;
+            document.getElementById("statTotal").textContent = total;
+            document.getElementById("statLabeled").textContent = s.labeled || 0;
+            document.getElementById("statNoStamp").textContent = s.no_stamp || 0;
+            document.getElementById("statSkipped").textContent = s.skipped || 0;
+            document.getElementById("statPercent").textContent = pct + "%";
         }
 
         // Render queue list
@@ -427,29 +494,23 @@
                     item.classList.add("active");
                 }
 
-                const confidence = file.inference_data?.confidence || 0;
-                const confidenceStr = confidence > 0 ? `${(confidence * 100).toFixed(0)}%` : "—";
+                const confidence = file.prediction?.confidence || 0;
+                const confidenceStr = confidence > 0 ? (confidence * 100).toFixed(0) + "%" : "";
 
-                // Build item content safely
                 const stemDiv = document.createElement("div");
                 stemDiv.className = "queue-item-stem";
-                stemDiv.textContent = file.stem;
+                stemDiv.textContent = file.display_name || file.stem;
                 item.appendChild(stemDiv);
 
                 const metaDiv = document.createElement("div");
                 metaDiv.className = "queue-item-meta";
 
-                const sourceBadge = document.createElement("span");
-                sourceBadge.className = `meta-badge source-${file.source}`;
-                sourceBadge.textContent = file.source;
-                metaDiv.appendChild(sourceBadge);
-
                 const statusBadge = document.createElement("span");
-                statusBadge.className = `meta-badge status-${file.status.replace("_", "_")}`;
+                statusBadge.className = "meta-badge status-" + file.status;
                 statusBadge.textContent = file.status;
                 metaDiv.appendChild(statusBadge);
 
-                if (file.inference_data?.confidence > 0) {
+                if (confidenceStr) {
                     const confBadge = document.createElement("span");
                     confBadge.className = "meta-badge";
                     confBadge.textContent = confidenceStr;
@@ -467,7 +528,7 @@
             const sorted = [...files];
             switch (currentSort) {
                 case "created":
-                    sorted.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+                    sorted.sort((a, b) => (a.stem > b.stem ? 1 : -1));
                     break;
                 case "reviewed":
                     sorted.sort((a, b) => {
@@ -478,8 +539,8 @@
                     break;
                 case "confidence":
                     sorted.sort((a, b) => {
-                        const aConf = a.inference_data?.confidence || 0;
-                        const bConf = b.inference_data?.confidence || 0;
+                        const aConf = a.prediction?.confidence || 0;
+                        const bConf = b.prediction?.confidence || 0;
                         return bConf - aConf;
                     });
                     break;
@@ -512,13 +573,16 @@
         // Select a file from queue
         async function selectFile(file) {
             selectedFile = file;
-            currentBox = file.user_correction || file.inference_data || { x: 0.5, y: 0.5, w: 0.2, h: 0.1 };
+            currentBox = file.prediction || { x: 0.5, y: 0.9, w: 0.2, h: 0.06 };
+            if (file.user_correction && file.user_correction.x !== null) {
+                currentBox = file.user_correction;
+            }
             updateBoxInputs();
             updateInfoPanel();
+            updateButtonStates();
             await loadImage();
             renderQueueList();
             updateHeader();
-            updateButtonStates();
         }
 
         // Load image from server
@@ -534,94 +598,102 @@
                     console.error("Failed to load image");
                     resolve();
                 };
-                img.src = `/api/image/${selectedFile.stem}`;
+                img.src = "/api/image/" + selectedFile.stem;
             });
         }
 
         // Draw canvas with image and box overlay
         function drawCanvas() {
             if (!currentImage) {
+                canvas.width = 400;
+                canvas.height = 300;
                 ctx.fillStyle = "#333";
-                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.fillRect(0, 0, 400, 300);
                 ctx.fillStyle = "#999";
                 ctx.font = "14px sans-serif";
                 ctx.textAlign = "center";
-                ctx.fillText("No image loaded", canvas.width / 2, canvas.height / 2);
+                ctx.fillText("No image loaded", 200, 150);
                 return;
             }
 
-            // Clear canvas and draw image
             canvas.width = currentImage.width;
             canvas.height = currentImage.height;
             ctx.drawImage(currentImage, 0, 0);
 
-            // Draw bounding box
+            // Only draw box if we have valid coordinates
+            if (currentBox.x === null || currentBox.x === undefined) return;
+
             const x = currentBox.x * canvas.width;
             const y = currentBox.y * canvas.height;
             const w = currentBox.w * canvas.width;
             const h = currentBox.h * canvas.height;
 
-            // Determine box color based on source and state
-            let boxColor = "#888"; // Gray for originals
-            if (selectedFile.source === "inference") {
-                boxColor = "#ffff00"; // Yellow for predictions
-            }
-            if (selectedFile.user_correction) {
-                boxColor = "#00ff00"; // Green for edited
+            // Box color: yellow for prediction, green for user correction
+            let boxColor = "#ffff00";
+            if (selectedFile.user_correction && selectedFile.user_correction.x !== null) {
+                boxColor = "#00ff00";
             }
 
-            // Draw box
             ctx.strokeStyle = boxColor;
             ctx.lineWidth = 2;
-            ctx.strokeRect(x, y, w, h);
+            ctx.strokeRect(x - w/2, y - h/2, w, h);
 
             // Draw corners
-            const cornerSize = 6;
+            const cs = 6;
             ctx.fillStyle = boxColor;
-            ctx.fillRect(x - cornerSize / 2, y - cornerSize / 2, cornerSize, cornerSize);
-            ctx.fillRect(x + w - cornerSize / 2, y - cornerSize / 2, cornerSize, cornerSize);
-            ctx.fillRect(x - cornerSize / 2, y + h - cornerSize / 2, cornerSize, cornerSize);
-            ctx.fillRect(x + w - cornerSize / 2, y + h - cornerSize / 2, cornerSize, cornerSize);
+            ctx.fillRect(x - w/2 - cs/2, y - h/2 - cs/2, cs, cs);
+            ctx.fillRect(x + w/2 - cs/2, y - h/2 - cs/2, cs, cs);
+            ctx.fillRect(x - w/2 - cs/2, y + h/2 - cs/2, cs, cs);
+            ctx.fillRect(x + w/2 - cs/2, y + h/2 - cs/2, cs, cs);
+
+            // Draw confidence label
+            if (selectedFile.prediction?.confidence) {
+                const conf = (selectedFile.prediction.confidence * 100).toFixed(0) + "%";
+                ctx.font = "12px sans-serif";
+                ctx.fillStyle = boxColor;
+                ctx.textAlign = "left";
+                ctx.fillText(conf, x - w/2, y - h/2 - 5);
+            }
         }
 
         // Update box coordinate inputs
         function updateBoxInputs() {
-            document.getElementById("boxX").value = currentBox.x.toFixed(2);
-            document.getElementById("boxY").value = currentBox.y.toFixed(2);
-            document.getElementById("boxW").value = currentBox.w.toFixed(2);
-            document.getElementById("boxH").value = currentBox.h.toFixed(2);
+            document.getElementById("boxX").value = (currentBox.x || 0).toFixed(4);
+            document.getElementById("boxY").value = (currentBox.y || 0).toFixed(4);
+            document.getElementById("boxW").value = (currentBox.w || 0).toFixed(4);
+            document.getElementById("boxH").value = (currentBox.h || 0).toFixed(4);
         }
 
         // Update info panel
         function updateInfoPanel() {
-            document.getElementById("infoSource").textContent = selectedFile.source;
+            document.getElementById("infoSource").textContent = "D" + (selectedFile.disc || "?");
             document.getElementById("infoStatus").textContent = selectedFile.status;
-            const confidence = selectedFile.inference_data?.confidence || 0;
-            document.getElementById("infoConfidence").textContent = confidence > 0 ? `${(confidence * 100).toFixed(0)}%` : "—";
+            const confidence = selectedFile.prediction?.confidence || 0;
+            document.getElementById("infoConfidence").textContent = confidence > 0 ? (confidence * 100).toFixed(0) + "%" : "--";
         }
 
         // Update header
         function updateHeader() {
+            const header = document.getElementById("canvasHeader");
             if (!selectedFile) {
-                document.getElementById("canvasHeader").textContent = "Select a file from the queue";
+                header.textContent = "Select a file from the queue";
             } else {
-                const position = queue.files.indexOf(selectedFile) + 1;
-                const total = queue.files.length;
-                document.getElementById("canvasHeader").textContent = `${selectedFile.stem} (${selectedFile.source}) — Position ${position}/${total}`;
+                header.textContent = (selectedFile.display_name || selectedFile.stem) + " -- " + selectedFile.status;
             }
         }
 
         // Setup action button handlers
         function setupActionButtons() {
             document.getElementById("confirmBtn").addEventListener("click", () => performAction("confirmed"));
-            document.getElementById("editBtn").addEventListener("click", () => {
-                editMode = !editMode;
-                document.getElementById("editBtn").textContent = editMode ? "Exit Edit Mode" : "Edit Mode";
-            });
             document.getElementById("noStampBtn").addEventListener("click", () => performAction("no_stamp"));
             document.getElementById("skipBtn").addEventListener("click", () => performAction("skipped"));
             document.getElementById("nextBtn").addEventListener("click", () => selectNextFile());
-            document.getElementById("trainBtn").addEventListener("click", () => triggerTraining());
+            document.getElementById("trainBtn").addEventListener("click", () => triggerWorker());
+
+            document.getElementById("editBtn").addEventListener("click", () => {
+                const btn = document.getElementById("editBtn");
+                btn.classList.toggle("active");
+            });
         }
 
         // Perform action
@@ -641,9 +713,20 @@
 
                 const result = await response.json();
                 if (result.success) {
-                    // Refresh queue and move to next
-                    await initDashboard();
-                    selectNextFile();
+                    if (result.stats) queue.stats = result.stats;
+                    updateProgressBar();
+
+                    const idx = queue.files.findIndex(f => f.stem === selectedFile.stem);
+                    if (idx >= 0) {
+                        queue.files[idx].status = result.status;
+                        queue.files[idx].user_correction = {
+                            x: currentBox.x, y: currentBox.y,
+                            w: currentBox.w, h: currentBox.h,
+                            action: action
+                        };
+                    }
+
+                    selectNextPending();
                 } else {
                     console.error("Action failed:", result.error);
                 }
@@ -652,141 +735,135 @@
             }
         }
 
-        // Select next file
+        // Select next pending file
+        function selectNextPending() {
+            const pending = queue.files.filter(f => f.status === "pending");
+            if (pending.length > 0) {
+                selectFile(pending[0]);
+            } else {
+                selectedFile = null;
+                currentImage = null;
+                renderQueueList();
+                updateHeader();
+                drawCanvas();
+            }
+        }
+
+        // Select next file in current filter
         function selectNextFile() {
-            const filteredQueue = queue.files.filter(f => {
+            const filtered = queue.files.filter(f => {
                 if (currentFilter === "all") return true;
                 return f.status === currentFilter;
             });
 
             if (!selectedFile) {
-                if (filteredQueue.length > 0) selectFile(filteredQueue[0]);
+                if (filtered.length > 0) selectFile(filtered[0]);
                 return;
             }
 
-            const currentIndex = filteredQueue.indexOf(selectedFile);
-            if (currentIndex < filteredQueue.length - 1) {
-                selectFile(filteredQueue[currentIndex + 1]);
+            const idx = filtered.findIndex(f => f.stem === selectedFile.stem);
+            if (idx < filtered.length - 1) {
+                selectFile(filtered[idx + 1]);
             }
         }
 
-        // Trigger training
-        async function triggerTraining() {
+        // Trigger background worker (train + re-infer)
+        async function triggerWorker() {
             const trainBtn = document.getElementById("trainBtn");
-            const trainingStatus = document.getElementById("trainingStatus");
-
             trainBtn.disabled = true;
-            trainingStatus.style.display = "block";
-            trainingStatus.textContent = "Training in progress...";
 
             try {
                 const response = await fetch("/api/train", { method: "POST" });
                 const result = await response.json();
 
                 if (result.success) {
-                    trainingStatus.textContent = "Training completed!";
-                    await initDashboard();
-                    selectedFile = null;
-                    currentImage = null;
-                    renderQueueList();
-                    updateHeader();
-                    drawCanvas();
+                    startWorkerPolling();
                 } else {
-                    trainingStatus.textContent = `Error: ${result.error}`;
+                    trainBtn.disabled = false;
+                    console.error("Worker start failed:", result.error);
                 }
             } catch (error) {
-                trainingStatus.textContent = `Error: ${error.message}`;
-                console.error("Training failed:", error);
-            } finally {
                 trainBtn.disabled = false;
-                setTimeout(() => {
-                    trainingStatus.style.display = "none";
-                }, 3000);
+                console.error("Error starting worker:", error);
             }
+        }
+
+        // Poll worker status
+        function startWorkerPolling() {
+            const statusDiv = document.getElementById("workerStatus");
+            const messageSpan = document.getElementById("workerMessage");
+            const progressBar = document.getElementById("workerProgress");
+
+            statusDiv.style.display = "block";
+
+            workerPolling = setInterval(async () => {
+                try {
+                    const response = await fetch("/api/worker-status");
+                    const status = await response.json();
+
+                    messageSpan.textContent = status.message || status.phase;
+                    const pct = status.total > 0 ? ((status.progress / status.total) * 100) : 0;
+                    progressBar.style.width = pct + "%";
+
+                    if (status.phase === "done" || status.phase === "error") {
+                        clearInterval(workerPolling);
+                        workerPolling = null;
+                        document.getElementById("trainBtn").disabled = false;
+
+                        await initDashboard();
+                        selectNextPending();
+
+                        setTimeout(() => {
+                            statusDiv.style.display = "none";
+                        }, 5000);
+                    }
+                } catch (error) {
+                    console.error("Error polling worker:", error);
+                }
+            }, 2000);
         }
 
         // Keyboard controls
         function setupKeyboardControls() {
             document.addEventListener("keydown", (e) => {
+                if (e.target.tagName === "INPUT") return;
                 if (!selectedFile) return;
 
-                const pixelSize = 20;
-                const finePixelSize = 3;
-                const canvasWidth = currentImage ? currentImage.width : 1;
-                const canvasHeight = currentImage ? currentImage.height : 1;
-
-                const moveStep = e.shiftKey ? finePixelSize / canvasWidth : pixelSize / canvasWidth;
-                const moveStepY = e.shiftKey ? finePixelSize / canvasHeight : pixelSize / canvasHeight;
-                const sizeStep = 0.05;
+                const cw = currentImage ? currentImage.width : 1;
+                const ch = currentImage ? currentImage.height : 1;
+                const moveStep = e.shiftKey ? 3 / cw : 20 / cw;
+                const moveStepY = e.shiftKey ? 3 / ch : 20 / ch;
+                const sizeStep = 0.01;
 
                 switch (e.key) {
                     case "ArrowLeft":
-                        currentBox.x = Math.max(0, currentBox.x - moveStep);
-                        drawCanvas();
-                        updateBoxInputs();
-                        e.preventDefault();
-                        break;
+                        currentBox.x = Math.max(currentBox.w / 2, currentBox.x - moveStep);
+                        drawCanvas(); updateBoxInputs(); e.preventDefault(); break;
                     case "ArrowRight":
-                        currentBox.x = Math.min(1 - currentBox.w, currentBox.x + moveStep);
-                        drawCanvas();
-                        updateBoxInputs();
-                        e.preventDefault();
-                        break;
+                        currentBox.x = Math.min(1 - currentBox.w / 2, currentBox.x + moveStep);
+                        drawCanvas(); updateBoxInputs(); e.preventDefault(); break;
                     case "ArrowUp":
-                        currentBox.y = Math.max(0, currentBox.y - moveStepY);
-                        drawCanvas();
-                        updateBoxInputs();
-                        e.preventDefault();
-                        break;
+                        currentBox.y = Math.max(currentBox.h / 2, currentBox.y - moveStepY);
+                        drawCanvas(); updateBoxInputs(); e.preventDefault(); break;
                     case "ArrowDown":
-                        currentBox.y = Math.min(1 - currentBox.h, currentBox.y + moveStepY);
-                        drawCanvas();
-                        updateBoxInputs();
-                        e.preventDefault();
-                        break;
+                        currentBox.y = Math.min(1 - currentBox.h / 2, currentBox.y + moveStepY);
+                        drawCanvas(); updateBoxInputs(); e.preventDefault(); break;
                     case "[":
-                        currentBox.w = Math.max(0.05, currentBox.w - sizeStep);
-                        drawCanvas();
-                        updateBoxInputs();
-                        e.preventDefault();
-                        break;
+                        currentBox.w = Math.max(0.02, currentBox.w - sizeStep);
+                        drawCanvas(); updateBoxInputs(); e.preventDefault(); break;
                     case "]":
-                        currentBox.w = Math.min(1 - currentBox.x, currentBox.w + sizeStep);
-                        drawCanvas();
-                        updateBoxInputs();
-                        e.preventDefault();
-                        break;
+                        currentBox.w = Math.min(0.5, currentBox.w + sizeStep);
+                        drawCanvas(); updateBoxInputs(); e.preventDefault(); break;
                     case "{":
-                        currentBox.h = Math.max(0.05, currentBox.h - sizeStep);
-                        drawCanvas();
-                        updateBoxInputs();
-                        e.preventDefault();
-                        break;
+                        currentBox.h = Math.max(0.02, currentBox.h - sizeStep);
+                        drawCanvas(); updateBoxInputs(); e.preventDefault(); break;
                     case "}":
-                        currentBox.h = Math.min(1 - currentBox.y, currentBox.h + sizeStep);
-                        drawCanvas();
-                        updateBoxInputs();
-                        e.preventDefault();
-                        break;
+                        currentBox.h = Math.min(0.3, currentBox.h + sizeStep);
+                        drawCanvas(); updateBoxInputs(); e.preventDefault(); break;
                     case "Enter":
-                        performAction("confirmed");
-                        e.preventDefault();
-                        break;
-                    case "s":
-                    case "S":
-                        performAction("no_stamp");
-                        e.preventDefault();
-                        break;
-                    case "z":
-                    case "Z":
-                        // Go back - not implemented yet
-                        e.preventDefault();
-                        break;
-                    case "q":
-                    case "Q":
-                        // Quit - would close the app
-                        e.preventDefault();
-                        break;
+                        performAction("confirmed"); e.preventDefault(); break;
+                    case "s": case "S":
+                        performAction("no_stamp"); e.preventDefault(); break;
                 }
             });
         }
@@ -802,11 +879,13 @@
         }
 
         // Initialize on load
-        window.addEventListener("load", () => {
-            initDashboard();
+        window.addEventListener("load", async () => {
+            setupFilterButtons();
+            setupSortDropdown();
             setupActionButtons();
             setupKeyboardControls();
-            updateHeader();
+            await initDashboard();
+            selectNextPending();
         });
     </script>
 </body>
