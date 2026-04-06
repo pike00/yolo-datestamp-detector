@@ -1,9 +1,11 @@
-#!/usr/bin/env -S uv run
 # /// script
-# requires-python = ">=3.10"
-# dependencies = ["ultralytics>=8.0", "opencv-python-headless"]
+# requires-python = ">=3.14"
+# dependencies = [
+#     "ultralytics>=8.0",
+#     "opencv-python-headless",
+# ]
 # ///
-"""Batch inference on all ScanMyPhotos images. Writes predictions + worker status."""
+"""Batch inference on pending ScanMyPhotos images. Writes predictions + worker status."""
 
 import json
 from pathlib import Path

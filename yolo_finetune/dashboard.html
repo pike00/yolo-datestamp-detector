@@ -407,7 +407,8 @@
                     <select id="sortBy">
                         <option value="created">Date Added</option>
                         <option value="reviewed">Last Reviewed</option>
-                        <option value="confidence">Confidence</option>
+                        <option value="confidence_desc">Confidence (high-low)</option>
+                        <option value="confidence_asc">Confidence (low-high)</option>
                     </select>
                 </div>
             </div>
@@ -436,6 +437,7 @@
                 <button id="editBtn" disabled>Edit Mode [E]</button>
                 <button id="noStampBtn" disabled>No Stamp [S]</button>
                 <button class="skip" id="skipBtn" disabled>Skip [X]</button>
+                <button id="rotateBtn" disabled>Rotate [R]</button>
                 <button id="nextBtn" disabled>Next [N]</button>
             </div>
 
@@ -484,6 +486,8 @@
         let selectedFile = null;
         let currentImage = null;
         let currentBox = { x: 0.5, y: 0.9, w: 0.2, h: 0.06 };
+        let currentRotation = 0; // 0, 90, 180, 270 degrees CW
+        let rotationSource = "none"; // "none", "predicted", "user"
         let workerPolling = null;
         let selectedStems = new Set();
         let preloadedImage = null;
@@ -626,11 +630,18 @@
                         return bTime - aTime;
                     });
                     break;
-                case "confidence":
+                case "confidence_desc":
                     sorted.sort((a, b) => {
                         const aConf = a.prediction?.confidence || 0;
                         const bConf = b.prediction?.confidence || 0;
                         return bConf - aConf;
+                    });
+                    break;
+                case "confidence_asc":
+                    sorted.sort((a, b) => {
+                        const aConf = a.prediction?.confidence || 0;
+                        const bConf = b.prediction?.confidence || 0;
+                        return aConf - bConf;
                     });
                     break;
             }
@@ -671,12 +682,38 @@
             } else {
                 currentBox = { x: 0.5, y: 0.9, w: 0.2, h: 0.06 };
             }
+
+            // Fetch rotation from DB
+            try {
+                const rotResp = await fetch("/api/rotation/" + file.stem);
+                const rotData = await rotResp.json();
+                currentRotation = rotData.rotation || 0;
+                rotationSource = rotData.source || "none";
+            } catch (e) {
+                currentRotation = 0;
+                rotationSource = "none";
+            }
+
+            // If image has rotation and bbox is in original space, transform bbox to rotated display space
+            if (currentRotation !== 0 && currentBox.x !== null) {
+                currentBox = transformBboxToDisplay(currentBox.x, currentBox.y, currentBox.w, currentBox.h, currentRotation);
+            }
+
             updateBoxInputs();
             updateInfoPanel();
             updateButtonStates();
             await loadImage();
             renderQueueList();
             updateHeader();
+        }
+
+        // Transform bbox from original image space to rotated display space
+        function transformBboxToDisplay(cx, cy, w, h, rotation) {
+            if (rotation === 0) return { x: cx, y: cy, w: w, h: h };
+            if (rotation === 90) return { x: 1 - cy, y: cx, w: h, h: w };
+            if (rotation === 180) return { x: 1 - cx, y: 1 - cy, w: w, h: h };
+            if (rotation === 270) return { x: cy, y: 1 - cx, w: h, h: w };
+            return { x: cx, y: cy, w: w, h: h };
         }
 
         // Load image from server (uses preloaded if available)
@@ -739,13 +776,37 @@
                 return;
             }
 
-            canvas.width = currentImage.width;
-            canvas.height = currentImage.height;
+            const iw = currentImage.width;
+            const ih = currentImage.height;
+
+            // For 90/270 rotation, swap canvas dimensions
+            if (currentRotation === 90 || currentRotation === 270) {
+                canvas.width = ih;
+                canvas.height = iw;
+            } else {
+                canvas.width = iw;
+                canvas.height = ih;
+            }
+
+            ctx.save();
+            // Apply rotation around canvas center
+            if (currentRotation === 90) {
+                ctx.translate(ih, 0);
+                ctx.rotate(Math.PI / 2);
+            } else if (currentRotation === 180) {
+                ctx.translate(iw, ih);
+                ctx.rotate(Math.PI);
+            } else if (currentRotation === 270) {
+                ctx.translate(0, iw);
+                ctx.rotate(3 * Math.PI / 2);
+            }
             ctx.drawImage(currentImage, 0, 0);
+            ctx.restore();
 
             // Only draw box if we have valid coordinates
             if (currentBox.x === null || currentBox.x === undefined) return;
 
+            // Box coordinates are in rotated display space
             const x = currentBox.x * canvas.width;
             const y = currentBox.y * canvas.height;
             const w = currentBox.w * canvas.width;
@@ -777,6 +838,14 @@
                 ctx.textAlign = "left";
                 ctx.fillText(conf, x - w/2, y - h/2 - 5);
             }
+
+            // Draw rotation indicator if rotated
+            if (currentRotation !== 0) {
+                ctx.font = "11px sans-serif";
+                ctx.fillStyle = "#ff8800";
+                ctx.textAlign = "right";
+                ctx.fillText(currentRotation + "deg " + rotationSource, canvas.width - 5, 15);
+            }
         }
 
         // Update box coordinate inputs
@@ -801,7 +870,11 @@
             if (!selectedFile) {
                 header.textContent = "Select a file from the queue";
             } else {
-                header.textContent = (selectedFile.display_name || selectedFile.stem) + " -- " + selectedFile.status;
+                let text = (selectedFile.display_name || selectedFile.stem) + " -- " + selectedFile.status;
+                if (currentRotation !== 0) {
+                    text += " [rot:" + currentRotation + "deg " + rotationSource + "]";
+                }
+                header.textContent = text;
             }
         }
 
@@ -814,6 +887,7 @@
             document.getElementById("trainBtn").addEventListener("click", () => triggerWorker());
 
             document.getElementById("editBtn").addEventListener("click", toggleEditMode);
+            document.getElementById("rotateBtn").addEventListener("click", rotateImage);
         }
 
         // Perform action
@@ -827,7 +901,8 @@
                     body: JSON.stringify({
                         stem: selectedFile.stem,
                         action: action,
-                        box: action !== "no_stamp" ? currentBox : null
+                        box: action !== "no_stamp" ? currentBox : null,
+                        rotation: currentRotation
                     })
                 });
 
@@ -858,11 +933,21 @@
             }
         }
 
-        // Select next pending file
+        // Get the currently visible, sorted file list
+        function getVisibleFiles() {
+            const filtered = queue.files.filter(f => {
+                if (currentFilter === "all") return true;
+                return f.status === currentFilter;
+            });
+            return sortQueue(filtered);
+        }
+
+        // Select next pending file (respects current sort order)
         function selectNextPending() {
-            const pending = queue.files.filter(f => f.status === "pending");
-            if (pending.length > 0) {
-                selectFile(pending[0]);
+            const visible = getVisibleFiles();
+            const next = visible.find(f => f.status === "pending");
+            if (next) {
+                selectFile(next);
             } else {
                 selectedFile = null;
                 currentImage = null;
@@ -872,21 +957,18 @@
             }
         }
 
-        // Select next file in current filter
+        // Select next file in current filter (respects sort order)
         function selectNextFile() {
-            const filtered = queue.files.filter(f => {
-                if (currentFilter === "all") return true;
-                return f.status === currentFilter;
-            });
+            const visible = getVisibleFiles();
 
             if (!selectedFile) {
-                if (filtered.length > 0) selectFile(filtered[0]);
+                if (visible.length > 0) selectFile(visible[0]);
                 return;
             }
 
-            const idx = filtered.findIndex(f => f.stem === selectedFile.stem);
-            if (idx < filtered.length - 1) {
-                selectFile(filtered[idx + 1]);
+            const idx = visible.findIndex(f => f.stem === selectedFile.stem);
+            if (idx < visible.length - 1) {
+                selectFile(visible[idx + 1]);
             }
         }
 
@@ -993,8 +1075,37 @@
                         selectNextFile(); e.preventDefault(); break;
                     case "e": case "E":
                         toggleEditMode(); e.preventDefault(); break;
+                    case "r": case "R":
+                        rotateImage(); e.preventDefault(); break;
                 }
             });
+        }
+
+        // Rotate image 90 degrees CW
+        function rotateImage() {
+            if (!selectedFile || !currentImage) return;
+
+            // Transform current box from old rotation to new rotation
+            // Box is currently in display space for old rotation
+            // We need to rotate it 90 CW in display space
+            if (currentBox.x !== null && currentBox.x !== undefined) {
+                const { x, y, w, h } = currentBox;
+                // Rotating display 90 CW: (x,y,w,h) -> (1-y, x, h, w)
+                currentBox = { x: 1 - y, y: x, w: h, h: w };
+            }
+
+            currentRotation = (currentRotation + 90) % 360;
+            rotationSource = "user";
+            drawCanvas();
+            updateBoxInputs();
+            updateHeader();
+
+            // Persist rotation to DB
+            fetch("/api/rotation", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ stem: selectedFile.stem, rotation: currentRotation })
+            }).catch(err => console.error("Failed to save rotation:", err));
         }
 
         // Edit mode: click-drag on canvas to draw bounding box
@@ -1010,7 +1121,7 @@
         }
 
         function canvasMouseDown(e) {
-            if (!editMode || !currentImage) return;
+            if (!currentImage) return;
             const rect = canvas.getBoundingClientRect();
             const scaleX = canvas.width / rect.width;
             const scaleY = canvas.height / rect.height;
@@ -1021,7 +1132,7 @@
         }
 
         function canvasMouseMove(e) {
-            if (!editMode || !dragStart || !currentImage) return;
+            if (!dragStart || !currentImage) return;
             const rect = canvas.getBoundingClientRect();
             const scaleX = canvas.width / rect.width;
             const scaleY = canvas.height / rect.height;
@@ -1042,7 +1153,7 @@
         }
 
         function canvasMouseUp(e) {
-            if (!editMode || !dragStart) return;
+            if (!dragStart) return;
             dragStart = null;
             // Box is already set from mousemove
         }
@@ -1056,6 +1167,7 @@
             const hasFile = selectedFile !== null;
             document.getElementById("confirmBtn").disabled = !hasFile;
             document.getElementById("editBtn").disabled = !hasFile;
+            document.getElementById("rotateBtn").disabled = !hasFile;
             document.getElementById("noStampBtn").disabled = !hasFile;
             document.getElementById("skipBtn").disabled = !hasFile;
             document.getElementById("nextBtn").disabled = !hasFile;

@@ -1,5 +1,8 @@
 # /// script
 # requires-python = ">=3.14"
+# dependencies = [
+#     "psycopg[binary]>=3.1.0",
+# ]
 # ///
 #!/usr/bin/env python3
 """Unified corrections dashboard for YOLO feedback loop."""
@@ -20,8 +23,68 @@ PREDICTIONS_FILE = BASE_DIR / "scanmyphotos_predictions.json"
 SKIPPED_FILE = BASE_DIR / "skipped.txt"
 STATUS_FILE = BASE_DIR / "worker_status.json"
 
+DB_CONN_STRING = "postgresql://dedup:dedup_local_dev@localhost:5432/dedup"
+
 # Create required directories
 LABELS_DIR.mkdir(parents=True, exist_ok=True)
+
+
+def get_db():
+    """Get a psycopg connection to the dedup database."""
+    import psycopg
+    return psycopg.connect(DB_CONN_STRING)
+
+
+def ensure_stamp_rotations_table():
+    """Create stamp_rotations table if it doesn't exist."""
+    conn = get_db()
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS stamp_rotations (
+            stem VARCHAR(256) PRIMARY KEY,
+            rotation INTEGER NOT NULL DEFAULT 0,
+            source VARCHAR(32) NOT NULL DEFAULT 'user',
+            created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+            updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+        )
+    """)
+    conn.commit()
+    conn.close()
+
+
+def get_rotation_for_stem(stem):
+    """Get rotation for a stem: user-saved first, then predicted, then 0."""
+    conn = get_db()
+    # Check user-saved rotation first
+    row = conn.execute(
+        "SELECT rotation FROM stamp_rotations WHERE stem = %s", (stem,)
+    ).fetchone()
+    if row:
+        conn.close()
+        return {"rotation": row[0], "source": "user"}
+
+    # Fall back to predicted rotation (strip disc prefix for lookup)
+    original_num = stem.split("_", 1)[1] if "_" in stem else stem
+    row = conn.execute(
+        "SELECT rotation_needed, confidence FROM rotation_predictions WHERE filename = %s AND filename NOT LIKE '%%_boxes%%' LIMIT 1",
+        (f"{original_num}.jpg",)
+    ).fetchone()
+    conn.close()
+    if row:
+        return {"rotation": row[0], "source": "predicted", "confidence": round(row[1], 4)}
+
+    return {"rotation": 0, "source": "none"}
+
+
+def save_rotation_for_stem(stem, rotation):
+    """Save user-confirmed rotation to stamp_rotations table."""
+    conn = get_db()
+    conn.execute("""
+        INSERT INTO stamp_rotations (stem, rotation, source)
+        VALUES (%s, %s, 'user')
+        ON CONFLICT (stem) DO UPDATE SET rotation = %s, updated_at = NOW()
+    """, (stem, rotation, rotation))
+    conn.commit()
+    conn.close()
 
 
 class DashboardHandler(SimpleHTTPRequestHandler):
@@ -35,6 +98,9 @@ class DashboardHandler(SimpleHTTPRequestHandler):
             self.serve_json(get_queue())
         elif self.path == "/api/worker-status":
             self.serve_json(get_worker_status())
+        elif self.path.startswith("/api/rotation/"):
+            stem = self.path.split("/")[-1]
+            self.serve_json(get_rotation_for_stem(stem))
         elif self.path.startswith("/api/image/"):
             stem = self.path.split("/")[-1]
             self.serve_image(stem)
@@ -73,6 +139,24 @@ class DashboardHandler(SimpleHTTPRequestHandler):
 
             result = handle_bulk_action(data)
             self.serve_json(result)
+        elif self.path == "/api/rotation":
+            content_length = self.headers.get("Content-Length")
+            if not content_length:
+                self.send_error(400, "Missing Content-Length header")
+                return
+            try:
+                body = self.rfile.read(int(content_length))
+                data = json.loads(body)
+            except (ValueError, json.JSONDecodeError):
+                self.send_error(400, "Invalid JSON")
+                return
+            stem = data.get("stem")
+            rotation = data.get("rotation", 0)
+            if not stem or rotation not in (0, 90, 180, 270):
+                self.send_error(400, "Invalid stem or rotation")
+                return
+            save_rotation_for_stem(stem, rotation)
+            self.serve_json({"success": True, "stem": stem, "rotation": rotation})
         elif self.path == "/api/train":
             result = start_worker()
             self.serve_json(result)
@@ -208,11 +292,31 @@ def get_queue():
     return discover_files()
 
 
+def transform_bbox_to_original(cx, cy, w, h, rotation):
+    """Transform bbox from rotated display space back to original image space.
+
+    YOLO format: center_x, center_y, width, height (all normalized 0-1).
+    Rotation is degrees CW that the image was rotated for display.
+    """
+    if rotation == 0:
+        return cx, cy, w, h
+    elif rotation == 90:
+        # 90 CW display -> original: (cx,cy,w,h) -> (cy, 1-cx, h, w)
+        return cy, 1 - cx, h, w
+    elif rotation == 180:
+        return 1 - cx, 1 - cy, w, h
+    elif rotation == 270:
+        # 270 CW display -> original: (cx,cy,w,h) -> (1-cy, cx, h, w)
+        return 1 - cy, cx, h, w
+    return cx, cy, w, h
+
+
 def handle_action(data):
     """Handle user actions (confirm, edit, skip, no_stamp)."""
     stem = data["stem"]
     action = data["action"]
     box = data.get("box")
+    rotation = data.get("rotation", 0)
 
     queue = load_queue()
     file_entry = next((f for f in queue["files"] if f["stem"] == stem), None)
@@ -230,10 +334,18 @@ def handle_action(data):
     }
 
     if action in ("confirmed", "edited"):
-        label_content = f"0 {box['x']} {box['y']} {box['w']} {box['h']}\n"
+        # Transform bbox from rotated display space to original image space
+        ox, oy, ow, oh = transform_bbox_to_original(
+            box['x'], box['y'], box['w'], box['h'], rotation
+        )
+        label_content = f"0 {ox} {oy} {ow} {oh}\n"
         label_path = LABELS_DIR / f"{stem}.txt"
         label_path.write_text(label_content)
         file_entry["status"] = "labeled"
+
+        # Save rotation if non-zero
+        if rotation != 0:
+            save_rotation_for_stem(stem, rotation)
 
     elif action == "no_stamp":
         skipped = set()
@@ -347,6 +459,7 @@ def get_worker_status():
 
 def main():
     """Start the dashboard server."""
+    ensure_stamp_rotations_table()
     server = HTTPServer(("localhost", 8889), DashboardHandler)
     print("Corrections Dashboard running at http://localhost:8889")
     print("Press Ctrl+C to quit")

@@ -39,3 +39,4 @@ Thumbs.db
 .mypy_cache/
 *.log
 *.tmp
+.env.rotation

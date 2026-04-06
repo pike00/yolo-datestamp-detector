@@ -1,3 +1,3 @@
-from models.schema import Base, SourceFile, UniqueFile
+from models.schema import Base, SourceFile, UniqueFile, RotationPrediction
 
-__all__ = ["Base", "SourceFile", "UniqueFile"]
+__all__ = ["Base", "SourceFile", "UniqueFile", "RotationPrediction"]

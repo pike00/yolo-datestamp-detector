@@ -38,7 +38,19 @@ Consolidate ~77K media files (467 GB) from `/mnt/823c9bf9-838a-4591-a00f-ae361fc
 ## Phase 2: Deduplicate and Move to SSD
 
 **Goal:** Produce a single canonical copy of every unique media file on the SSD.
-**Status:** Not started. `originals/`, `needs_date/`, `organized/` are all currently empty.
+**Status:** COMPLETE (2026-04-04). Pipeline ran all 4 stages successfully.
+
+### Results
+- **95,519 source files** ingested from HDD to `staging/` on SSD
+- **62,821 unique files** identified (32,698 duplicates eliminated = 34.2% dedup rate)
+- **305 GB** on SSD after dedup (down from 466 GB source)
+- **35,357** files have EXIF dates, **27,464** do not
+- **4,424** files have GPS coordinates
+- **31,751** files have camera make/model
+- Canonical selection: 44,124 "only_copy" + 18,697 "folder_priority"
+- All 62,821 unique files exported and hash-verified in `originals/`
+- 94 junk directories (.dist-info, .venv, .git) from Python files in source -- to clean up
+- Pipeline: PostgreSQL-backed, 4-stage (Ingest/Enrich/Deduplicate/Export), Dockerized in `dedup/`
 
 ### 2.1 — Hash-Based Dedup Analysis
 - **Reuse `SHA256SUMS.txt`** — don't re-hash. Parse it to build the dedup map directly.
@@ -87,7 +99,15 @@ For each group of duplicate hashes, pick one canonical copy using this priority:
 ## Phase 3: Organize and Enrich Metadata
 
 **Goal:** Sort into a date-based structure, fill in missing dates via OCR/ML, write metadata back to files.
-**Status:** Scanned photo pipeline (3.2–3.3) is **in progress** — see `HANDOFF.md` and `DATE_EXTRACTION_APPROACHES.md`.
+**Status:** In progress. YOLO stamp detector trained, OCR pipeline built and tested on 100 samples.
+
+### Progress (2026-04-05)
+- YOLO stamp detector trained on 86 labeled + 14 negative samples (mAP50=0.995)
+- Detection: Precision=1.000, Recall=0.570 (48/100 stamps detected, 0 false positives)
+- OCR pipeline (`ocr_stamps.py`): YOLO detect -> crop -> TrOCR + Tesseract -> date parse
+- Date extraction: 32/48 detected stamps parsed to dates (67% parse rate)
+- Overall yield: 32/100 sample photos got extracted dates
+- Remaining: improve recall (more training data), scale to all 7,500 scanned photos
 
 ### 3.1 — Initial Sort by EXIF Date
 - Read EXIF `DateTimeOriginal` (or `CreateDate`, `ModifyDate` as fallbacks) using exiftool
