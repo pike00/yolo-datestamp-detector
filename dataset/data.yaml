@@ -1,5 +1,5 @@
 names:
   0: target
-path: .
+path: /app/dataset
 train: images/train
 val: images/val
