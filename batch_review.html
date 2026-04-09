@@ -1,0 +1,646 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Batch Review - Date Stamps</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #1e1e1e;
+            color: #e0e0e0;
+        }
+
+        .header {
+            padding: 10px 20px;
+            background: #252525;
+            border-bottom: 1px solid #3e3e3e;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header h1 { font-size: 16px; font-weight: 600; }
+
+        .header .stats {
+            font-size: 12px;
+            color: #a0a0a0;
+            display: flex;
+            gap: 15px;
+        }
+
+        .header .stats .val { color: #e0e0e0; font-weight: 600; }
+
+        .controls {
+            padding: 10px 20px;
+            background: #252525;
+            border-bottom: 1px solid #3e3e3e;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            font-size: 12px;
+        }
+
+        .controls label { color: #a0a0a0; }
+
+        .controls select, .controls input {
+            padding: 4px 8px;
+            font-size: 12px;
+            background: #3e3e3e;
+            border: 1px solid #555;
+            color: #e0e0e0;
+            border-radius: 3px;
+        }
+
+        .controls button {
+            padding: 6px 14px;
+            font-size: 12px;
+            background: #3e3e3e;
+            border: 1px solid #555;
+            color: #e0e0e0;
+            cursor: pointer;
+            border-radius: 3px;
+        }
+
+        .controls button:hover { background: #4e4e4e; }
+
+        .controls .approve-all {
+            background: #0a6a0a;
+            border-color: #0f9d0f;
+        }
+
+        .controls .approve-all:hover { background: #0d8a0d; }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            grid-template-rows: repeat(4, 1fr);
+            gap: 10px;
+            padding: 15px;
+            height: calc(100vh - 100px);
+        }
+
+        .card {
+            background: #252525;
+            border: 2px solid #3e3e3e;
+            border-radius: 6px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            transition: border-color 0.2s;
+        }
+
+        .card.approved { border-color: #0f9d0f; }
+        .card.rejected { border-color: #8a2020; }
+        .card.no-stamp { border-color: #cc7a00; }
+        .card.edited { border-color: #ff9900; }
+
+        .card-img {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #000;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .card-img canvas {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+        }
+
+        .card-footer {
+            padding: 8px 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 11px;
+            background: #2a2a2a;
+            border-top: 1px solid #3e3e3e;
+        }
+
+        .card-footer .name { font-weight: 600; }
+
+        .card-footer .conf {
+            padding: 2px 6px;
+            border-radius: 2px;
+            font-size: 10px;
+        }
+
+        .conf-high { background: #0a4a0a; color: #4caf50; }
+        .conf-med { background: #4a3a00; color: #ffc107; }
+        .conf-low { background: #4a1010; color: #f44336; }
+
+        .card-actions {
+            display: flex;
+            gap: 4px;
+            padding: 6px 10px;
+            background: #2a2a2a;
+            border-top: 1px solid #333;
+        }
+
+        .card-actions button {
+            flex: 1;
+            padding: 5px 0;
+            font-size: 11px;
+            border: 1px solid #555;
+            color: #e0e0e0;
+            cursor: pointer;
+            border-radius: 3px;
+            background: #3e3e3e;
+        }
+
+        .card-actions button:hover { background: #4e4e4e; }
+
+        .card-actions .btn-approve {
+            background: #0a5a0a;
+            border-color: #0f9d0f;
+        }
+
+        .card-actions .btn-approve:hover { background: #0d7a0d; }
+
+        .card-actions .btn-reject {
+            background: #5a1010;
+            border-color: #8a2020;
+        }
+
+        .card-actions .btn-reject:hover { background: #7a1515; }
+
+        .card-actions .btn-nostamp {
+            background: #4a3500;
+            border-color: #cc7a00;
+        }
+
+        .card-actions .btn-nostamp:hover { background: #5a4000; }
+
+        .empty-slot {
+            background: #1e1e1e;
+            border: 2px dashed #3e3e3e;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #555;
+            font-size: 13px;
+        }
+
+        kbd {
+            background: #3e3e3e;
+            border: 1px solid #555;
+            border-radius: 3px;
+            padding: 1px 5px;
+            font-size: 10px;
+            font-family: monospace;
+        }
+
+        .page-nav {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .page-nav button { padding: 6px 12px; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Batch Review</h1>
+        <div class="stats">
+            <span>Page <span class="val" id="pageNum">1</span> / <span class="val" id="pageTotal">1</span></span>
+            <span>Pending: <span class="val" id="pendingCount">0</span></span>
+            <span>Reviewed this session: <span class="val" id="sessionCount">0</span></span>
+        </div>
+    </div>
+    <div class="controls">
+        <label>Sort:</label>
+        <select id="sortBy">
+            <option value="confidence_desc">Confidence (high-low)</option>
+            <option value="confidence_asc">Confidence (low-high)</option>
+            <option value="name">Name</option>
+        </select>
+        <label>Min conf:</label>
+        <input type="number" id="minConf" value="0" min="0" max="1" step="0.01" style="width:70px">
+        <label>Padding:</label>
+        <select id="paddingFactor">
+            <option value="0.3">30%</option>
+            <option value="0.5" selected>50%</option>
+            <option value="1.0">100%</option>
+            <option value="2.0">200% (more context)</option>
+        </select>
+        <div style="flex:1"></div>
+        <button class="approve-all" id="approveAllBtn">Approve All 16 <kbd>A</kbd></button>
+        <div class="page-nav">
+            <button id="prevBtn">Prev <kbd>&#8592;</kbd></button>
+            <button id="nextBtn">Next <kbd>&#8594;</kbd></button>
+        </div>
+    </div>
+    <div class="grid" id="grid"></div>
+
+    <script>
+        let queue = { files: [], stats: {} };
+        let pendingWithPredictions = [];
+        let currentPage = 0;
+        let sessionReviewed = 0;
+        const PAGE_SIZE = 16;
+
+        // Per-canvas crop metadata for coordinate mapping
+        // key: stem, value: { img, sx, sy, sw, sh, scale, imgW, imgH }
+        const cropMeta = {};
+        // Per-card user-edited box override (YOLO normalized)
+        // key: stem, value: { x, y, w, h }
+        const editedBoxes = {};
+
+        async function loadQueue() {
+            const resp = await fetch('/api/queue');
+            queue = await resp.json();
+            filterAndSort();
+        }
+
+        function filterAndSort() {
+            const minConf = parseFloat(document.getElementById('minConf').value) || 0;
+            const sort = document.getElementById('sortBy').value;
+
+            pendingWithPredictions = queue.files.filter(f =>
+                f.status === 'pending' && f.prediction && f.prediction.confidence >= minConf
+            );
+
+            if (sort === 'confidence_desc') {
+                pendingWithPredictions.sort((a, b) => b.prediction.confidence - a.prediction.confidence);
+            } else if (sort === 'confidence_asc') {
+                pendingWithPredictions.sort((a, b) => a.prediction.confidence - b.prediction.confidence);
+            } else {
+                pendingWithPredictions.sort((a, b) => a.stem.localeCompare(b.stem));
+            }
+
+            updateStats();
+            renderPage();
+        }
+
+        function updateStats() {
+            const totalPages = Math.max(1, Math.ceil(pendingWithPredictions.length / PAGE_SIZE));
+            if (currentPage >= totalPages) currentPage = Math.max(0, totalPages - 1);
+            document.getElementById('pageNum').textContent = currentPage + 1;
+            document.getElementById('pageTotal').textContent = totalPages;
+            document.getElementById('pendingCount').textContent = pendingWithPredictions.length;
+            document.getElementById('sessionCount').textContent = sessionReviewed;
+        }
+
+        function renderPage() {
+            const grid = document.getElementById('grid');
+            grid.innerHTML = '';
+            const start = currentPage * PAGE_SIZE;
+            const pageItems = pendingWithPredictions.slice(start, start + PAGE_SIZE);
+
+            for (let i = 0; i < PAGE_SIZE; i++) {
+                if (i < pageItems.length) {
+                    const file = pageItems[i];
+                    const card = createCard(file, i);
+                    grid.appendChild(card);
+                } else {
+                    const empty = document.createElement('div');
+                    empty.className = 'empty-slot';
+                    empty.textContent = 'No more items';
+                    grid.appendChild(empty);
+                }
+            }
+        }
+
+        function createCard(file, slotIndex) {
+            const card = document.createElement('div');
+            card.className = 'card';
+            card.dataset.stem = file.stem;
+            card.dataset.slot = slotIndex;
+
+            const imgDiv = document.createElement('div');
+            imgDiv.className = 'card-img';
+            const cvs = document.createElement('canvas');
+            imgDiv.appendChild(cvs);
+            card.appendChild(imgDiv);
+
+            const footer = document.createElement('div');
+            footer.className = 'card-footer';
+
+            const nameSpan = document.createElement('span');
+            nameSpan.className = 'name';
+            nameSpan.textContent = file.display_name || file.stem;
+            footer.appendChild(nameSpan);
+
+            const conf = file.prediction.confidence;
+            const confSpan = document.createElement('span');
+            confSpan.className = 'conf ' + (conf >= 0.3 ? 'conf-high' : conf >= 0.1 ? 'conf-med' : 'conf-low');
+            confSpan.textContent = (conf * 100).toFixed(1) + '%';
+            footer.appendChild(confSpan);
+
+            card.appendChild(footer);
+
+            const actions = document.createElement('div');
+            actions.className = 'card-actions';
+
+            const approveBtn = document.createElement('button');
+            approveBtn.className = 'btn-approve';
+            approveBtn.innerHTML = 'Approve <kbd>' + (slotIndex + 1) + '</kbd>';
+            approveBtn.addEventListener('click', () => doAction(file, 'confirmed', card));
+
+            const nostampBtn = document.createElement('button');
+            nostampBtn.className = 'btn-nostamp';
+            nostampBtn.textContent = 'No Stamp';
+            nostampBtn.addEventListener('click', () => doAction(file, 'no_stamp', card));
+
+            const rejectBtn = document.createElement('button');
+            rejectBtn.className = 'btn-reject';
+            rejectBtn.textContent = 'Skip';
+            rejectBtn.addEventListener('click', () => doAction(file, 'skipped', card));
+
+            actions.appendChild(approveBtn);
+            actions.appendChild(nostampBtn);
+            actions.appendChild(rejectBtn);
+            card.appendChild(actions);
+
+            // Load and crop the image
+            loadCroppedImage(file, cvs);
+
+            return card;
+        }
+
+        function loadCroppedImage(file, cvs) {
+            const img = new Image();
+            img.onload = () => {
+                const pred = file.prediction;
+                const padding = parseFloat(document.getElementById('paddingFactor').value);
+
+                const cx = pred.x * img.width;
+                const cy = pred.y * img.height;
+                const bw = pred.w * img.width;
+                const bh = pred.h * img.height;
+
+                const padW = bw * padding;
+                const padH = bh * padding;
+
+                const sx = Math.max(0, cx - bw / 2 - padW);
+                const sy = Math.max(0, cy - bh / 2 - padH);
+                const sw = Math.min(img.width - sx, bw + padW * 2);
+                const sh = Math.min(img.height - sy, bh + padH * 2);
+
+                const maxW = cvs.parentElement.clientWidth;
+                const maxH = cvs.parentElement.clientHeight;
+                const scale = Math.min(maxW / sw, maxH / sh, 3);
+                cvs.width = sw * scale;
+                cvs.height = sh * scale;
+
+                // Store crop metadata for coordinate mapping
+                cropMeta[file.stem] = { img, sx, sy, sw, sh, scale, imgW: img.width, imgH: img.height };
+
+                redrawCanvas(file.stem, cvs);
+                setupDragHandlers(file, cvs);
+            };
+            img.src = '/api/image/' + file.stem;
+        }
+
+        function redrawCanvas(stem, cvs) {
+            const meta = cropMeta[stem];
+            if (!meta) return;
+            const { img, sx, sy, sw, sh, scale, imgW, imgH } = meta;
+            const ctx = cvs.getContext('2d');
+
+            // Draw the cropped photo
+            ctx.clearRect(0, 0, cvs.width, cvs.height);
+            ctx.drawImage(img, sx, sy, sw, sh, 0, 0, cvs.width, cvs.height);
+
+            // Get the active box (edited or original prediction)
+            const file = pendingWithPredictions.find(f => f.stem === stem);
+            const box = editedBoxes[stem] || (file && file.prediction);
+            if (!box) return;
+
+            // Convert YOLO normalized to crop-canvas pixel coords
+            const bx1 = (box.x * imgW - box.w * imgW / 2 - sx) * scale;
+            const by1 = (box.y * imgH - box.h * imgH / 2 - sy) * scale;
+            const bw = box.w * imgW * scale;
+            const bh = box.h * imgH * scale;
+
+            ctx.strokeStyle = editedBoxes[stem] ? '#ff9900' : '#00ff00';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(bx1, by1, bw, bh);
+        }
+
+        function setupDragHandlers(file, cvs) {
+            let dragging = false;
+            let startX, startY;
+
+            cvs.style.cursor = 'crosshair';
+
+            cvs.addEventListener('mousedown', (e) => {
+                const rect = cvs.getBoundingClientRect();
+                // Scale mouse position to canvas coordinates
+                startX = (e.clientX - rect.left) * (cvs.width / rect.width);
+                startY = (e.clientY - rect.top) * (cvs.height / rect.height);
+                dragging = true;
+            });
+
+            cvs.addEventListener('mousemove', (e) => {
+                if (!dragging) return;
+                const meta = cropMeta[file.stem];
+                if (!meta) return;
+                const rect = cvs.getBoundingClientRect();
+                const curX = (e.clientX - rect.left) * (cvs.width / rect.width);
+                const curY = (e.clientY - rect.top) * (cvs.height / rect.height);
+
+                // Redraw base image
+                const ctx = cvs.getContext('2d');
+                ctx.clearRect(0, 0, cvs.width, cvs.height);
+                ctx.drawImage(meta.img, meta.sx, meta.sy, meta.sw, meta.sh, 0, 0, cvs.width, cvs.height);
+
+                // Draw drag rectangle
+                ctx.strokeStyle = '#ff9900';
+                ctx.lineWidth = 2;
+                ctx.setLineDash([4, 4]);
+                ctx.strokeRect(startX, startY, curX - startX, curY - startY);
+                ctx.setLineDash([]);
+            });
+
+            cvs.addEventListener('mouseup', (e) => {
+                if (!dragging) return;
+                dragging = false;
+                const meta = cropMeta[file.stem];
+                if (!meta) return;
+
+                const rect = cvs.getBoundingClientRect();
+                const endX = (e.clientX - rect.left) * (cvs.width / rect.width);
+                const endY = (e.clientY - rect.top) * (cvs.height / rect.height);
+
+                // Ignore tiny drags (clicks)
+                if (Math.abs(endX - startX) < 5 && Math.abs(endY - startY) < 5) return;
+
+                const { sx, sy, scale, imgW, imgH } = meta;
+
+                // Canvas pixels -> full image pixels
+                const x1 = Math.min(startX, endX) / scale + sx;
+                const y1 = Math.min(startY, endY) / scale + sy;
+                const x2 = Math.max(startX, endX) / scale + sx;
+                const y2 = Math.max(startY, endY) / scale + sy;
+
+                // Full image pixels -> YOLO normalized (center, w, h)
+                editedBoxes[file.stem] = {
+                    x: ((x1 + x2) / 2) / imgW,
+                    y: ((y1 + y2) / 2) / imgH,
+                    w: (x2 - x1) / imgW,
+                    h: (y2 - y1) / imgH,
+                };
+
+                // Mark card as edited
+                const card = cvs.closest('.card');
+                if (card) card.classList.add('edited');
+
+                redrawCanvas(file.stem, cvs);
+            });
+
+            cvs.addEventListener('mouseleave', () => { dragging = false; });
+        }
+
+        async function doAction(file, action, card) {
+            const body = { stem: file.stem, action };
+
+            if (action === 'confirmed') {
+                const box = editedBoxes[file.stem] || file.prediction;
+                body.box = { x: box.x, y: box.y, w: box.w, h: box.h };
+                body.rotation = 0;
+            }
+
+            const endpoint = action === 'no_stamp' ? '/api/action' : '/api/action';
+            const resp = await fetch(endpoint, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body),
+            });
+
+            const result = await resp.json();
+            if (result.success) {
+                sessionReviewed++;
+                if (action === 'confirmed') card.classList.add('approved');
+                else if (action === 'no_stamp') card.classList.add('no-stamp');
+                else card.classList.add('rejected');
+
+                // Disable buttons on this card
+                card.querySelectorAll('.card-actions button').forEach(b => b.disabled = true);
+
+                // Remove from pending list
+                pendingWithPredictions = pendingWithPredictions.filter(f => f.stem !== file.stem);
+
+                // Update stats from server
+                if (result.stats) queue.stats = result.stats;
+                updateStats();
+            }
+        }
+
+        async function approveAll() {
+            const start = currentPage * PAGE_SIZE;
+            const pageItems = pendingWithPredictions.slice(start, start + PAGE_SIZE);
+            const cards = document.querySelectorAll('.card:not(.approved):not(.rejected):not(.no-stamp)');
+
+            // Collect all unapproved items on this page
+            const items = [];
+            const affectedCards = [];
+            for (const card of cards) {
+                const stem = card.dataset.stem;
+                const file = pageItems.find(f => f.stem === stem);
+                if (file) {
+                    const box = editedBoxes[file.stem] || file.prediction;
+                    items.push({
+                        stem: file.stem,
+                        box: { x: box.x, y: box.y, w: box.w, h: box.h },
+                    });
+                    affectedCards.push({ card, file });
+                }
+            }
+
+            if (items.length === 0) return;
+
+            // Single API call
+            const resp = await fetch('/api/bulk-approve', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ items }),
+            });
+            const result = await resp.json();
+
+            if (result.success) {
+                sessionReviewed += result.count;
+
+                // Flash green on all cards
+                for (const { card, file } of affectedCards) {
+                    card.classList.add('approved');
+                    card.querySelectorAll('.card-actions button').forEach(b => b.disabled = true);
+                    pendingWithPredictions = pendingWithPredictions.filter(f => f.stem !== file.stem);
+                }
+
+                if (result.stats) queue.stats = result.stats;
+
+                // Auto-advance after brief flash
+                if (pendingWithPredictions.length > 0) {
+                    setTimeout(() => {
+                        updateStats();
+                        renderPage();
+                    }, 300);
+                } else {
+                    updateStats();
+                }
+            }
+        }
+
+        function nextPage() {
+            // Remove acted-on items already handled in doAction
+            const totalPages = Math.max(1, Math.ceil(pendingWithPredictions.length / PAGE_SIZE));
+            if (currentPage < totalPages - 1) {
+                currentPage++;
+            } else {
+                currentPage = 0; // wrap around
+            }
+            updateStats();
+            renderPage();
+        }
+
+        function prevPage() {
+            if (currentPage > 0) currentPage--;
+            updateStats();
+            renderPage();
+        }
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+
+            const start = currentPage * PAGE_SIZE;
+            const pageItems = pendingWithPredictions.slice(start, start + PAGE_SIZE);
+
+            if (e.key >= '1' && e.key <= '9') {
+                const idx = parseInt(e.key) - 1;
+                if (idx < pageItems.length) {
+                    const card = document.querySelector(`.card[data-slot="${idx}"]`);
+                    if (card && !card.classList.contains('approved')) {
+                        doAction(pageItems[idx], 'confirmed', card);
+                    }
+                }
+            } else if (e.key === 'a' || e.key === 'A') {
+                approveAll();
+            } else if (e.key === 'ArrowRight' || e.key === 'n') {
+                nextPage();
+            } else if (e.key === 'ArrowLeft' || e.key === 'p') {
+                prevPage();
+            }
+        });
+
+        // Event listeners
+        document.getElementById('approveAllBtn').addEventListener('click', approveAll);
+        document.getElementById('nextBtn').addEventListener('click', nextPage);
+        document.getElementById('prevBtn').addEventListener('click', prevPage);
+        document.getElementById('sortBy').addEventListener('change', () => { currentPage = 0; filterAndSort(); });
+        document.getElementById('minConf').addEventListener('change', () => { currentPage = 0; filterAndSort(); });
+        document.getElementById('paddingFactor').addEventListener('change', renderPage);
+
+        // Init
+        loadQueue();
+    </script>
+</body>
+</html>

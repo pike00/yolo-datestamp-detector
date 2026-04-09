@@ -1,0 +1,39 @@
+# Working photo directories (too large to commit)
+scanmyphotos/
+stratified_samples/
+infer_output/
+
+# Dataset images (symlinks to scanmyphotos/) and train/val splits
+dataset/images/
+dataset/corrections/*.jpg
+dataset/to_annotate/
+
+# Model weights and training runs
+runs/
+*.pt
+
+# Large JSON state files
+corrections_queue.json
+scanmyphotos_predictions.json
+scanmyphotos_manifest.json
+ocr_results.json
+ocr_cost_log.json
+
+# Annotation progress (user-specific state)
+progress.json
+progress_correct.json
+worker_status.json
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+
+# Superpowers plugin state
+.superpowers/
+
+# Misc
+*.jpg
+!examples/*.jpg
+infer_output.jpg

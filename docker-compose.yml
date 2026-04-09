@@ -1,0 +1,10 @@
+services:
+  cycle:
+    build: .
+    volumes:
+      - ./dataset:/app/dataset
+      - ./scanmyphotos:/app/scanmyphotos
+      - ./runs:/app/runs
+      - ./skipped.txt:/app/skipped.txt
+      - ./scanmyphotos_predictions.json:/app/scanmyphotos_predictions.json
+      - ./worker_status.json:/app/worker_status.json
