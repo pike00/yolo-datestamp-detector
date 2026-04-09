@@ -5,6 +5,8 @@ infer_output/
 
 # Dataset images (symlinks to scanmyphotos/) and train/val splits
 dataset/images/
+dataset/labels/train/
+dataset/labels/val/
 dataset/corrections/*.jpg
 dataset/to_annotate/
 dataset/augmented/
@@ -35,6 +37,10 @@ __pycache__/
 
 # Superpowers plugin state
 .superpowers/
+docs/superpowers/
+
+# YOLO cache files
+*.cache
 
 # Misc
 *.jpg
