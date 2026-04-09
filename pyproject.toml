@@ -13,6 +13,6 @@ dependencies = [
     "timm>=0.9.0",
     "torch>=2.11.0",
     "torchvision>=0.26.0",
-    "transformers<4.50",
+    "transformers<5.1",
     "ultralytics>=8.0",
 ]
