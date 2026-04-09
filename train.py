@@ -175,6 +175,11 @@ def train(data_yaml):
         name="train",
         exist_ok=True,
         verbose=True,
+        # Brightness/contrast augmentation to handle bright backgrounds
+        # where date stamps wash out (default hsv_v=0.4, we increase it)
+        hsv_h=0.015,  # hue jitter (default)
+        hsv_s=0.7,    # saturation jitter (default)
+        hsv_v=0.6,    # value/brightness jitter (increased from 0.4)
     )
 
     if best_pt.exists():

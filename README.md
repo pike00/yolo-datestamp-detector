@@ -12,11 +12,11 @@ downstream OCR to extract actual dates and write them back as EXIF metadata.
 
 ### Detection Example
 
-| Input scan | Model output (conf 0.87) |
+| Input scan | Model output (conf 0.82) |
 |:---:|:---:|
-| ![Original photo](examples/stamp_d3_00000115.jpg) | ![Detection result](examples/detection_example.jpg) |
+| ![Original photo](examples/stamp_golden_gate.jpg) | ![Detection result](examples/detection_example.jpg) |
 
-The model draws a bounding box around the orange "8 28 '93" date stamp in the bottom-right corner.
+The model draws a bounding box around the orange "4 23 '95" date stamp in the bottom-right corner.
 
 ## Results
 
@@ -71,13 +71,6 @@ images -- the model never hallucinates a stamp where none exists.
 Batch inference on ~7,500 images produced 6,458 detections. The bimodal distribution shows
 a strong high-confidence peak (0.7-0.9, true positives) and a secondary cluster around
 0.3-0.4 (borderline cases requiring manual review).
-
-### Validation Predictions
-
-![Validation batch predictions](examples/val_predictions.jpg)
-
-Model predictions on a validation batch showing detections across diverse photo content,
-lighting conditions, and stamp positions.
 
 ## Approach
 
@@ -296,7 +289,7 @@ just infer-one <photo>  # Single-image inference
 | Inference image size | 384px |
 | Batch size | 8 |
 | Early stopping | patience=10 |
-| Confidence threshold | 0.01 (inference), 0.30 (recommended operational) |
+| Confidence threshold | 0.01 (batch inference), 0.35 (recommended operational) |
 
 ## Docker
 

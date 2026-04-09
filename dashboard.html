@@ -403,8 +403,18 @@
                     <button data-filter="no_stamp">No Stamp</button>
                     <button data-filter="skipped">Skipped</button>
                 </div>
+                <div class="filter-buttons" id="priorityFilters" style="margin-top: 4px;">
+                    <button class="active" data-priority="all">All Priority</button>
+                    <button data-priority="tier1_bright_low_conf" style="border-color: #e74c3c;">Bright+LowConf</button>
+                    <button data-priority="tier2_no_prediction" style="border-color: #e67e22;">No Prediction</button>
+                    <button data-priority="tier3_low_confidence" style="border-color: #f39c12;">Low Conf</button>
+                    <button data-priority="tier4_bright_background" style="border-color: #3498db;">Bright BG</button>
+                    <button data-priority="tier5_medium_confidence" style="border-color: #9b59b6;">Med Conf</button>
+                    <button data-priority="tier6_disc1_underrepresented" style="border-color: #1abc9c;">Disc 1</button>
+                </div>
                 <div class="sort-options">
                     <select id="sortBy">
+                        <option value="priority">Priority (highest first)</option>
                         <option value="created">Date Added</option>
                         <option value="reviewed">Last Reviewed</option>
                         <option value="confidence_desc">Confidence (high-low)</option>
@@ -481,7 +491,8 @@
         // Global state
         let queue = { files: [], stats: {} };
         let currentFilter = "pending";
-        let currentSort = "created";
+        let currentPriority = "all";
+        let currentSort = "priority";
         let selectedFile = null;
         let currentImage = null;
         let currentBox = { x: 0.5, y: 0.9, w: 0.2, h: 0.06 };
@@ -537,8 +548,9 @@
             queueList.textContent = "";
 
             const filteredQueue = queue.files.filter(f => {
-                if (currentFilter === "all") return true;
-                return f.status === currentFilter;
+                if (currentFilter !== "all" && f.status !== currentFilter) return false;
+                if (currentPriority !== "all" && f.priority !== currentPriority) return false;
+                return true;
             });
 
             const sortedQueue = sortQueue(filteredQueue);
@@ -574,6 +586,30 @@
                     confBadge.className = "meta-badge";
                     confBadge.textContent = confidenceStr;
                     metaDiv.appendChild(confBadge);
+                }
+
+                if (file.priority) {
+                    const priBadge = document.createElement("span");
+                    priBadge.className = "meta-badge";
+                    const priColors = {
+                        tier1_bright_low_conf: "#e74c3c",
+                        tier2_no_prediction: "#e67e22",
+                        tier3_low_confidence: "#f39c12",
+                        tier4_bright_background: "#3498db",
+                        tier5_medium_confidence: "#9b59b6",
+                        tier6_disc1_underrepresented: "#1abc9c",
+                    };
+                    const priLabels = {
+                        tier1_bright_low_conf: "BRIGHT+LOW",
+                        tier2_no_prediction: "NO PRED",
+                        tier3_low_confidence: "LOW CONF",
+                        tier4_bright_background: "BRIGHT",
+                        tier5_medium_confidence: "MED CONF",
+                        tier6_disc1_underrepresented: "D1",
+                    };
+                    priBadge.style.background = priColors[file.priority] || "#666";
+                    priBadge.textContent = priLabels[file.priority] || file.priority;
+                    metaDiv.appendChild(priBadge);
                 }
 
                 item.appendChild(metaDiv);
@@ -616,9 +652,28 @@
         }
 
         // Sort queue
+        const PRIORITY_ORDER = {
+            tier1_bright_low_conf: 1,
+            tier2_no_prediction: 2,
+            tier3_low_confidence: 3,
+            tier4_bright_background: 4,
+            tier5_medium_confidence: 5,
+            tier6_disc1_underrepresented: 6,
+        };
+
         function sortQueue(files) {
             const sorted = [...files];
             switch (currentSort) {
+                case "priority":
+                    sorted.sort((a, b) => {
+                        const aP = PRIORITY_ORDER[a.priority] || 99;
+                        const bP = PRIORITY_ORDER[b.priority] || 99;
+                        if (aP !== bP) return aP - bP;
+                        const aConf = a.prediction?.confidence || 0;
+                        const bConf = b.prediction?.confidence || 0;
+                        return aConf - bConf;
+                    });
+                    break;
                 case "created":
                     sorted.sort((a, b) => (a.stem > b.stem ? 1 : -1));
                     break;
@@ -660,9 +715,23 @@
             });
         }
 
+        // Setup priority filter buttons
+        function setupPriorityFilters() {
+            const pFilters = document.getElementById("priorityFilters");
+            pFilters.querySelectorAll("button").forEach(btn => {
+                btn.addEventListener("click", () => {
+                    pFilters.querySelectorAll("button").forEach(b => b.classList.remove("active"));
+                    btn.classList.add("active");
+                    currentPriority = btn.dataset.priority;
+                    renderQueueList();
+                });
+            });
+        }
+
         // Setup sort dropdown
         function setupSortDropdown() {
             const sortBy = document.getElementById("sortBy");
+            sortBy.value = currentSort;
             sortBy.addEventListener("change", (e) => {
                 currentSort = e.target.value;
                 renderQueueList();
@@ -1207,6 +1276,7 @@
         // Initialize on load
         window.addEventListener("load", async () => {
             setupFilterButtons();
+            setupPriorityFilters();
             setupSortDropdown();
             setupActionButtons();
             setupKeyboardControls();

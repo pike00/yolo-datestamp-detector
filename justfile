@@ -35,7 +35,7 @@ setup-scanmyphotos:
     uv run setup_scanmyphotos.py
 
 # Run inference on a single photo
-infer-one photo conf="0.3":
+infer-one photo conf="0.35":
     uv run python -c "\
     from ultralytics import YOLO; \
     r = YOLO('runs/detect/train/weights/best.pt')('{{photo}}', imgsz=384, conf={{conf}}, device='cpu', verbose=False)[0]; \
