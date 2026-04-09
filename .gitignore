@@ -19,6 +19,7 @@ corrections_queue.json
 scanmyphotos_predictions.json
 scanmyphotos_manifest.json
 ocr_results.json
+ocr_results_gemma.json
 ocr_cost_log.json
 
 # Annotation progress (user-specific state)
