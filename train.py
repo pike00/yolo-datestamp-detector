@@ -20,6 +20,8 @@ IMAGES_DIR = DATASET_DIR / "images"
 LABELS_DIR = DATASET_DIR / "labels"
 SKIPPED_FILE = BASE_DIR / "skipped.txt"
 IMAGE_SOURCE = BASE_DIR / "scanmyphotos"
+AUG_IMAGES_DIR = DATASET_DIR / "augmented"
+AUG_LABELS_DIR = DATASET_DIR / "augmented_labels"
 
 SEED = 42
 VAL_RATIO = 0.2
@@ -122,6 +124,25 @@ def setup_dataset():
             if src_label.exists() and not dst_label.exists():
                 shutil.copy2(src_label, dst_label)
         # Negative examples: image present, no label file — YOLO handles this correctly
+
+    # Include augmented hard cases (only in training set)
+    aug_count = 0
+    if AUG_IMAGES_DIR.exists() and AUG_LABELS_DIR.exists():
+        for aug_img in AUG_IMAGES_DIR.glob("*.jpg"):
+            aug_stem = aug_img.stem
+            aug_label = AUG_LABELS_DIR / f"{aug_stem}.txt"
+            if not aug_label.exists():
+                continue
+            # Only add to train split (augmented data shouldn't be in validation)
+            dst_img = DATASET_DIR / "images" / "train" / aug_img.name
+            dst_label = DATASET_DIR / "labels" / "train" / f"{aug_stem}.txt"
+            if not dst_img.exists():
+                dst_img.symlink_to(aug_img.resolve())
+            if not dst_label.exists():
+                shutil.copy2(aug_label, dst_label)
+            aug_count += 1
+        if aug_count:
+            print(f"Added {aug_count} augmented hard cases to training set")
 
     # Write data.yaml
     data_yaml = {

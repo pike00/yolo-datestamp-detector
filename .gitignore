@@ -7,6 +7,8 @@ infer_output/
 dataset/images/
 dataset/corrections/*.jpg
 dataset/to_annotate/
+dataset/augmented/
+dataset/augmented_labels/
 
 # Model weights and training runs
 runs/

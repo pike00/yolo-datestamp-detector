@@ -30,6 +30,26 @@ dashboard:
 ocr *ARGS:
     uv run ocr_stamps.py {{ARGS}}
 
+# Run OCR via local Gemma4 (requires Ollama running with gemma4:e4b)
+ocr-gemma *ARGS:
+    touch ocr_results_gemma.json
+    docker compose -f docker-compose.ocr.yml run --rm ocr {{ARGS}}
+
+# Build the Gemma4 OCR container
+ocr-gemma-build:
+    docker compose -f docker-compose.ocr.yml build
+
+# Generate augmented hard cases from labeled images
+augment *ARGS:
+    uv run augment_hard_cases.py {{ARGS}}
+
+# Remove all augmented files
+augment-clean:
+    uv run augment_hard_cases.py --clean
+
+# Full improvement cycle: augment, train, infer
+improve: augment train infer
+
 # One-time setup: copy ScanMyPhotos images to working directory
 setup-scanmyphotos:
     uv run setup_scanmyphotos.py
