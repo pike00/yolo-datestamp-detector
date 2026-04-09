@@ -35,5 +35,6 @@ __pycache__/
 
 # Misc
 *.jpg
+*.png
 !examples/*.jpg
-infer_output.jpg
+!examples/*.png

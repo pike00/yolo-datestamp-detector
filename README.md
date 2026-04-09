@@ -10,6 +10,14 @@ become the only reliable source of temporal metadata.
 This project trains a single-class object detector to locate these stamp regions, enabling
 downstream OCR to extract actual dates and write them back as EXIF metadata.
 
+### Detection Example
+
+| Input scan | Model output (conf 0.87) |
+|:---:|:---:|
+| ![Original photo](examples/stamp_d3_00000115.jpg) | ![Detection result](examples/detection_example.jpg) |
+
+The model draws a bounding box around the orange "8 28 '93" date stamp in the bottom-right corner.
+
 ## Results
 
 Trained on ~3,000 hand-labeled scanned photos, the model achieves:
@@ -20,18 +28,56 @@ Trained on ~3,000 hand-labeled scanned photos, the model achieves:
 | Recall | 95.8% |
 | mAP@50 | 95.0% |
 | mAP@50-95 | 73.8% |
+| F1 (optimal) | 0.96 @ conf 0.37 |
 
 Training converged in 27 epochs (early-stopped at 37/100). The lower mAP@50-95 reflects
 some imprecision in tight bounding box localization, which is acceptable since the box
 only needs to roughly locate the stamp region for OCR cropping.
 
+### Training Curves
+
+![Training curves](examples/training_curves.png)
+
+All losses (box, classification, DFL) decrease smoothly across training and validation sets.
+Precision, recall, and mAP metrics stabilize around epoch 20, confirming convergence without
+overfitting.
+
+### Precision-Recall Curve
+
+![Precision-Recall curve](examples/precision_recall_curve.png)
+
+The PR curve hugs the top-right corner with 0.950 mAP@0.5 -- near-perfect precision is
+maintained across almost the entire recall range before dropping off at the very tail.
+
+### F1-Confidence Curve
+
+![F1-Confidence curve](examples/f1_confidence_curve.png)
+
+Peak F1 of 0.96 at confidence threshold 0.37. The broad plateau from 0.1-0.7 means the
+model is robust to threshold selection -- you don't need to fine-tune the threshold to
+get good results.
+
+### Confusion Matrix
+
+![Confusion matrix](examples/confusion_matrix.png)
+
+96% true positive rate with only 4% of stamps missed. Zero false positives on background
+images -- the model never hallucinates a stamp where none exists.
+
 ### Confidence Distribution
 
-Batch inference on ~7,500 images produced 6,458 detections:
+![Confidence distribution](examples/confidence_distribution.png)
 
-- **85%** of detections have confidence >= 0.50
-- **71%** have confidence >= 0.70
-- Bimodal distribution: strong peak at 0.7-0.9 (true positives) and secondary cluster at 0.3-0.4 (ambiguous/borderline cases needing manual review)
+Batch inference on ~7,500 images produced 6,458 detections. The bimodal distribution shows
+a strong high-confidence peak (0.7-0.9, true positives) and a secondary cluster around
+0.3-0.4 (borderline cases requiring manual review).
+
+### Validation Predictions
+
+![Validation batch predictions](examples/val_predictions.jpg)
+
+Model predictions on a validation batch showing detections across diverse photo content,
+lighting conditions, and stamp positions.
 
 ## Approach
 
@@ -68,6 +114,76 @@ YOLOv8-nano was chosen because:
 5. **OCR** -- Crops detected stamp regions and sends to an LLM (Claude Haiku) or Tesseract for text extraction. Tracks token usage and cost.
 
 The pipeline is iterative: corrections from step 4 feed back into training data for the next training round, improving the model over time.
+
+### Key Code
+
+**Training** ([train.py](train.py)) -- dataset setup with automatic train/val split and YOLO fine-tuning:
+
+```python
+def train(data_yaml):
+    best_pt = BASE_DIR / "runs" / "detect" / "train" / "weights" / "best.pt"
+    if best_pt.exists():
+        model = YOLO(str(best_pt))       # Resume from previous best
+    else:
+        model = YOLO("yolov8n.pt")       # Start from pretrained nano
+
+    model.train(
+        data=str(data_yaml),
+        epochs=100, patience=10,          # Early stopping
+        imgsz=640, batch=8, device="cpu",
+        project=str(BASE_DIR / "runs" / "detect"),
+        name="train", exist_ok=True,
+    )
+```
+
+**Batch inference** ([infer_all.py](infer_all.py)) -- processes images in batches of 32 with progress tracking:
+
+```python
+def extract_best_prediction(result):
+    """Extract best detection from a single result, or None."""
+    if len(result.boxes) == 0:
+        return None
+    best_idx = result.boxes.conf.argmax()
+    box = result.boxes[best_idx]
+    x1, y1, x2, y2 = box.xyxy[0].tolist()
+    img_h, img_w = result.orig_shape
+    return {
+        "x": round(((x1 + x2) / 2) / img_w, 6),
+        "y": round(((y1 + y2) / 2) / img_h, 6),
+        "w": round((x2 - x1) / img_w, 6),
+        "h": round((y2 - y1) / img_h, 6),
+        "confidence": round(float(box.conf[0]), 4),
+    }
+```
+
+**OCR extraction** ([ocr_stamps.py](ocr_stamps.py)) -- crops detected region and sends to LLM for reading:
+
+```python
+def crop_stamp_region(img, pred):
+    """Crop image to YOLO-predicted stamp region with padding."""
+    w_img, h_img = img.size
+    cx, cy = pred["x"] * w_img, pred["y"] * h_img
+    bw, bh = pred["w"] * w_img, pred["h"] * h_img
+    pad_x, pad_y = bw * PAD_FACTOR, bh * PAD_FACTOR
+    return img.crop((
+        max(0, int(cx - bw/2 - pad_x)),
+        max(0, int(cy - bh/2 - pad_y)),
+        min(w_img, int(cx + bw/2 + pad_x)),
+        min(h_img, int(cy + bh/2 + pad_y)),
+    ))
+```
+
+**Rotation handling** ([corrections_dashboard.py](corrections_dashboard.py)) -- transforms bounding boxes from rotated display space back to original image coordinates:
+
+```python
+def transform_bbox_to_original(cx, cy, w, h, rotation):
+    """Transform bbox from rotated display space back to original image space."""
+    if rotation == 0:    return cx, cy, w, h
+    elif rotation == 90: return cy, 1 - cx, h, w       # 90 CW
+    elif rotation == 180: return 1 - cx, 1 - cy, w, h
+    elif rotation == 270: return 1 - cy, cx, h, w      # 270 CW
+    return cx, cy, w, h
+```
 
 ### Handling Rotation
 
@@ -164,18 +280,11 @@ just infer-one <photo>  # Single-image inference
 |   |-- labels/              # YOLO-format bounding box labels
 |   |-- corrections/         # Corrected labels from feedback loop
 |   `-- to_annotate/         # Staging area for correction annotation
-|-- examples/                # Sample photos for reference (committed)
+|-- examples/                # Sample photos and model evaluation plots
 |-- scanmyphotos/            # Working image directory (gitignored)
 |-- runs/                    # Training runs + model weights (gitignored)
 `-- status.json              # Current project statistics
 ```
-
-## Examples
-
-The `examples/` directory contains sample photos:
-
-- `stamp_*.jpg` -- Photos with visible date stamps, with `.txt` YOLO label files
-- `no_stamp_*.jpg` -- Photos without date stamps (negative examples)
 
 ## Model Details
 
