@@ -86,6 +86,75 @@ YOLOv8-nano was chosen because:
 - All training runs on CPU (no GPU required)
 - Fast inference (~50ms/image on CPU) enables batch processing thousands of photos
 
+### What is YOLOv8?
+
+YOLO (You Only Look Once) is a family of object detection models that process an entire
+image in a single forward pass through a neural network, predicting both bounding box
+locations and class labels simultaneously. Unlike two-stage detectors (like R-CNN) that
+first propose regions then classify them, YOLO treats detection as a single regression
+problem -- making it fast enough for real-time use.
+
+YOLOv8 (by [Ultralytics](https://github.com/ultralytics/ultralytics)) is the 2023
+iteration, built on a CSPDarknet53 backbone with a PANet feature pyramid neck. It comes
+in five sizes; this project uses **nano** (YOLOv8n), the smallest:
+
+| Variant | Parameters | GFLOPs | Use case |
+|---------|-----------|--------|----------|
+| **nano** | **3.2M** | **8.7** | **This project -- single-class, CPU-only** |
+| small | 11.2M | 28.6 | Mobile/edge deployment |
+| medium | 25.9M | 78.9 | General purpose |
+| large | 43.7M | 165.2 | High accuracy |
+| xlarge | 68.2M | 257.8 | Maximum accuracy |
+
+### How fine-tuning works
+
+This project uses **transfer learning**: instead of training a detector from scratch
+(which would require millions of images), we start from YOLOv8n pre-trained on COCO
+(a dataset of 330K images across 80 everyday object classes like cars, people, and dogs).
+The pre-trained model already understands general visual features -- edges, textures,
+shapes, color gradients. We then fine-tune it on our specific task (date stamp detection)
+using a few thousand labeled examples.
+
+**What happens during training:**
+
+1. **Dataset split** -- Labeled images and negative examples (photos confirmed to have no
+   stamp) are shuffled and split 80/20 into train/val sets. YOLO expects a specific
+   directory layout (`images/train/`, `labels/train/`, etc.) with one `.txt` label file
+   per image containing normalized bounding box coordinates.
+
+2. **Forward pass** -- Each training image (resized to 640px) passes through the network.
+   The backbone extracts feature maps at multiple scales, the neck combines them, and
+   the detection head outputs predicted bounding boxes with confidence scores and class
+   probabilities.
+
+3. **Loss computation** -- Three loss functions guide learning:
+   - **Box loss** (CIoU): measures how well predicted boxes overlap with ground truth.
+     CIoU accounts for overlap area, center distance, and aspect ratio.
+   - **Classification loss** (BCE): measures class prediction accuracy. With only one
+     class, this is effectively "stamp vs. background."
+   - **DFL loss** (Distribution Focal Loss): refines box edge coordinates by predicting
+     a probability distribution over possible positions rather than a single point.
+
+4. **Backpropagation** -- Gradients flow back through the entire network, adjusting all
+   weights (backbone included) to reduce the combined loss. The pre-trained backbone
+   weights provide a strong starting point, so fine-tuning converges quickly.
+
+5. **Early stopping** -- After each epoch, the model is evaluated on the validation set.
+   If mAP doesn't improve for 10 consecutive epochs (`patience=10`), training stops.
+   This prevents overfitting to the training data.
+
+6. **Data augmentation** -- During training, Ultralytics applies random transformations
+   on-the-fly: mosaic composition (stitching 4 images together), HSV jitter (hue,
+   saturation, brightness shifts), flips, and scaling. This project increases brightness
+   jitter (`hsv_v=0.6` vs default 0.4) because date stamps can wash out on bright
+   backgrounds. Separately, `augment_hard_cases.py` generates offline augmentations
+   targeting specific failure modes (overexposure, color shifts, low contrast).
+
+**What the model actually learns:** the network learns to recognize the visual pattern of
+date stamps -- a cluster of small, evenly-spaced, warm-colored digits typically appearing
+near photo edges, with consistent font geometry from the camera's LED imprinter. It does
+not "read" the digits; it only locates the region. OCR is a separate downstream step.
+
 ### Pipeline
 
 ```
