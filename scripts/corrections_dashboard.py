@@ -15,14 +15,15 @@ from pathlib import Path
 from datetime import datetime
 from http.server import HTTPServer, SimpleHTTPRequestHandler
 
-BASE_DIR = Path(__file__).parent
+BASE_DIR = Path(__file__).parent.parent
+UI_DIR = BASE_DIR / "ui"
 DATASET_DIR = BASE_DIR / "dataset"
 LABELS_DIR = DATASET_DIR / "labels"
 SCANMYPHOTOS_DIR = BASE_DIR / "scanmyphotos"
-QUEUE_FILE = BASE_DIR / "corrections_queue.json"
-PREDICTIONS_FILE = BASE_DIR / "scanmyphotos_predictions.json"
-SKIPPED_FILE = BASE_DIR / "skipped.txt"
-STATUS_FILE = BASE_DIR / "worker_status.json"
+QUEUE_FILE = BASE_DIR / "state" / "corrections_queue.json"
+PREDICTIONS_FILE = BASE_DIR / "state" / "scanmyphotos_predictions.json"
+SKIPPED_FILE = BASE_DIR / "state" / "skipped.txt"
+STATUS_FILE = BASE_DIR / "state" / "worker_status.json"
 
 DB_CONN_STRING = os.environ.get(
     "DATABASE_URL",
@@ -186,7 +187,7 @@ class DashboardHandler(SimpleHTTPRequestHandler):
 
     def serve_file(self, filename, content_type):
         """Serve a local file."""
-        path = BASE_DIR / filename
+        path = UI_DIR / filename
         if path.exists():
             self.send_response(200)
             self.send_header("Content-type", content_type)
@@ -495,7 +496,7 @@ def start_worker():
     _worker_process = subprocess.Popen(
         [
             "bash", "-c",
-            f"uv run {BASE_DIR / 'train.py'} && uv run {BASE_DIR / 'infer_all.py'}"
+            f"uv run {BASE_DIR / 'scripts' / 'train.py'} && uv run {BASE_DIR / 'scripts' / 'infer_all.py'}"
         ],
         cwd=str(BASE_DIR),
         stdout=subprocess.PIPE,

@@ -9,6 +9,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 
-COPY justfile train.py infer_all.py ./
+ENV UV_INDEX_URL=https://download.pytorch.org/whl/cpu
+ENV UV_EXTRA_INDEX_URL=https://pypi.org/simple/
+ENV UV_INDEX_STRATEGY=first-index
+
+COPY justfile ./
+COPY scripts/train.py scripts/infer_all.py scripts/
 
 CMD ["just", "cycle"]

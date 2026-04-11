@@ -23,10 +23,10 @@ import shutil
 import subprocess
 from pathlib import Path
 
-BASE_DIR = Path(__file__).parent
+BASE_DIR = Path(__file__).parent.parent
 ORIGINALS_DIR = Path(os.environ.get("ORIGINALS_DIR", str(BASE_DIR.parent / "originals")))
 WORKING_DIR = BASE_DIR / "scanmyphotos"
-MANIFEST_FILE = BASE_DIR / "scanmyphotos_manifest.json"
+MANIFEST_FILE = BASE_DIR / "state" / "scanmyphotos_manifest.json"
 
 # PostgreSQL connection (configurable via env vars)
 DB_CONFIG = {

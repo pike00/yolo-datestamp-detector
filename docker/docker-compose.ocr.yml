@@ -1,8 +1,8 @@
 services:
   ocr:
     build:
-      context: .
-      dockerfile: Dockerfile.ocr
+      context: ..
+      dockerfile: docker/Dockerfile.ocr
     network_mode: host
     environment:
       - DATA_DIR=/data
@@ -11,8 +11,8 @@ services:
       - DATABASE_URL=postgresql://dedup:dedup_local_dev@127.0.0.1:5432/dedup
       - PYTHONUNBUFFERED=1
     volumes:
-      - ./scanmyphotos:/data/scanmyphotos:ro
-      - ./corrections_queue.json:/data/corrections_queue.json:ro
-      - ./scanmyphotos_predictions.json:/data/scanmyphotos_predictions.json:ro
+      - ../scanmyphotos:/data/scanmyphotos:ro
+      - ../state/corrections_queue.json:/data/corrections_queue.json:ro
+      - ../state/scanmyphotos_predictions.json:/data/scanmyphotos_predictions.json:ro
     # Default: process all confirmed bboxes with resume
     command: ["--resume", "--source", "confirmed-only"]

@@ -32,12 +32,12 @@ from pathlib import Path
 import anthropic
 from PIL import Image
 
-BASE_DIR = Path(__file__).parent
+BASE_DIR = Path(__file__).parent.parent
 SCANMYPHOTOS_DIR = BASE_DIR / "scanmyphotos"
-PREDICTIONS_FILE = BASE_DIR / "scanmyphotos_predictions.json"
-CORRECTIONS_FILE = BASE_DIR / "corrections_queue.json"
-RESULTS_FILE = BASE_DIR / "ocr_results.json"
-COST_LOG_FILE = BASE_DIR / "ocr_cost_log.json"
+PREDICTIONS_FILE = BASE_DIR / "state" / "scanmyphotos_predictions.json"
+CORRECTIONS_FILE = BASE_DIR / "state" / "corrections_queue.json"
+RESULTS_FILE = BASE_DIR / "state" / "ocr_results.json"
+COST_LOG_FILE = BASE_DIR / "state" / "ocr_cost_log.json"
 
 MODEL = "claude-haiku-4-5-20251001"
 

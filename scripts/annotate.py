@@ -13,7 +13,8 @@ from pathlib import Path
 from urllib.parse import urlparse, parse_qs
 
 PORT = 8888
-BASE_DIR = Path(__file__).parent
+BASE_DIR = Path(__file__).parent.parent
+UI_DIR = BASE_DIR / "ui"
 
 
 def parse_args():
@@ -40,11 +41,11 @@ IMAGES_DIR = DATASET_DIR / "images"
 
 # Use different progress files for different modes
 if ARGS.mode == "correct":
-    PROGRESS_FILE = BASE_DIR / "progress_correct.json"
+    PROGRESS_FILE = BASE_DIR / "state" / "progress_correct.json"
 else:
-    PROGRESS_FILE = BASE_DIR / "progress.json"
+    PROGRESS_FILE = BASE_DIR / "state" / "progress.json"
 
-SKIPPED_FILE = BASE_DIR / "skipped.txt"
+SKIPPED_FILE = BASE_DIR / "state" / "skipped.txt"
 
 
 def load_predictions_metadata():
@@ -148,7 +149,7 @@ def remove_skip(filename):
 
 class AnnotationHandler(http.server.SimpleHTTPRequestHandler):
     def __init__(self, *args, **kwargs):
-        super().__init__(*args, directory=str(BASE_DIR), **kwargs)
+        super().__init__(*args, directory=str(UI_DIR), **kwargs)
 
     def do_GET(self):
         parsed = urlparse(self.path)

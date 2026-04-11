@@ -26,9 +26,9 @@ import cv2
 import numpy as np
 from PIL import Image
 
-BASE_DIR = Path(__file__).parent
-CROP_DIR = BASE_DIR / "crop_preview"
-OUTPUT_DIR = BASE_DIR / "enhance_preview"
+BASE_DIR = Path(__file__).parent.parent
+CROP_DIR = BASE_DIR / "output" / "crops"
+OUTPUT_DIR = BASE_DIR / "output" / "enhance"
 
 
 def red_minus_blue_green(img: np.ndarray) -> np.ndarray:

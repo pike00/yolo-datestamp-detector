@@ -10,12 +10,12 @@
 import json
 from pathlib import Path
 
-BASE_DIR = Path(__file__).parent
+BASE_DIR = Path(__file__).parent.parent
 SCANMYPHOTOS_DIR = BASE_DIR / "scanmyphotos"
 LABELS_DIR = BASE_DIR / "dataset" / "labels"
-SKIPPED_FILE = BASE_DIR / "skipped.txt"
-PREDICTIONS_FILE = BASE_DIR / "scanmyphotos_predictions.json"
-STATUS_FILE = BASE_DIR / "worker_status.json"
+SKIPPED_FILE = BASE_DIR / "state" / "skipped.txt"
+PREDICTIONS_FILE = BASE_DIR / "state" / "scanmyphotos_predictions.json"
+STATUS_FILE = BASE_DIR / "state" / "worker_status.json"
 MODEL_PATH = BASE_DIR / "runs" / "detect" / "train" / "weights" / "best.pt"
 
 INFERENCE_SIZE = 384

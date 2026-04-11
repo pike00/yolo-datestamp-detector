@@ -5,54 +5,54 @@ default:
 
 # Train the model (resumes from previous best.pt if available)
 train:
-    uv run train.py
+    uv run scripts/train.py
 
 # Run batch inference on pending images
 infer:
-    uv run infer_all.py
+    uv run scripts/infer_all.py
 
 # Train then infer (full cycle)
 cycle: train infer
 
 # Start annotation server on :8888
 annotate:
-    uv run annotate.py
+    uv run scripts/annotate.py
 
 # Start annotation in correction mode on :8888
 annotate-correct:
-    uv run annotate.py --mode correct
+    uv run scripts/annotate.py --mode correct
 
 # Start the corrections dashboard on :8889
 dashboard:
-    uv run corrections_dashboard.py
+    uv run scripts/corrections_dashboard.py
 
 # Run OCR on detected stamps (requires ANTHROPIC_API_KEY)
 ocr *ARGS:
-    uv run ocr_stamps.py {{ARGS}}
+    uv run scripts/ocr_stamps.py {{ARGS}}
 
 # Run OCR via local Gemma4 (requires Ollama running with gemma4:e4b)
 ocr-gemma *ARGS:
-    touch ocr_results_gemma.json
-    docker compose -f docker-compose.ocr.yml run --rm ocr {{ARGS}}
+    touch state/ocr_results_gemma.json
+    docker compose -f docker/docker-compose.ocr.yml run --rm ocr {{ARGS}}
 
 # Build the Gemma4 OCR container
 ocr-gemma-build:
-    docker compose -f docker-compose.ocr.yml build
+    docker compose -f docker/docker-compose.ocr.yml build
 
 # Generate augmented hard cases from labeled images
 augment *ARGS:
-    uv run augment_hard_cases.py {{ARGS}}
+    uv run scripts/augment_hard_cases.py {{ARGS}}
 
 # Remove all augmented files
 augment-clean:
-    uv run augment_hard_cases.py --clean
+    uv run scripts/augment_hard_cases.py --clean
 
 # Full improvement cycle: augment, train, infer
 improve: augment train infer
 
 # One-time setup: copy ScanMyPhotos images to working directory
 setup-scanmyphotos:
-    uv run setup_scanmyphotos.py
+    uv run scripts/setup_scanmyphotos.py
 
 # Run inference on a single photo
 infer-one photo conf="0.35":
@@ -72,10 +72,10 @@ stats:
     import json
     labels = {p.stem for p in Path('dataset/labels').glob('*.txt') if p.stem.startswith('d')}
     skipped = set()
-    if Path('skipped.txt').exists():
-        skipped = {l.strip() for l in open('skipped.txt').readlines() if l.strip()}
+    if Path('state/skipped.txt').exists():
+        skipped = {l.strip() for l in open('state/skipped.txt').readlines() if l.strip()}
     image_stems = {p.stem for p in Path('scanmyphotos').glob('*.jpg')} if Path('scanmyphotos').exists() else set()
-    preds = len(json.load(open('scanmyphotos_predictions.json'))) if Path('scanmyphotos_predictions.json').exists() else 0
+    preds = len(json.load(open('state/scanmyphotos_predictions.json'))) if Path('state/scanmyphotos_predictions.json').exists() else 0
     reviewed = (labels | skipped) & image_stems
     has_stamp = labels & image_stems
     no_stamp = skipped & image_stems
@@ -97,13 +97,13 @@ update-status:
     labels = list(Path('dataset/labels').glob('*.txt'))
     labels_d = [l for l in labels if l.stem.startswith('d')]
     skipped = set()
-    if Path('skipped.txt').exists():
-        skipped = {l.strip() for l in open('skipped.txt').readlines() if l.strip()}
+    if Path('state/skipped.txt').exists():
+        skipped = {l.strip() for l in open('state/skipped.txt').readlines() if l.strip()}
     images = list(Path('scanmyphotos').glob('*.jpg')) if Path('scanmyphotos').exists() else []
-    preds = json.load(open('scanmyphotos_predictions.json')) if Path('scanmyphotos_predictions.json').exists() else {}
-    queue = json.load(open('corrections_queue.json')) if Path('corrections_queue.json').exists() else {'stats': {}}
+    preds = json.load(open('state/scanmyphotos_predictions.json')) if Path('state/scanmyphotos_predictions.json').exists() else {}
+    queue = json.load(open('state/corrections_queue.json')) if Path('state/corrections_queue.json').exists() else {'stats': {}}
     qs = queue.get('stats', {})
-    manifest = json.load(open('scanmyphotos_manifest.json')) if Path('scanmyphotos_manifest.json').exists() else []
+    manifest = json.load(open('state/scanmyphotos_manifest.json')) if Path('state/scanmyphotos_manifest.json').exists() else []
     disc_counts = {}
     for m in manifest:
         d = m['disc']
@@ -136,9 +136,9 @@ update-status:
             'confidence_threshold': 0.01,
         },
     }
-    with open('status.json', 'w') as f:
+    with open('state/status.json', 'w') as f:
         json.dump(status, f, indent=2)
-    print(f'Updated status.json ({reviewed}/{total} reviewed, {len(preds)} predictions)')
+    print(f'Updated state/status.json ({reviewed}/{total} reviewed, {len(preds)} predictions)')
 
 # Show training metrics in TensorBoard
 tensorboard:
@@ -146,12 +146,12 @@ tensorboard:
 
 # Feedback loop: prepare correction images
 feedback-prepare:
-    uv run feedback.py prepare
+    uv run scripts/feedback.py prepare
 
 # Feedback loop: finalize corrections
 feedback-finalize:
-    uv run feedback.py finalize
+    uv run scripts/feedback.py finalize
 
 # Feedback loop: show status
 feedback-status:
-    uv run feedback.py status
+    uv run scripts/feedback.py status

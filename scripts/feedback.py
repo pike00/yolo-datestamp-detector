@@ -7,13 +7,13 @@ from pathlib import Path
 
 from ultralytics import YOLO
 
-BASE_DIR = Path(__file__).parent
+BASE_DIR = Path(__file__).parent.parent
 DATASET_DIR = BASE_DIR / "dataset"
 CORRECTIONS_DIR = DATASET_DIR / "corrections"
 TO_ANNOTATE_DIR = DATASET_DIR / "to_annotate"
 CORRECTIONS_META_FILE = CORRECTIONS_DIR / "corrections_meta.json"
 MODEL_PATH = BASE_DIR / "runs" / "detect" / "train" / "weights" / "best.pt"
-INFER_OUTPUT_DIR = BASE_DIR / "infer_output"
+INFER_OUTPUT_DIR = BASE_DIR / "output" / "infer"
 
 
 def load_corrections_meta():

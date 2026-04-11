@@ -1,0 +1,12 @@
+services:
+  cycle:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    volumes:
+      - ../dataset:/app/dataset
+      - ../scanmyphotos:/app/scanmyphotos
+      - ../runs:/app/runs
+      - ../state/skipped.txt:/app/state/skipped.txt
+      - ../state/scanmyphotos_predictions.json:/app/state/scanmyphotos_predictions.json
+      - ../state/worker_status.json:/app/state/worker_status.json

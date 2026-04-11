@@ -14,11 +14,11 @@ from pathlib import Path
 
 import yaml
 
-BASE_DIR = Path(__file__).parent
+BASE_DIR = Path(__file__).parent.parent
 DATASET_DIR = BASE_DIR / "dataset"
 IMAGES_DIR = DATASET_DIR / "images"
 LABELS_DIR = DATASET_DIR / "labels"
-SKIPPED_FILE = BASE_DIR / "skipped.txt"
+SKIPPED_FILE = BASE_DIR / "state" / "skipped.txt"
 IMAGE_SOURCE = BASE_DIR / "scanmyphotos"
 AUG_IMAGES_DIR = DATASET_DIR / "augmented"
 AUG_LABELS_DIR = DATASET_DIR / "augmented_labels"

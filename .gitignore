@@ -1,7 +1,7 @@
 # Working photo directories (too large to commit)
 scanmyphotos/
 stratified_samples/
-infer_output/
+output/
 
 # Dataset images (symlinks to scanmyphotos/) and train/val splits
 dataset/images/
@@ -16,18 +16,16 @@ dataset/augmented_labels/
 runs/
 *.pt
 
-# Large JSON state files
-corrections_queue.json
-scanmyphotos_predictions.json
-scanmyphotos_manifest.json
-ocr_results.json
-ocr_results_gemma.json
-ocr_cost_log.json
-
-# Annotation progress (user-specific state)
-progress.json
-progress_correct.json
-worker_status.json
+# State files (runtime JSON, progress, queues)
+state/corrections_queue.json
+state/scanmyphotos_predictions.json
+state/scanmyphotos_manifest.json
+state/ocr_results.json
+state/ocr_results_gemma.json
+state/ocr_cost_log.json
+state/progress.json
+state/progress_correct.json
+state/worker_status.json
 
 # Python
 __pycache__/

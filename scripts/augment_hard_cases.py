@@ -33,7 +33,7 @@ from pathlib import Path
 import numpy as np
 from PIL import Image
 
-BASE_DIR = Path(__file__).parent
+BASE_DIR = Path(__file__).parent.parent
 SCANMYPHOTOS_DIR = BASE_DIR / "scanmyphotos"
 LABELS_DIR = BASE_DIR / "dataset" / "labels"
 AUG_IMAGES_DIR = BASE_DIR / "dataset" / "augmented"
