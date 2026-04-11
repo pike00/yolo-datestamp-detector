@@ -81,79 +81,13 @@ but these proved unreliable -- date stamps vary in color, brightness, position, 
 photos have orange-tinted content that triggers false positives. A learned detector
 generalizes far better from labeled examples.
 
-YOLOv8-nano was chosen because:
-- Single-class detection is a simple task; nano is sufficient
-- All training runs on CPU (no GPU required)
-- Fast inference (~50ms/image on CPU) enables batch processing thousands of photos
-
-### What is YOLOv8?
-
 YOLO (You Only Look Once) is a family of object detection models that process an entire
-image in a single forward pass through a neural network, predicting both bounding box
-locations and class labels simultaneously. Unlike two-stage detectors (like R-CNN) that
-first propose regions then classify them, YOLO treats detection as a single regression
-problem -- making it fast enough for real-time use.
-
-YOLOv8 (by [Ultralytics](https://github.com/ultralytics/ultralytics)) is the 2023
-iteration, built on a CSPDarknet53 backbone with a PANet feature pyramid neck. It comes
-in five sizes; this project uses **nano** (YOLOv8n), the smallest:
-
-| Variant | Parameters | GFLOPs | Use case |
-|---------|-----------|--------|----------|
-| **nano** | **3.2M** | **8.7** | **This project -- single-class, CPU-only** |
-| small | 11.2M | 28.6 | Mobile/edge deployment |
-| medium | 25.9M | 78.9 | General purpose |
-| large | 43.7M | 165.2 | High accuracy |
-| xlarge | 68.2M | 257.8 | Maximum accuracy |
-
-### How fine-tuning works
-
-This project uses **transfer learning**: instead of training a detector from scratch
-(which would require millions of images), we start from YOLOv8n pre-trained on COCO
-(a dataset of 330K images across 80 everyday object classes like cars, people, and dogs).
-The pre-trained model already understands general visual features -- edges, textures,
-shapes, color gradients. We then fine-tune it on our specific task (date stamp detection)
-using a few thousand labeled examples.
-
-**What happens during training:**
-
-1. **Dataset split** -- Labeled images and negative examples (photos confirmed to have no
-   stamp) are shuffled and split 80/20 into train/val sets. YOLO expects a specific
-   directory layout (`images/train/`, `labels/train/`, etc.) with one `.txt` label file
-   per image containing normalized bounding box coordinates.
-
-2. **Forward pass** -- Each training image (resized to 640px) passes through the network.
-   The backbone extracts feature maps at multiple scales, the neck combines them, and
-   the detection head outputs predicted bounding boxes with confidence scores and class
-   probabilities.
-
-3. **Loss computation** -- Three loss functions guide learning:
-   - **Box loss** (CIoU): measures how well predicted boxes overlap with ground truth.
-     CIoU accounts for overlap area, center distance, and aspect ratio.
-   - **Classification loss** (BCE): measures class prediction accuracy. With only one
-     class, this is effectively "stamp vs. background."
-   - **DFL loss** (Distribution Focal Loss): refines box edge coordinates by predicting
-     a probability distribution over possible positions rather than a single point.
-
-4. **Backpropagation** -- Gradients flow back through the entire network, adjusting all
-   weights (backbone included) to reduce the combined loss. The pre-trained backbone
-   weights provide a strong starting point, so fine-tuning converges quickly.
-
-5. **Early stopping** -- After each epoch, the model is evaluated on the validation set.
-   If mAP doesn't improve for 10 consecutive epochs (`patience=10`), training stops.
-   This prevents overfitting to the training data.
-
-6. **Data augmentation** -- During training, Ultralytics applies random transformations
-   on-the-fly: mosaic composition (stitching 4 images together), HSV jitter (hue,
-   saturation, brightness shifts), flips, and scaling. This project increases brightness
-   jitter (`hsv_v=0.6` vs default 0.4) because date stamps can wash out on bright
-   backgrounds. Separately, `augment_hard_cases.py` generates offline augmentations
-   targeting specific failure modes (overexposure, color shifts, low contrast).
-
-**What the model actually learns:** the network learns to recognize the visual pattern of
-date stamps -- a cluster of small, evenly-spaced, warm-colored digits typically appearing
-near photo edges, with consistent font geometry from the camera's LED imprinter. It does
-not "read" the digits; it only locates the region. OCR is a separate downstream step.
+image in a single forward pass, predicting bounding box locations and class labels
+simultaneously. This project uses YOLOv8-nano (3.2M parameters), the smallest variant
+from [Ultralytics](https://github.com/ultralytics/ultralytics). It starts from weights
+pre-trained on the COCO dataset (330K images, 80 object classes), then fine-tunes on a
+few thousand labeled date stamp examples -- a transfer learning approach that converges
+quickly even on CPU without a GPU.
 
 ### Pipeline
 
@@ -176,83 +110,6 @@ not "read" the digits; it only locates the region. OCR is a separate downstream 
 5. **OCR** -- Crops detected stamp regions and sends to an LLM (Claude Haiku) or Tesseract for text extraction. Tracks token usage and cost.
 
 The pipeline is iterative: corrections from step 4 feed back into training data for the next training round, improving the model over time.
-
-### Key Code
-
-**Training** ([train.py](train.py)) -- dataset setup with automatic train/val split and YOLO fine-tuning:
-
-```python
-def train(data_yaml):
-    best_pt = BASE_DIR / "runs" / "detect" / "train" / "weights" / "best.pt"
-    if best_pt.exists():
-        model = YOLO(str(best_pt))       # Resume from previous best
-    else:
-        model = YOLO("yolov8n.pt")       # Start from pretrained nano
-
-    model.train(
-        data=str(data_yaml),
-        epochs=100, patience=10,          # Early stopping
-        imgsz=640, batch=8, device="cpu",
-        project=str(BASE_DIR / "runs" / "detect"),
-        name="train", exist_ok=True,
-    )
-```
-
-**Batch inference** ([infer_all.py](infer_all.py)) -- processes images in batches of 32 with progress tracking:
-
-```python
-def extract_best_prediction(result):
-    """Extract best detection from a single result, or None."""
-    if len(result.boxes) == 0:
-        return None
-    best_idx = result.boxes.conf.argmax()
-    box = result.boxes[best_idx]
-    x1, y1, x2, y2 = box.xyxy[0].tolist()
-    img_h, img_w = result.orig_shape
-    return {
-        "x": round(((x1 + x2) / 2) / img_w, 6),
-        "y": round(((y1 + y2) / 2) / img_h, 6),
-        "w": round((x2 - x1) / img_w, 6),
-        "h": round((y2 - y1) / img_h, 6),
-        "confidence": round(float(box.conf[0]), 4),
-    }
-```
-
-**OCR extraction** ([ocr_stamps.py](ocr_stamps.py)) -- crops detected region and sends to LLM for reading:
-
-```python
-def crop_stamp_region(img, pred):
-    """Crop image to YOLO-predicted stamp region with padding."""
-    w_img, h_img = img.size
-    cx, cy = pred["x"] * w_img, pred["y"] * h_img
-    bw, bh = pred["w"] * w_img, pred["h"] * h_img
-    pad_x, pad_y = bw * PAD_FACTOR, bh * PAD_FACTOR
-    return img.crop((
-        max(0, int(cx - bw/2 - pad_x)),
-        max(0, int(cy - bh/2 - pad_y)),
-        min(w_img, int(cx + bw/2 + pad_x)),
-        min(h_img, int(cy + bh/2 + pad_y)),
-    ))
-```
-
-**Rotation handling** ([corrections_dashboard.py](corrections_dashboard.py)) -- transforms bounding boxes from rotated display space back to original image coordinates:
-
-```python
-def transform_bbox_to_original(cx, cy, w, h, rotation):
-    """Transform bbox from rotated display space back to original image space."""
-    if rotation == 0:    return cx, cy, w, h
-    elif rotation == 90: return cy, 1 - cx, h, w       # 90 CW
-    elif rotation == 180: return 1 - cx, 1 - cy, w, h
-    elif rotation == 270: return 1 - cy, cx, h, w      # 270 CW
-    return cx, cy, w, h
-```
-
-### Handling Rotation
-
-Some scanned photos are rotated 90/180/270 degrees. The corrections dashboard supports
-rotation during review, and bounding box coordinates are transformed back to the original
-image coordinate space before saving labels. Rotation metadata is stored in PostgreSQL
-for downstream processing.
 
 ## Setup
 
@@ -317,7 +174,7 @@ just cycle              # Train then infer
 just dashboard          # Corrections dashboard (:8889)
 just ocr                # OCR detected stamps (requires ANTHROPIC_API_KEY)
 just stats              # Dataset statistics
-just update-status      # Refresh status.json
+just update-status      # Refresh state/status.json
 just tensorboard        # Training metrics
 just infer-one <photo>  # Single-image inference
 ```
@@ -326,26 +183,33 @@ just infer-one <photo>  # Single-image inference
 
 ```
 .
-|-- annotate.py              # Annotation server + REST API
-|-- index.html               # Browser annotation UI (vanilla JS + Canvas)
-|-- train.py                 # YOLO fine-tuning with train/val split
-|-- infer_all.py             # Batch inference with progress tracking
-|-- corrections_dashboard.py # Prediction review/correction server
-|-- dashboard.html           # Corrections dashboard UI
-|-- batch_review.html        # Bulk review UI for high-confidence predictions
-|-- feedback.py              # Feedback loop orchestration
-|-- ocr_stamps.py            # Date stamp OCR via Claude Haiku
-|-- setup_scanmyphotos.py    # Optional: import images from dedup database
-|-- stratified_sample.py     # Stratified sampling across image sources
+|-- scripts/
+|   |-- train.py                 # YOLO fine-tuning with train/val split
+|   |-- infer_all.py             # Batch inference with progress tracking
+|   |-- annotate.py              # Annotation server + REST API
+|   |-- corrections_dashboard.py # Prediction review/correction server
+|   |-- feedback.py              # Feedback loop orchestration
+|   |-- ocr_stamps.py            # Date stamp OCR via Claude Haiku
+|   |-- ocr_gemma.py             # Date stamp OCR via local Gemma4
+|   |-- augment_hard_cases.py    # Data augmentation for failure modes
+|   |-- enhance_stamps.py        # Stamp enhancement experiments
+|   |-- setup_scanmyphotos.py    # Import images from dedup database
+|   `-- stratified_sample.py     # Stratified sampling across image sources
+|-- ui/
+|   |-- index.html               # Browser annotation UI (vanilla JS + Canvas)
+|   |-- dashboard.html           # Corrections dashboard UI
+|   `-- batch_review.html        # Bulk review UI for high-confidence predictions
+|-- state/                       # Runtime state files (gitignored, except skipped.txt)
+|-- output/                      # Inference visualizations and previews (gitignored)
+|-- docker/                      # Dockerfiles and compose configs
 |-- dataset/
-|   |-- data.yaml            # YOLO dataset config
-|   |-- labels/              # YOLO-format bounding box labels
-|   |-- corrections/         # Corrected labels from feedback loop
-|   `-- to_annotate/         # Staging area for correction annotation
-|-- examples/                # Sample photos and model evaluation plots
-|-- scanmyphotos/            # Working image directory (gitignored)
-|-- runs/                    # Training runs + model weights (gitignored)
-`-- status.json              # Current project statistics
+|   |-- data.yaml                # YOLO dataset config
+|   |-- labels/                  # YOLO-format bounding box labels
+|   |-- corrections/             # Corrected labels from feedback loop
+|   `-- to_annotate/             # Staging area for correction annotation
+|-- examples/                    # Sample photos and model evaluation plots
+|-- scanmyphotos/                # Working image directory (gitignored)
+`-- runs/                        # Training runs + model weights (gitignored)
 ```
 
 ## Model Details
@@ -363,7 +227,7 @@ just infer-one <photo>  # Single-image inference
 ## Docker
 
 ```sh
-docker compose up cycle    # Train + infer in container
+docker compose -f docker/docker-compose.yml up cycle    # Train + infer in container
 ```
 
 Mounts `dataset/`, `scanmyphotos/`, and `runs/` as volumes.
