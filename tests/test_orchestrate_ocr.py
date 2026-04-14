@@ -49,3 +49,5 @@ def test_status_empty(tmp_state, capsys):
     assert "OCR results:         0" in out
     assert "Stage-1 shards:      0 pending, 0 done" in out
     assert "Manual review queue: 0" in out
+    assert "Stage-2 shards:      0 pending, 0 done" in out
+    assert "Failed shards:       0" in out

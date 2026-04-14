@@ -93,14 +93,9 @@ def cmd_status(_args) -> int:
     def _count_pending_done(stage_dir: Path) -> tuple[int, int]:
         if not stage_dir.exists():
             return 0, 0
-        pending = 0
-        done = 0
-        for path in stage_dir.glob("shard_*.json"):
-            if "_result" in path.stem:
-                done += 1
-                continue
-            if not _result_path(path).exists():
-                pending += 1
+        manifests = [p for p in stage_dir.glob("shard_*.json") if "_result" not in p.stem]
+        done = sum(1 for p in manifests if _result_path(p).exists())
+        pending = len(manifests) - done
         return pending, done
 
     stage1_pending, stage1_done = _count_pending_done(STAGE1_SHARDS_DIR)
@@ -124,7 +119,7 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     if args.cmd == "status":
         return cmd_status(args)
-    return 1
+    raise AssertionError(f"unhandled cmd: {args.cmd}")
 
 
 if __name__ == "__main__":
