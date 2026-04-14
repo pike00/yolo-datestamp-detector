@@ -177,3 +177,43 @@ def test_crop_stage1_limit_caps_pending(tmp_state):
 
     manifest = json.loads(sorted(oo.STAGE1_SHARDS_DIR.glob("shard_*.json"))[0].read_text())
     assert len(manifest["stems"]) == 3
+
+
+def test_merge_stage1_adds_entries(tmp_state):
+    oo.save_json(oo.RESULTS_FILE, {"d1_0": {"text": "NONE"}})
+    shard_result = oo.STAGE1_SHARDS_DIR / "shard_0000_result.json"
+    oo.save_json(shard_result, {
+        "shard_id": "0000",
+        "stage": 1,
+        "results": {
+            "d1_1": {"text": "10 3 '99", "bbox_source": "yolo", "confidence": 0.9},
+            "d1_2": {"text": "NONE", "bbox_source": "yolo", "confidence": 0.2},
+        },
+    })
+
+    rc = oo.main(["merge-stage1", str(shard_result)])
+    assert rc == 0
+
+    merged = oo.load_json(oo.RESULTS_FILE, {})
+    assert merged["d1_0"]["text"] == "NONE"  # untouched
+    assert merged["d1_1"]["text"] == "10 3 '99"
+    assert merged["d1_1"]["stage"] == 1
+    assert merged["d1_2"]["text"] == "NONE"
+
+
+def test_merge_stage1_rejects_bad_shape(tmp_state):
+    shard_result = oo.STAGE1_SHARDS_DIR / "shard_0000_result.json"
+    oo.save_json(shard_result, {"shard_id": "0000"})  # missing "results"
+    rc = oo.main(["merge-stage1", str(shard_result)])
+    assert rc != 0
+
+
+def test_merge_stage1_rejects_missing_text_field(tmp_state):
+    shard_result = oo.STAGE1_SHARDS_DIR / "shard_0000_result.json"
+    oo.save_json(shard_result, {
+        "shard_id": "0000",
+        "stage": 1,
+        "results": {"d1_1": {"bbox_source": "yolo"}},  # no text
+    })
+    rc = oo.main(["merge-stage1", str(shard_result)])
+    assert rc != 0

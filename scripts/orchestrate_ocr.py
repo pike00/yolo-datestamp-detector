@@ -222,6 +222,41 @@ def cmd_crop_stage1(args) -> int:
     return 0
 
 
+def _validate_stage1_shard_result(data: dict) -> tuple[bool, str]:
+    if not isinstance(data, dict):
+        return False, "shard result is not an object"
+    if "results" not in data or not isinstance(data["results"], dict):
+        return False, "missing or non-object 'results' field"
+    for stem, entry in data["results"].items():
+        if not isinstance(entry, dict):
+            return False, f"entry for {stem} is not an object"
+        if "text" not in entry or not isinstance(entry["text"], str):
+            return False, f"entry for {stem} missing string 'text'"
+    return True, ""
+
+
+def cmd_merge_stage1(args) -> int:
+    shard_path = Path(args.shard_result).resolve()
+    if not shard_path.exists():
+        print(f"ERROR: shard result not found: {shard_path}", file=sys.stderr)
+        return 2
+
+    data = load_json(shard_path, None)
+    ok, err = _validate_stage1_shard_result(data)
+    if not ok:
+        print(f"ERROR: invalid shard result {shard_path.name}: {err}", file=sys.stderr)
+        return 3
+
+    results = load_json(RESULTS_FILE, {})
+    added = 0
+    for stem, entry in data["results"].items():
+        results[stem] = {**entry, "stage": 1}
+        added += 1
+    save_json(RESULTS_FILE, results)
+    print(f"Merged {added} stems from {shard_path.name}")
+    return 0
+
+
 def cmd_status(_args) -> int:
     results = load_json(RESULTS_FILE, {})
     manual_queue = load_json(MANUAL_QUEUE_FILE, [])
@@ -257,9 +292,14 @@ def main(argv: list[str] | None = None) -> int:
     p_crop1 = sub.add_parser("crop-stage1", help="Pre-crop pending stems")
     p_crop1.add_argument("--limit", type=int, help="Cap pending set size (pilot runs)")
 
+    p_merge1 = sub.add_parser("merge-stage1", help="Merge a stage-1 shard result into ocr_results.json")
+    p_merge1.add_argument("shard_result", help="Path to shard_NNNN_result.json")
+
     args = parser.parse_args(argv)
     if args.cmd == "crop-stage1":
         return cmd_crop_stage1(args)
+    if args.cmd == "merge-stage1":
+        return cmd_merge_stage1(args)
     if args.cmd == "status":
         return cmd_status(args)
     raise AssertionError(f"unhandled cmd: {args.cmd}")
