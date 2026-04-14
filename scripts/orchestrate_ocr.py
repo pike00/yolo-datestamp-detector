@@ -261,6 +261,33 @@ def cmd_merge_stage1(args) -> int:
     return 0
 
 
+def cmd_list_shards(args) -> int:
+    stage_dir = STAGE1_SHARDS_DIR if args.stage == "stage1" else STAGE2_SHARDS_DIR
+    if not stage_dir.exists():
+        return 0
+    for manifest in sorted(stage_dir.glob("shard_*.json")):
+        if "_result" in manifest.stem:
+            continue
+        if _result_path(manifest).exists():
+            continue
+        print(manifest)
+    return 0
+
+
+def cmd_requeue(args) -> int:
+    manifest = Path(args.shard_path).resolve()
+    if not manifest.exists():
+        print(f"ERROR: manifest not found: {manifest}", file=sys.stderr)
+        return 2
+    result = _result_path(manifest)
+    if result.exists():
+        result.unlink()
+        print(f"Removed {result.name}; shard is now pending again")
+    else:
+        print(f"No result file to remove; shard was already pending")
+    return 0
+
+
 def cmd_status(_args) -> int:
     results = load_json(RESULTS_FILE, {})
     manual_queue = load_json(MANUAL_QUEUE_FILE, [])
@@ -299,11 +326,21 @@ def main(argv: list[str] | None = None) -> int:
     p_merge1 = sub.add_parser("merge-stage1", help="Merge a stage-1 shard result into ocr_results.json")
     p_merge1.add_argument("shard_result", help="Path to shard_NNNN_result.json")
 
+    p_list = sub.add_parser("list-shards", help="List shard manifests with no result yet")
+    p_list.add_argument("stage", choices=["stage1", "stage2"])
+
+    p_requeue = sub.add_parser("requeue", help="Mark a shard as pending again")
+    p_requeue.add_argument("shard_path", help="Path to shard_NNNN.json")
+
     args = parser.parse_args(argv)
     if args.cmd == "crop-stage1":
         return cmd_crop_stage1(args)
     if args.cmd == "merge-stage1":
         return cmd_merge_stage1(args)
+    if args.cmd == "list-shards":
+        return cmd_list_shards(args)
+    if args.cmd == "requeue":
+        return cmd_requeue(args)
     if args.cmd == "status":
         return cmd_status(args)
     raise AssertionError(f"unhandled cmd: {args.cmd}")

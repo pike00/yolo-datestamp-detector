@@ -242,3 +242,27 @@ def test_merge_stage1_rejects_invalid_json(tmp_state):
     shard_result.write_text("{not valid json")
     rc = oo.main(["merge-stage1", str(shard_result)])
     assert rc == 3
+
+
+def test_list_shards_prints_only_pending(tmp_state, capsys):
+    oo.STAGE1_SHARDS_DIR.mkdir(parents=True)
+    (oo.STAGE1_SHARDS_DIR / "shard_0000.json").write_text("{}")
+    (oo.STAGE1_SHARDS_DIR / "shard_0000_result.json").write_text("{}")  # already done
+    (oo.STAGE1_SHARDS_DIR / "shard_0001.json").write_text("{}")         # pending
+
+    rc = oo.main(["list-shards", "stage1"])
+    assert rc == 0
+    out = capsys.readouterr().out
+    assert "shard_0001.json" in out
+    assert "shard_0000.json" not in out
+
+
+def test_requeue_removes_result_file(tmp_state):
+    oo.STAGE1_SHARDS_DIR.mkdir(parents=True)
+    (oo.STAGE1_SHARDS_DIR / "shard_0000.json").write_text("{}")
+    result = oo.STAGE1_SHARDS_DIR / "shard_0000_result.json"
+    result.write_text("{}")
+
+    rc = oo.main(["requeue", str(oo.STAGE1_SHARDS_DIR / "shard_0000.json")])
+    assert rc == 0
+    assert not result.exists()
