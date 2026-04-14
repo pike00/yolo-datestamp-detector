@@ -61,7 +61,7 @@ STAGE1_SHARD_SIZE = 50
 STAGE2_SHARD_SIZE = 25
 
 # Stage-2 trigger rules
-DATE_FORMAT_RE = re.compile(r"^\d{1,2} \d{1,2} '\d{2}$")
+DATE_FORMAT_RE = re.compile(r"^\d{1,2} \d{1,2} ?'\d{2}$")
 LOW_CONFIDENCE_THRESHOLD = 0.3
 
 
