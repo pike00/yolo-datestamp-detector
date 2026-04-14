@@ -164,6 +164,31 @@ def test_crop_stage1_writes_shards_and_crops(tmp_state):
     assert manifest["result_path"].endswith("shard_0000_result.json")
 
 
+def test_crop_stage1_resumes_shard_numbering(tmp_state):
+    """Second incremental run appends new shards rather than clobbering the first run's manifests."""
+    oo.save_json(oo.PREDICTIONS_FILE, {
+        f"d1_{i}": {"x": 0.5, "y": 0.9, "w": 0.1, "h": 0.05, "confidence": 0.9}
+        for i in range(1, 11)
+    })
+    for i in range(1, 11):
+        _make_test_photo(oo.SCANMYPHOTOS_DIR / f"d1_{i}.jpg")
+
+    # First run: 3 stems → shard_0000
+    oo.main(["crop-stage1", "--limit", "3"])
+    # Simulate those 3 being merged into results
+    oo.save_json(oo.RESULTS_FILE, {f"d1_{i}": {"text": "1 1 '99"} for i in (1, 10, 2)})
+
+    # Second run: remaining stems → must start at shard_0001, NOT clobber shard_0000
+    oo.main(["crop-stage1"])
+
+    shard_files = sorted(p.name for p in oo.STAGE1_SHARDS_DIR.glob("shard_*.json") if "_result" not in p.stem)
+    assert "shard_0000.json" in shard_files
+    assert "shard_0001.json" in shard_files
+    # shard_0000 must still contain its original 3 stems
+    m0 = json.loads((oo.STAGE1_SHARDS_DIR / "shard_0000.json").read_text())
+    assert len(m0["stems"]) == 3
+
+
 def test_crop_stage1_limit_caps_pending(tmp_state):
     oo.save_json(oo.PREDICTIONS_FILE, {
         f"d1_{i}": {"x": 0.5, "y": 0.9, "w": 0.1, "h": 0.05, "confidence": 0.9}

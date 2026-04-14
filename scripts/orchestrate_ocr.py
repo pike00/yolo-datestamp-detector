@@ -215,8 +215,12 @@ def cmd_crop_stage1(args) -> int:
     STAGE1_SHARDS_DIR.mkdir(parents=True, exist_ok=True)
     STAGE1_CROPS_DIR.mkdir(parents=True, exist_ok=True)
 
-    print(f"Pre-cropping {len(pending)} stems...")
-    shard_index = 0
+    # Resume shard numbering past any existing manifests so incremental runs
+    # append new shards rather than clobbering earlier ones.
+    existing = [p.stem for p in STAGE1_SHARDS_DIR.glob("shard_*.json") if "_result" not in p.stem]
+    shard_index = 1 + max((int(s.split("_")[1]) for s in existing), default=-1)
+
+    print(f"Pre-cropping {len(pending)} stems (starting at shard_{shard_index:04d})...")
     shard_entries: list[dict] = []
 
     def flush_shard() -> None:
