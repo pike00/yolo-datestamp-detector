@@ -415,6 +415,81 @@ def cmd_crop_stage2(_args) -> int:
     return 0
 
 
+def _validate_stage2_shard_result(data: dict) -> tuple[bool, str]:
+    if not isinstance(data, dict) or "results" not in data:
+        return False, "missing 'results' field"
+    if not isinstance(data["results"], dict):
+        return False, "'results' is not an object"
+    for stem, entry in data["results"].items():
+        if not isinstance(entry, dict):
+            return False, f"entry for {stem} is not an object"
+        for field in ("view_crop", "view_full"):
+            if field not in entry or not isinstance(entry[field], str):
+                return False, f"entry for {stem} missing string '{field}'"
+    return True, ""
+
+
+def cmd_merge_stage2(args) -> int:
+    shard_path = Path(args.shard_result).resolve()
+    if not shard_path.exists():
+        print(f"ERROR: shard result not found: {shard_path}", file=sys.stderr)
+        return 2
+
+    try:
+        data = load_json(shard_path, None)
+    except json.JSONDecodeError as e:
+        print(f"ERROR: invalid JSON in {shard_path.name}: {e}", file=sys.stderr)
+        return 3
+
+    ok, err = _validate_stage2_shard_result(data)
+    if not ok:
+        print(f"ERROR: invalid shard result {shard_path.name}: {err}", file=sys.stderr)
+        return 3
+
+    results = load_json(RESULTS_FILE, {})
+    manual_queue = load_json(MANUAL_QUEUE_FILE, [])
+
+    confirmed = no_stamp = disagree = 0
+    for stem, entry in data["results"].items():
+        status, final_text = reconcile_pair(entry["view_crop"], entry["view_full"])
+        if status == "confirmed":
+            results[stem] = {
+                **results.get(stem, {}),
+                "text": final_text,
+                "stage": 2,
+                "review_status": "confirmed",
+            }
+            confirmed += 1
+        elif status == "no_stamp":
+            results[stem] = {
+                **results.get(stem, {}),
+                "text": "NONE",
+                "stage": 2,
+                "review_status": "no_stamp",
+            }
+            no_stamp += 1
+        else:  # disagree
+            stage1_entry = results.get(stem, {})
+            stage1_text = stage1_entry.get("text", "")
+            results[stem] = {
+                **stage1_entry,
+                "review_status": "disagreement",
+            }
+            manual_queue.append({
+                "stem": stem,
+                "stage1_text": stage1_text,
+                "view_crop": entry["view_crop"],
+                "view_full": entry["view_full"],
+                "confidence": stage1_entry.get("confidence"),
+            })
+            disagree += 1
+
+    save_json(RESULTS_FILE, results)
+    save_json(MANUAL_QUEUE_FILE, manual_queue)
+    print(f"Merged {shard_path.name}: {confirmed} confirmed, {no_stamp} no-stamp, {disagree} disagreements")
+    return 0
+
+
 def cmd_status(_args) -> int:
     results = load_json(RESULTS_FILE, {})
     manual_queue = load_json(MANUAL_QUEUE_FILE, [])
@@ -461,6 +536,9 @@ def main(argv: list[str] | None = None) -> int:
 
     sub.add_parser("crop-stage2", help="Prepare stage-2 review shards")
 
+    p_merge2 = sub.add_parser("merge-stage2", help="Merge and reconcile a stage-2 shard result")
+    p_merge2.add_argument("shard_result")
+
     args = parser.parse_args(argv)
     if args.cmd == "crop-stage1":
         return cmd_crop_stage1(args)
@@ -472,6 +550,8 @@ def main(argv: list[str] | None = None) -> int:
         return cmd_requeue(args)
     if args.cmd == "crop-stage2":
         return cmd_crop_stage2(args)
+    if args.cmd == "merge-stage2":
+        return cmd_merge_stage2(args)
     if args.cmd == "status":
         return cmd_status(args)
     raise AssertionError(f"unhandled cmd: {args.cmd}")

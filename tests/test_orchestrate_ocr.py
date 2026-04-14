@@ -346,3 +346,72 @@ def test_normalize_text_collapses_whitespace():
     assert oo.normalize_text("  10   3 '99 ") == "10 3 '99"
     assert oo.normalize_text("NONE") == "NONE"
     assert oo.normalize_text("") == ""
+
+
+def test_merge_stage2_confirmed_overwrites_results(tmp_state):
+    oo.save_json(oo.RESULTS_FILE, {
+        "d1_1": {"text": "1? 3 '99", "stage": 1, "confidence": 0.9},
+    })
+    shard_result = oo.STAGE2_SHARDS_DIR / "shard_0000_result.json"
+    oo.save_json(shard_result, {
+        "shard_id": "0000",
+        "stage": 2,
+        "results": {
+            "d1_1": {"view_crop": "10 3 '99", "view_full": "10 3 '99"},
+        },
+    })
+
+    rc = oo.main(["merge-stage2", str(shard_result)])
+    assert rc == 0
+
+    merged = oo.load_json(oo.RESULTS_FILE, {})
+    assert merged["d1_1"]["text"] == "10 3 '99"
+    assert merged["d1_1"]["review_status"] == "confirmed"
+    assert merged["d1_1"]["stage"] == 2
+
+
+def test_merge_stage2_disagreement_preserves_stage1_and_queues(tmp_state):
+    oo.save_json(oo.RESULTS_FILE, {
+        "d1_1": {"text": "1? 3 '99", "stage": 1, "confidence": 0.4},
+    })
+    shard_result = oo.STAGE2_SHARDS_DIR / "shard_0000_result.json"
+    oo.save_json(shard_result, {
+        "shard_id": "0000",
+        "stage": 2,
+        "results": {
+            "d1_1": {"view_crop": "10 3 '99", "view_full": "11 3 '99"},
+        },
+    })
+
+    rc = oo.main(["merge-stage2", str(shard_result)])
+    assert rc == 0
+
+    merged = oo.load_json(oo.RESULTS_FILE, {})
+    # stage-1 entry unchanged on disagreement
+    assert merged["d1_1"]["text"] == "1? 3 '99"
+    assert merged["d1_1"].get("review_status") == "disagreement"
+
+    queue = oo.load_json(oo.MANUAL_QUEUE_FILE, [])
+    assert len(queue) == 1
+    assert queue[0]["stem"] == "d1_1"
+    assert queue[0]["view_crop"] == "10 3 '99"
+    assert queue[0]["view_full"] == "11 3 '99"
+    assert queue[0]["stage1_text"] == "1? 3 '99"
+
+
+def test_merge_stage2_no_stamp_overwrites(tmp_state):
+    oo.save_json(oo.RESULTS_FILE, {
+        "d1_1": {"text": "wrong", "stage": 1, "confidence": 0.9},
+    })
+    shard_result = oo.STAGE2_SHARDS_DIR / "shard_0000_result.json"
+    oo.save_json(shard_result, {
+        "shard_id": "0000",
+        "stage": 2,
+        "results": {"d1_1": {"view_crop": "NONE", "view_full": "NONE"}},
+    })
+
+    rc = oo.main(["merge-stage2", str(shard_result)])
+    assert rc == 0
+    merged = oo.load_json(oo.RESULTS_FILE, {})
+    assert merged["d1_1"]["text"] == "NONE"
+    assert merged["d1_1"]["review_status"] == "no_stamp"
