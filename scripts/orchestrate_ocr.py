@@ -84,6 +84,61 @@ def _result_path(manifest_path: Path) -> Path:
     return manifest_path.with_name(manifest_path.stem + "_result.json")
 
 
+def load_predictions() -> dict[str, dict]:
+    """YOLO predictions, tagged with source."""
+    raw = load_json(PREDICTIONS_FILE, {})
+    return {k: {**v, "source": "yolo"} for k, v in raw.items()}
+
+
+def load_corrections() -> dict[str, dict]:
+    """Human-confirmed bboxes from the corrections queue."""
+    data = load_json(CORRECTIONS_FILE, {})
+    boxes: dict[str, dict] = {}
+    for entry in data.get("files", []):
+        corr = entry.get("user_correction")
+        if not corr or corr.get("x") is None:
+            continue
+        if corr.get("action") in ("confirmed", "corrected"):
+            boxes[entry["stem"]] = {
+                "x": corr["x"], "y": corr["y"],
+                "w": corr["w"], "h": corr["h"],
+                "source": "human",
+            }
+    return boxes
+
+
+def load_bbox_map() -> dict[str, dict]:
+    """Unified bbox map. Human corrections override YOLO for the same stem."""
+    yolo = load_predictions()
+    human = load_corrections()
+    return {**yolo, **human}
+
+
+def compute_pending_stems() -> list[str]:
+    """Stems that have a YOLO prediction but no entry in ocr_results.json."""
+    predictions = load_json(PREDICTIONS_FILE, {})
+    results = load_json(RESULTS_FILE, {})
+    pending = [s for s in predictions if s not in results]
+    return sorted(pending)
+
+
+def compute_crop_box(img_w: int, img_h: int, bbox: dict, pad_factor: float) -> tuple[int, int, int, int]:
+    """Return (x1, y1, x2, y2) in pixel coords, clamped to the image."""
+    cx = bbox["x"] * img_w
+    cy = bbox["y"] * img_h
+    bw = bbox["w"] * img_w
+    bh = bbox["h"] * img_h
+
+    pad_x = bw * pad_factor
+    pad_y = bh * pad_factor
+
+    x1 = max(0, int(cx - bw / 2 - pad_x))
+    y1 = max(0, int(cy - bh / 2 - pad_y))
+    x2 = min(img_w, int(cx + bw / 2 + pad_x))
+    y2 = min(img_h, int(cy + bh / 2 + pad_y))
+    return (x1, y1, x2, y2)
+
+
 def cmd_status(_args) -> int:
     results = load_json(RESULTS_FILE, {})
     manual_queue = load_json(MANUAL_QUEUE_FILE, [])
