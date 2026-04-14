@@ -17,6 +17,7 @@ from pathlib import Path
 
 BASE_DIR = Path(__file__).parent.parent
 RESULTS_FILE = BASE_DIR / "state" / "ocr_results.json"
+ROTATION_FILE = BASE_DIR / "state" / "rotation_predictions.json"
 # Put the HTML at the repo root so both scanmyphotos/ and output/ are child
 # paths — VS Code's HTML preview blocks parent-directory (../) paths.
 OUTPUT_HTML = BASE_DIR / "pilot_review.html"
@@ -44,6 +45,9 @@ def should_review(text: str, confidence: float | None) -> bool:
 
 def main() -> None:
     results = json.loads(RESULTS_FILE.read_text())
+    rotations = {}
+    if ROTATION_FILE.exists():
+        rotations = json.loads(ROTATION_FILE.read_text())
     stems = sorted(results.keys())
 
     total = len(stems)
@@ -52,12 +56,21 @@ def main() -> None:
     flagged = sum(1 for s in stems if should_review(results[s]["text"], results[s].get("confidence")))
 
     cards = []
+    rotated_count = 0
     for stem in stems:
         entry = results[stem]
         text = entry.get("text", "")
         conf = entry.get("confidence")
         source = entry.get("bbox_source", "?")
         flag = should_review(text, conf)
+
+        # Rotation: degrees CW required to make the photo upright.
+        # CSS rotate must apply that many degrees CW to the displayed image.
+        rot_entry = rotations.get(stem) or {}
+        cnn_rot = int(rot_entry.get("rotation", 0))
+        cnn_conf = rot_entry.get("confidence")
+        if cnn_rot != 0:
+            rotated_count += 1
 
         # Relative to yolo_finetune/pilot_review.html
         photo_rel = f"scanmyphotos/{stem}.jpg"
@@ -67,19 +80,30 @@ def main() -> None:
         badge_label = "REVIEW" if flag else ("NONE" if text == "NONE" else "OK")
 
         conf_str = f"{conf:.2f}" if conf is not None else "—"
+        cnn_conf_str = f"{cnn_conf:.2f}" if cnn_conf is not None else "—"
 
         cards.append(f"""
-<div class="card {badge_class}">
+<div class="card {badge_class}" data-stem="{html.escape(stem)}" data-cnn-rot="{cnn_rot}" data-cnn-conf="{cnn_conf_str}">
   <div class="meta">
+    <label class="opus-toggle" title="Flag for Opus stage-2 review">
+      <input type="checkbox" class="opus-flag" data-stem="{html.escape(stem)}"> Opus
+    </label>
     <span class="stem">{html.escape(stem)}</span>
     <span class="badge">{badge_label}</span>
     <span class="src">{html.escape(source)}</span>
     <span class="conf">conf: {conf_str}</span>
+    <span class="rot-info" title="EfficientNetV2 rotation prediction">rot: <span class="rot-display">{cnn_rot}°</span></span>
+    <span class="rot-buttons">
+      <button class="rot-btn" data-rot="0">0</button>
+      <button class="rot-btn" data-rot="90">90</button>
+      <button class="rot-btn" data-rot="180">180</button>
+      <button class="rot-btn" data-rot="270">270</button>
+    </span>
   </div>
   <div class="text">{html.escape(text) or "&nbsp;"}</div>
   <div class="images">
-    <a href="{photo_rel}" target="_blank"><img loading="lazy" src="{photo_rel}" alt="photo"></a>
-    <a href="{crop_rel}" target="_blank"><img loading="lazy" src="{crop_rel}" alt="crop" class="crop"></a>
+    <a href="{photo_rel}" target="_blank" class="photo-link"><img loading="lazy" src="{photo_rel}" alt="photo" class="photo-img"></a>
+    <a href="{crop_rel}" target="_blank" class="crop-link"><img loading="lazy" src="{crop_rel}" alt="crop" class="crop crop-img"></a>
   </div>
 </div>
 """)
@@ -115,7 +139,27 @@ def main() -> None:
   .images {{ display: flex; gap: 4px; align-items: flex-start; }}
   .images img {{ max-width: 100%; max-height: 240px; object-fit: contain; background: #000; }}
   .images img.crop {{ max-height: 80px; }}
-  .images a {{ display: block; flex: 1; min-width: 0; }}
+  .images a {{ display: block; flex: 1; min-width: 0; overflow: hidden; }}
+  /* Containers must reserve square-ish space because rotated children change effective bounds. */
+  .images a.photo-link {{ aspect-ratio: 4/3; display: flex; align-items: center; justify-content: center; }}
+  .images a.crop-link {{ height: 80px; display: flex; align-items: center; justify-content: center; }}
+  .photo-img, .crop-img {{ transition: transform 0.15s ease; transform-origin: center; }}
+  .rot-info {{ color: #fa3; font-size: 11px; }}
+  .rot-display {{ font-weight: bold; }}
+  .rot-buttons {{ display: inline-flex; gap: 2px; margin-left: 4px; }}
+  .rot-btn {{ padding: 1px 5px; font-size: 10px; background: #2a2a2a; color: #aaa; border: 1px solid #444; border-radius: 3px; cursor: pointer; font-family: ui-monospace, monospace; }}
+  .rot-btn.active {{ background: #fa3; color: #000; border-color: #fa3; font-weight: bold; }}
+  .rot-btn:hover {{ background: #444; }}
+  .rot-btn.active:hover {{ background: #fb4; }}
+  .card.rot-overridden {{ border-style: dashed; }}
+  .opus-toggle {{ display: inline-flex; align-items: center; gap: 3px; padding: 2px 6px; background: #2a2a2a; border: 1px solid #555; border-radius: 3px; cursor: pointer; font-size: 11px; color: #ccc; user-select: none; }}
+  .opus-toggle input {{ margin: 0; cursor: pointer; }}
+  .card.opus-flagged {{ outline: 2px solid #fa3; outline-offset: -2px; }}
+  .opus-bar {{ position: sticky; top: 0; z-index: 10; background: #1a1a1a; border: 1px solid #fa3; border-radius: 6px; padding: 8px 12px; margin-bottom: 12px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }}
+  .opus-bar b {{ color: #fa3; font-size: 16px; }}
+  .opus-bar button {{ padding: 6px 12px; background: #fa3; color: #000; border: none; border-radius: 4px; cursor: pointer; font: inherit; font-weight: bold; }}
+  .opus-bar button.secondary {{ background: #444; color: #eee; }}
+  .opus-bar textarea {{ flex: 1; min-width: 200px; background: #000; color: #fa3; border: 1px solid #555; border-radius: 3px; padding: 4px 6px; font: 11px ui-monospace, monospace; resize: vertical; min-height: 28px; max-height: 200px; }}
 </style>
 </head>
 <body>
@@ -125,6 +169,14 @@ def main() -> None:
   <span>OK: <b style="color:#4c4">{clean}</b></span>
   <span>NONE: <b style="color:#888">{none_ct}</b></span>
   <span>REVIEW: <b style="color:#c44">{flagged}</b></span>
+  <span>Rotated (CNN): <b style="color:#fa3">{rotated_count}</b></span>
+</div>
+<div class="opus-bar">
+  <span>Manual Opus flags: <b id="opus-count">0</b></span>
+  <button id="opus-download">Download manual_opus_flags.json</button>
+  <button id="opus-clear" class="secondary">Clear all</button>
+  <button id="opus-filter" class="secondary">Show only flagged</button>
+  <textarea id="opus-list" readonly placeholder="(no manual flags)"></textarea>
 </div>
 <div class="filters">
   <button data-filter="all" class="active">All</button>
@@ -146,6 +198,126 @@ buttons.forEach(btn => btn.addEventListener('click', () => {{
     c.style.display = (f === 'all' || c.classList.contains(f)) ? '' : 'none';
   }});
 }}));
+
+// --- Manual Opus flagging (persisted in localStorage) ---
+const STORAGE_KEY = 'opus_manual_flags_v1';
+const opusCount = document.getElementById('opus-count');
+const opusList = document.getElementById('opus-list');
+const opusFilterBtn = document.getElementById('opus-filter');
+
+function loadFlags() {{
+  try {{ return new Set(JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]')); }}
+  catch (e) {{ return new Set(); }}
+}}
+function saveFlags(set) {{
+  localStorage.setItem(STORAGE_KEY, JSON.stringify([...set].sort()));
+}}
+function refreshUI() {{
+  const flags = loadFlags();
+  opusCount.textContent = flags.size;
+  opusList.value = [...flags].sort().join('\\n');
+  document.querySelectorAll('.opus-flag').forEach(cb => {{
+    const stem = cb.dataset.stem;
+    cb.checked = flags.has(stem);
+    cb.closest('.card').classList.toggle('opus-flagged', flags.has(stem));
+  }});
+}}
+
+document.querySelectorAll('.opus-flag').forEach(cb => {{
+  cb.addEventListener('change', (e) => {{
+    const flags = loadFlags();
+    const stem = e.target.dataset.stem;
+    if (e.target.checked) flags.add(stem); else flags.delete(stem);
+    saveFlags(flags);
+    refreshUI();
+  }});
+}});
+
+document.getElementById('opus-download').addEventListener('click', () => {{
+  const flags = [...loadFlags()].sort();
+  const blob = new Blob([JSON.stringify(flags, null, 2)], {{type: 'application/json'}});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'manual_opus_flags.json';
+  a.click();
+  URL.revokeObjectURL(url);
+}});
+
+document.getElementById('opus-clear').addEventListener('click', () => {{
+  if (confirm('Clear all manual Opus flags?')) {{
+    localStorage.removeItem(STORAGE_KEY);
+    refreshUI();
+  }}
+}});
+
+let opusFilterActive = false;
+opusFilterBtn.addEventListener('click', () => {{
+  opusFilterActive = !opusFilterActive;
+  opusFilterBtn.textContent = opusFilterActive ? 'Show all' : 'Show only flagged';
+  cards.forEach(c => {{
+    if (opusFilterActive) {{
+      c.style.display = c.classList.contains('opus-flagged') ? '' : 'none';
+    }} else {{
+      c.style.display = '';
+    }}
+  }});
+}});
+
+refreshUI();
+
+// --- Manual rotation overrides (persisted in localStorage) ---
+const ROT_KEY = 'rotation_overrides_v1';
+
+function loadRotOverrides() {{
+  try {{ return JSON.parse(localStorage.getItem(ROT_KEY) || '{{}}'); }}
+  catch (e) {{ return {{}}; }}
+}}
+function saveRotOverrides(map) {{
+  localStorage.setItem(ROT_KEY, JSON.stringify(map));
+}}
+function effectiveRotation(card) {{
+  const stem = card.dataset.stem;
+  const overrides = loadRotOverrides();
+  if (overrides[stem] !== undefined) return parseInt(overrides[stem], 10);
+  return parseInt(card.dataset.cnnRot, 10) || 0;
+}}
+function applyRotation(card) {{
+  const rot = effectiveRotation(card);
+  const photo = card.querySelector('.photo-img');
+  const crop = card.querySelector('.crop-img');
+  // CSS rotates clockwise positive. Our stored rotation is "degrees CW required to make upright",
+  // so we apply the same value as the rotate transform.
+  if (photo) photo.style.transform = `rotate(${{rot}}deg)`;
+  if (crop) crop.style.transform = `rotate(${{rot}}deg)`;
+  card.querySelector('.rot-display').textContent = rot + '\\u00b0';
+  card.querySelectorAll('.rot-btn').forEach(b => {{
+    b.classList.toggle('active', parseInt(b.dataset.rot, 10) === rot);
+  }});
+  // Mark cards whose effective rotation differs from the CNN prediction
+  const overrides = loadRotOverrides();
+  card.classList.toggle('rot-overridden', overrides[card.dataset.stem] !== undefined);
+}}
+
+document.querySelectorAll('.card').forEach(card => {{
+  applyRotation(card);
+  card.querySelectorAll('.rot-btn').forEach(btn => {{
+    btn.addEventListener('click', () => {{
+      const newRot = parseInt(btn.dataset.rot, 10);
+      const stem = card.dataset.stem;
+      const cnnRot = parseInt(card.dataset.cnnRot, 10) || 0;
+      const overrides = loadRotOverrides();
+      if (newRot === cnnRot) {{
+        // Reverting to CNN value clears the override
+        delete overrides[stem];
+      }} else {{
+        overrides[stem] = newRot;
+      }}
+      saveRotOverrides(overrides);
+      applyRotation(card);
+    }});
+  }});
+}});
 </script>
 </body>
 </html>
