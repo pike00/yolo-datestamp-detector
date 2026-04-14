@@ -326,3 +326,23 @@ def test_crop_stage2_writes_two_views_per_stem(tmp_state):
     assert stems_in_shard == ["d1_2", "d1_3"]
     assert manifest["stems"][0]["stage1_text"] in ("1? 3 '99", "wrong")
     assert "full_path" in manifest["stems"][0]
+
+
+@pytest.mark.parametrize("crop,full,expected_status,expected_text", [
+    ("10 3 '99", "10 3 '99", "confirmed", "10 3 '99"),     # agree
+    ("10 3 '99", "10  3 '99", "confirmed", "10 3 '99"),    # whitespace-normalized agree
+    ("NONE", "NONE", "no_stamp", "NONE"),                  # both absent
+    ("10 3 '99", "10 4 '99", "disagree", None),            # different dates
+    ("10 3 '99", "NONE", "disagree", None),                # one sees stamp, one doesn't
+])
+def test_reconcile_pair(crop, full, expected_status, expected_text):
+    status, text = oo.reconcile_pair(crop, full)
+    assert status == expected_status
+    if expected_text is not None:
+        assert text == expected_text
+
+
+def test_normalize_text_collapses_whitespace():
+    assert oo.normalize_text("  10   3 '99 ") == "10 3 '99"
+    assert oo.normalize_text("NONE") == "NONE"
+    assert oo.normalize_text("") == ""

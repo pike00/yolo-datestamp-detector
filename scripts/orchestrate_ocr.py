@@ -165,6 +165,28 @@ def select_review_stems() -> list[str]:
     return sorted(flagged)
 
 
+def normalize_text(text: str) -> str:
+    """Collapse whitespace for agreement comparison."""
+    return " ".join(text.split())
+
+
+def reconcile_pair(view_crop: str, view_full: str) -> tuple[str, str | None]:
+    """Compare two views.
+
+    Returns (status, final_text):
+        ("confirmed", text) - both views agree on a non-NONE answer
+        ("no_stamp", "NONE") - both views say NONE
+        ("disagree", None)  - any disagreement
+    """
+    nc = normalize_text(view_crop)
+    nf = normalize_text(view_full)
+    if nc == "NONE" and nf == "NONE":
+        return "no_stamp", "NONE"
+    if nc == nf:
+        return "confirmed", nc
+    return "disagree", None
+
+
 def crop_image_to_file(
     src: Path, dst: Path, bbox: dict, pad_factor: float, max_side: int,
 ) -> None:
