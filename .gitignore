@@ -45,3 +45,11 @@ docs/superpowers/
 *.png
 !examples/*.jpg
 !examples/*.png
+
+# Parallel OCR orchestrator
+state/shards/
+state/ocr_manual_queue.json
+state/failed_shards.json
+output/ocr_crops_stage1/
+output/ocr_crops_stage2_crop/
+output/ocr_crops_stage2_full/
