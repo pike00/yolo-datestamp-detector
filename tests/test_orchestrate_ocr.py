@@ -294,12 +294,15 @@ def test_requeue_removes_result_file(tmp_state):
 
 
 @pytest.mark.parametrize("text,conf,expected", [
-    ("10 3 '99", 0.9, False),          # clean, high conf, spaced apostrophe
-    ("9 28'93", 0.9, False),           # clean, high conf, no-space apostrophe
+    ("10 3 '99", 0.9, False),          # clean, M D 'YY
+    ("9 28'93", 0.9, False),           # clean, M D'YY
+    ("'94 8 23", 0.9, False),          # clean, 'YY M D (year-first)
+    ("'95 1 8", 0.9, False),           # clean, 'YY M D
     ("NONE", 0.9, False),              # absent, high conf
     ("1? 3 '99", 0.9, True),           # contains ?
     ("10-3-99", 0.9, True),            # wrong format
     ("'52.L 8", 0.9, True),            # garbage
+    ("15 17:06", 0.9, True),           # time stamp, not date
     ("", 0.9, True),                   # empty
     ("10 3 '99", 0.2, True),           # low conf
     ("NONE", 0.2, True),               # low conf even if NONE

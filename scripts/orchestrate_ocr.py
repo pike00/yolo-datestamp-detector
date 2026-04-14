@@ -61,7 +61,13 @@ STAGE1_SHARD_SIZE = 50
 STAGE2_SHARD_SIZE = 25
 
 # Stage-2 trigger rules
-DATE_FORMAT_RE = re.compile(r"^\d{1,2} \d{1,2} ?'\d{2}$")
+# Camera date stamps come in three shapes:
+#   M D 'YY    e.g. "10 3 '99"  (month-day, space before apostrophe)
+#   M D'YY     e.g. "9 6'95"    (month-day, no space)
+#   'YY M D    e.g. "'94 8 23"  (year-first, older cameras)
+DATE_FORMAT_RE = re.compile(
+    r"^(?:\d{1,2} \d{1,2} ?'\d{2}|'\d{2} \d{1,2} \d{1,2})$"
+)
 LOW_CONFIDENCE_THRESHOLD = 0.3
 
 
