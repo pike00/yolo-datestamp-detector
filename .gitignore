@@ -26,6 +26,8 @@ state/ocr_cost_log.json
 state/progress.json
 state/progress_correct.json
 state/worker_status.json
+state/prediction_drift.json
+state/rotation_predictions.json
 
 # Python
 __pycache__/
@@ -53,3 +55,6 @@ state/failed_shards.json
 output/ocr_crops_stage1/
 output/ocr_crops_stage2_crop/
 output/ocr_crops_stage2_full/
+
+# Generated pilot review HTML (output of scripts/build_pilot_review_html.py)
+pilot_review.html
