@@ -266,3 +266,29 @@ def test_requeue_removes_result_file(tmp_state):
     rc = oo.main(["requeue", str(oo.STAGE1_SHARDS_DIR / "shard_0000.json")])
     assert rc == 0
     assert not result.exists()
+
+
+@pytest.mark.parametrize("text,conf,expected", [
+    ("10 3 '99", 0.9, False),          # clean, high conf
+    ("NONE", 0.9, False),              # absent, high conf
+    ("1? 3 '99", 0.9, True),           # contains ?
+    ("10-3-99", 0.9, True),            # wrong format
+    ("", 0.9, True),                   # empty
+    ("10 3 '99", 0.2, True),           # low conf
+    ("NONE", 0.2, True),               # low conf even if NONE
+    ("10 3 '99", None, False),         # missing conf treated as high
+])
+def test_should_review(text, conf, expected):
+    assert oo.should_review(text=text, confidence=conf) is expected
+
+
+def test_select_review_stems(tmp_state):
+    oo.save_json(oo.RESULTS_FILE, {
+        "d1_1": {"text": "10 3 '99", "confidence": 0.9},     # no
+        "d1_2": {"text": "1? 3 '99", "confidence": 0.9},     # yes (?)
+        "d1_3": {"text": "10 3 '99", "confidence": 0.2},     # yes (conf)
+        "d1_4": {"text": "banana", "confidence": 0.9},       # yes (format)
+        "d1_5": {"text": "NONE", "confidence": 0.9},         # no
+    })
+    stems = oo.select_review_stems()
+    assert sorted(stems) == ["d1_2", "d1_3", "d1_4"]

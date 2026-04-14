@@ -139,6 +139,32 @@ def compute_crop_box(img_w: int, img_h: int, bbox: dict, pad_factor: float) -> t
     return (x1, y1, x2, y2)
 
 
+def should_review(text: str, confidence: float | None) -> bool:
+    """Return True if a stage-1 result should be re-reviewed in stage 2."""
+    if confidence is not None and confidence < LOW_CONFIDENCE_THRESHOLD:
+        return True
+    if text is None:
+        return True
+    if "?" in text:
+        return True
+    if text == "NONE":
+        return False
+    if not DATE_FORMAT_RE.match(text):
+        return True
+    return False
+
+
+def select_review_stems() -> list[str]:
+    results = load_json(RESULTS_FILE, {})
+    flagged: list[str] = []
+    for stem, entry in results.items():
+        text = entry.get("text", "")
+        conf = entry.get("confidence")
+        if should_review(text, conf):
+            flagged.append(stem)
+    return sorted(flagged)
+
+
 def crop_image_to_file(
     src: Path, dst: Path, bbox: dict, pad_factor: float, max_side: int,
 ) -> None:
