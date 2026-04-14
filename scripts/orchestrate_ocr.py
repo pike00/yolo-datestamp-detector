@@ -139,6 +139,89 @@ def compute_crop_box(img_w: int, img_h: int, bbox: dict, pad_factor: float) -> t
     return (x1, y1, x2, y2)
 
 
+def crop_image_to_file(
+    src: Path, dst: Path, bbox: dict, pad_factor: float, max_side: int,
+) -> None:
+    """Crop one photo to its padded bbox and save as JPEG."""
+    from PIL import Image
+
+    img = Image.open(src).convert("RGB")
+    box = compute_crop_box(img.width, img.height, bbox, pad_factor)
+    crop = img.crop(box)
+    if max(crop.size) > max_side:
+        crop.thumbnail((max_side, max_side), Image.LANCZOS)
+    dst.parent.mkdir(parents=True, exist_ok=True)
+    crop.save(dst, "JPEG", quality=90)
+
+
+def cmd_crop_stage1(args) -> int:
+    pending = compute_pending_stems()
+    if args.limit is not None:
+        pending = pending[: args.limit]
+
+    if not pending:
+        print("No pending stems.")
+        return 0
+
+    bbox_map = load_bbox_map()
+    STAGE1_SHARDS_DIR.mkdir(parents=True, exist_ok=True)
+    STAGE1_CROPS_DIR.mkdir(parents=True, exist_ok=True)
+
+    print(f"Pre-cropping {len(pending)} stems...")
+    shard_index = 0
+    shard_entries: list[dict] = []
+
+    def flush_shard() -> None:
+        nonlocal shard_entries, shard_index
+        if not shard_entries:
+            return
+        shard_id = f"{shard_index:04d}"
+        manifest_path = STAGE1_SHARDS_DIR / f"shard_{shard_id}.json"
+        result_path = STAGE1_SHARDS_DIR / f"shard_{shard_id}_result.json"
+        # Paths inside the manifest are relative to BASE_DIR for portability
+        manifest = {
+            "shard_id": shard_id,
+            "stage": 1,
+            "result_path": str(result_path.relative_to(BASE_DIR)),
+            "stems": shard_entries,
+        }
+        save_json(manifest_path, manifest)
+        shard_index += 1
+        shard_entries = []
+
+    for stem in pending:
+        bbox = bbox_map.get(stem)
+        if not bbox:
+            print(f"  SKIP {stem}: no bbox")
+            continue
+        src = SCANMYPHOTOS_DIR / f"{stem}.jpg"
+        if not src.exists():
+            print(f"  SKIP {stem}: source image missing")
+            continue
+        dst = STAGE1_CROPS_DIR / f"{stem}.jpg"
+        try:
+            crop_image_to_file(
+                src=src, dst=dst, bbox=bbox,
+                pad_factor=STAGE1_PAD_FACTOR, max_side=STAGE1_MAX_SIDE,
+            )
+        except Exception as e:
+            print(f"  SKIP {stem}: crop failed ({e})")
+            continue
+
+        shard_entries.append({
+            "stem": stem,
+            "crop_path": str(dst.relative_to(BASE_DIR)),
+            "bbox_source": bbox.get("source", "yolo"),
+            "confidence": bbox.get("confidence"),
+        })
+        if len(shard_entries) >= STAGE1_SHARD_SIZE:
+            flush_shard()
+
+    flush_shard()
+    print(f"Wrote {shard_index} shard manifest(s) to {STAGE1_SHARDS_DIR.relative_to(BASE_DIR)}/")
+    return 0
+
+
 def cmd_status(_args) -> int:
     results = load_json(RESULTS_FILE, {})
     manual_queue = load_json(MANUAL_QUEUE_FILE, [])
@@ -171,7 +254,12 @@ def main(argv: list[str] | None = None) -> int:
 
     sub.add_parser("status", help="Print progress summary")
 
+    p_crop1 = sub.add_parser("crop-stage1", help="Pre-crop pending stems")
+    p_crop1.add_argument("--limit", type=int, help="Cap pending set size (pilot runs)")
+
     args = parser.parse_args(argv)
+    if args.cmd == "crop-stage1":
+        return cmd_crop_stage1(args)
     if args.cmd == "status":
         return cmd_status(args)
     raise AssertionError(f"unhandled cmd: {args.cmd}")

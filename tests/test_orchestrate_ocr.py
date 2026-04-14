@@ -7,6 +7,7 @@ import sys
 from pathlib import Path
 
 import pytest
+from PIL import Image
 
 # Make the script importable as a module
 SCRIPTS_DIR = Path(__file__).parent.parent / "scripts"
@@ -105,3 +106,74 @@ def test_crop_box_clamps_to_image():
         "x": 0.95, "y": 0.95, "w": 0.2, "h": 0.2
     }, pad_factor=0.5)
     assert box == (75, 75, 100, 100)
+
+
+def _make_test_photo(path: Path, size=(1000, 800), color=(128, 128, 128)) -> None:
+    img = Image.new("RGB", size, color)
+    # Paint a small distinctive patch where the stamp would be
+    for x in range(780, 900):
+        for y in range(720, 760):
+            img.putpixel((x, y), (255, 128, 0))
+    img.save(path, "JPEG", quality=90)
+
+
+def test_crop_image_to_file_produces_resized_jpeg(tmp_state, tmp_path):
+    src = oo.SCANMYPHOTOS_DIR / "d1_1.jpg"
+    _make_test_photo(src)
+    dst = tmp_path / "d1_1_crop.jpg"
+    bbox = {"x": 0.84, "y": 0.9, "w": 0.12, "h": 0.05, "source": "yolo"}
+
+    oo.crop_image_to_file(
+        src=src, dst=dst, bbox=bbox,
+        pad_factor=oo.STAGE1_PAD_FACTOR, max_side=oo.STAGE1_MAX_SIDE,
+    )
+
+    assert dst.exists()
+    cropped = Image.open(dst)
+    assert max(cropped.size) <= oo.STAGE1_MAX_SIDE
+    assert cropped.format == "JPEG"
+
+
+def test_crop_stage1_writes_shards_and_crops(tmp_state):
+    # 3 predictions, one already processed → 2 pending → 1 shard (shard size 50)
+    oo.save_json(oo.PREDICTIONS_FILE, {
+        "d1_1": {"x": 0.84, "y": 0.9, "w": 0.12, "h": 0.05, "confidence": 0.9},
+        "d1_2": {"x": 0.84, "y": 0.9, "w": 0.12, "h": 0.05, "confidence": 0.4},
+        "d1_3": {"x": 0.84, "y": 0.9, "w": 0.12, "h": 0.05, "confidence": 0.9},
+    })
+    oo.save_json(oo.RESULTS_FILE, {"d1_2": {"text": "1 1 '99"}})
+
+    for stem in ("d1_1", "d1_3"):
+        _make_test_photo(oo.SCANMYPHOTOS_DIR / f"{stem}.jpg")
+
+    rc = oo.main(["crop-stage1"])
+    assert rc == 0
+
+    shards = sorted(oo.STAGE1_SHARDS_DIR.glob("shard_*.json"))
+    manifests = [s for s in shards if "_result" not in s.stem]
+    assert len(manifests) == 1
+
+    manifest = json.loads(manifests[0].read_text())
+    stems_in_shard = [s["stem"] for s in manifest["stems"]]
+    assert stems_in_shard == ["d1_1", "d1_3"]
+    # crop files exist
+    assert (oo.STAGE1_CROPS_DIR / "d1_1.jpg").exists()
+    assert (oo.STAGE1_CROPS_DIR / "d1_3.jpg").exists()
+    # manifest shape
+    assert manifest["shard_id"] == "0000"
+    assert manifest["result_path"].endswith("shard_0000_result.json")
+
+
+def test_crop_stage1_limit_caps_pending(tmp_state):
+    oo.save_json(oo.PREDICTIONS_FILE, {
+        f"d1_{i}": {"x": 0.5, "y": 0.9, "w": 0.1, "h": 0.05, "confidence": 0.9}
+        for i in range(1, 6)
+    })
+    for i in range(1, 6):
+        _make_test_photo(oo.SCANMYPHOTOS_DIR / f"d1_{i}.jpg")
+
+    rc = oo.main(["crop-stage1", "--limit", "3"])
+    assert rc == 0
+
+    manifest = json.loads(sorted(oo.STAGE1_SHARDS_DIR.glob("shard_*.json"))[0].read_text())
+    assert len(manifest["stems"]) == 3
