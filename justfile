@@ -4,8 +4,8 @@ default:
     @just --list
 
 # Train the model (resumes from previous best.pt if available)
-train:
-    uv run scripts/train.py
+train *ARGS:
+    uv run scripts/train.py {{ARGS}}
 
 # Run batch inference on pending images
 infer:
@@ -127,8 +127,8 @@ update-status:
             'labels_disc_prefixed': len(labels_d),
             'train_images': train_imgs,
             'val_images': val_imgs,
-            'base_model': 'yolov8n.pt',
-            'training_config': {'epochs': 100, 'patience': 10, 'imgsz': 640, 'batch': 8, 'device': 'cpu'},
+            'base_model': 'yolo26m.pt',
+            'training_config': {'epochs': 100, 'patience': 10, 'imgsz': 640, 'batch': 4, 'device': 'cpu'},
         },
         'inference': {
             'predictions_total': len(preds),

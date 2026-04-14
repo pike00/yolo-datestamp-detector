@@ -51,9 +51,9 @@ Several scripts accept configuration via environment variables:
 
 ## Training Config
 
-- Base model: `yolov8n.pt` (nano, CPU-friendly)
+- Base model: `yolo26m.pt` (medium, 20.4M params)
 - Single class: `0` = date stamp region (called "target" in data.yaml)
-- Image size 640, batch 8, epochs 100 with early stopping patience=10
+- Image size 640, batch 4, epochs 100 with early stopping patience=10
 - Labels: YOLO-format normalized bbox in `dataset/labels/`
 
 ## Date Stamp Characteristics

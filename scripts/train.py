@@ -1,13 +1,16 @@
 # /// script
 # requires-python = ">=3.14"
 # dependencies = [
-#     "ultralytics>=8.0",
+#     "ultralytics>=8.3",
 #     "pyyaml",
 #     "tensorboard",
+#     "apprise",
 # ]
 # ///
 """YOLO fine-tuning on annotated bounding box data."""
 
+import argparse
+import os
 import random
 import shutil
 from pathlib import Path
@@ -166,9 +169,52 @@ def setup_dataset():
     return yaml_path
 
 
-def train(data_yaml):
+def notify(url, title, body):
+    """Send a notification via apprise."""
+    import apprise
+
+    ap = apprise.Apprise()
+    ap.add(url)
+    ap.notify(title=title, body=body)
+
+
+def make_epoch_callback(notify_url, every=10):
+    """Return a callback that notifies every N epochs."""
+    def on_train_epoch_end(trainer):
+        epoch = trainer.epoch + 1
+        if epoch % every != 0:
+            return
+        metrics = trainer.metrics
+        box_loss = trainer.loss_items[0].item() if trainer.loss_items is not None else None
+        msg_parts = [f"Epoch {epoch}/{trainer.epochs}"]
+        if box_loss is not None:
+            msg_parts.append(f"box_loss: {box_loss:.4f}")
+        for key in ("metrics/mAP50(B)", "metrics/mAP50-95(B)"):
+            if key in metrics:
+                short = key.split("/")[1]
+                msg_parts.append(f"{short}: {metrics[key]:.4f}")
+        notify(notify_url, "YOLO Training", "\n".join(msg_parts))
+
+    return on_train_epoch_end
+
+
+def make_done_callback(notify_url):
+    """Return a callback that notifies when training finishes."""
+    def on_train_end(trainer):
+        metrics = trainer.metrics
+        parts = ["Training complete"]
+        for key in ("metrics/mAP50(B)", "metrics/mAP50-95(B)"):
+            if key in metrics:
+                short = key.split("/")[1]
+                parts.append(f"{short}: {metrics[key]:.4f}")
+        parts.append(f"Best weights: {trainer.best}")
+        notify(notify_url, "YOLO Training Done", "\n".join(parts))
+
+    return on_train_end
+
+
+def train(data_yaml, notify_url=None):
     """Run YOLOv8 fine-tuning. Resumes from previous best.pt if available."""
-    import os
     from ultralytics import YOLO
 
     # Enable TensorBoard logging
@@ -179,18 +225,23 @@ def train(data_yaml):
         print(f"Resuming fine-tune from previous best: {best_pt}")
         model = YOLO(str(best_pt))
     else:
-        print("No previous model found, starting from yolov8n.pt")
-        model = YOLO("yolov8n.pt")
+        print("No previous model found, starting from yolo26s.pt")
+        model = YOLO("yolo26s.pt")
 
     from ultralytics import settings
     settings.update({"tensorboard": True})
+
+    if notify_url:
+        model.add_callback("on_train_epoch_end", make_epoch_callback(notify_url))
+        model.add_callback("on_train_end", make_done_callback(notify_url))
+        print(f"Notifications enabled (every 10 epochs)")
 
     model.train(
         data=str(data_yaml),
         epochs=100,
         patience=10,
         imgsz=640,
-        batch=8,
+        batch=4,
         device="cpu",
         project=str(BASE_DIR / "runs" / "detect"),
         name="train",
@@ -210,11 +261,24 @@ def train(data_yaml):
         print("\nTraining finished but no best.pt found -- check logs above.")
 
 
+DEFAULT_APPRISE_URL = "mmost://mattermost:8065/918rokyemjboifstiwqaqht7fy"
+
+
 def main():
+    parser = argparse.ArgumentParser(description="YOLO fine-tuning")
+    parser.add_argument(
+        "--notify", nargs="?", const=DEFAULT_APPRISE_URL, default=DEFAULT_APPRISE_URL,
+        help="Apprise URL for notifications (default: Mattermost). Pass --no-notify to disable.",
+    )
+    parser.add_argument("--no-notify", action="store_true", help="Disable notifications")
+    args = parser.parse_args()
+
+    notify_url = None if args.no_notify else (os.environ.get("APPRISE_URL") or args.notify)
+
     print("Setting up dataset...")
     data_yaml = setup_dataset()
     print("\nStarting YOLOv8 fine-tuning (CPU, this will take a while)...\n")
-    train(data_yaml)
+    train(data_yaml, notify_url=notify_url)
 
 
 if __name__ == "__main__":
