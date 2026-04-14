@@ -262,3 +262,66 @@ The detection part is basically solved. The remaining uncertainty lives in the O
 | Sunsets incorrectly identified as dates | 0 |
 
 The sunset count is the metric I'm proudest of.
+
+## Epilogue: I finally rented the GPU
+
+A couple of weeks after writing everything above, I stopped saying "I should just rent a GPU" and actually did it. The result was pretty embarrassing for the CPU side of this story.
+
+I wrote [scripts/gpu_bench_one_epoch.py](../scripts/gpu_bench_one_epoch.py) as a throwaway "one epoch and bail" benchmarking harness -- stage a clean copy of the dataset (resolving every symlink, skipping the broken ones from my reorg), upload via presigned S3 URLs, launch a `g4dn.xlarge` spot instance with a bash cost monitor and a hard safety-net shutdown, run N epochs, pull the weights back, and terminate the instance on every exit path. I was nervous enough about leaving an EC2 instance running that I also put a second process on the host polling EC2 every 3 minutes and set to issue `terminate-instances` if `wall_hours * $0.5342/hr` ever exceeded `$4.50`. Belt, suspenders, and a third belt.
+
+Passing `--epochs 40` instead of the default `--epochs 1` quietly repurposed the benchmark into a full training run. The script's output header still says "GPU BENCH RESULTS" and "validation metrics (after 1 epoch)" even when it's doing 40. I did not fix this. The lie is the feature.
+
+### The numbers
+
+| Thing | CPU run (earlier) | GPU run (g4dn.xlarge, 40 epochs) |
+| --- | --- | --- |
+| Per-epoch time | ~14 min (and climbing with augmentation) | 50.3 s |
+| Total training wall time | ~9 hours | 33.55 min |
+| mAP@50 | 0.950 | 0.962 |
+| mAP@50-95 | 0.738 | 0.754 |
+| Precision | 0.953 | 0.959 |
+| Recall | 0.958 | 0.961 |
+| Total $ cost | "power bill" | **$0.35** |
+
+One cache: the first spot launch failed because 5 of 6 us-east-1 AZs had no g4dn.xlarge spot capacity and the 6th was us-east-1e, which doesn't offer g4dn.xlarge at all. The error handler correctly retried past `InsufficientInstanceCapacity` but didn't know to skip `Unsupported`. Added the `Unsupported` case, switched to `--pricing on-demand` for reliability, re-launched, and the whole run came in under $0.35. The spot price I was paranoid about saving would have bought me maybe ten cents.
+
+The other thing that surprised me: the 1-epoch benchmark projected ~117 s/epoch, and the real run averaged 50.3. The first epoch on this model carries a big compile/warmup tax that doesn't amortize if you only measure one epoch. Future bench runs on this harness should discount the first-epoch cost or just run two epochs and measure the delta.
+
+### Did the new weights actually get better, or just different?
+
+Validation metrics moving from 0.95 to 0.962 mAP@50 is real but not dramatic. I was more worried about the failure modes shifting silently -- i.e. the new model scoring better on the *val split* while quietly breaking detections on photos the val split doesn't exercise. So before promoting the new weights I wrote [scripts/compare_predictions.py](../scripts/compare_predictions.py) to diff the two models' predictions across all 6,458 scans the old CPU model had already handled.
+
+For each stem, compute the IoU between the old bounding box and the new one. Flag each as:
+
+- **stable** -- IoU >= 0.5 (same stamp, roughly same box)
+- **drift** -- IoU < 0.5 (new box is somewhere meaningfully different)
+- **gone** -- new model produces no detection where the old one did
+
+The split came back:
+
+```
+stable   6,229   96.5%
+drift      197    3.0%
+gone        32    0.5%
+```
+
+and, importantly, the mean detection confidence jumped from **0.70 to 0.85**. The number of predictions clearing `conf >= 0.7` went from 4,583 to 6,075. Roughly 1,500 photos that the CPU model had flagged as "borderline, go look at this" got promoted to "obviously correct" by the GPU model -- so the practical payoff wasn't the +1.2 points of mAP, it was a review queue that shrank by about 25%.
+
+I manually spot-checked maybe two dozen drifted and gone photos. Almost every one followed one of two patterns:
+
+- **Drift**: the old model found something orange-and-rectangular that wasn't actually the stamp (a toy train, a price tag, a corner of a children's book cover) and the new model ignored the distractor in favor of the real stamp elsewhere in the frame. The README has a good example of a child-with-toy-train photo where the CPU model boxed the toy at 0.72 confidence and the new model found the corner stamp at 0.89.
+- **Gone**: the CPU model got fooled by *drawings of postage stamps*. My single favorite example is a "The Old Post Office" illustration on a mall directory banner, where the cartoon has a zigzag stamp border and a building drawing inside it, and the CPU model scored this as a date stamp at 0.42 confidence. The GPU model correctly produces no detection. Somewhere in the training data there is not a single mall directory.
+
+Both categories represent the new model being *more right*, not drifting away from a correct answer. Exactly what you want from a retraining delta.
+
+### Lessons from a $0.35 experiment
+
+- **Just rent the GPU.** I know. I keep writing this in every postscript.
+- **A one-epoch benchmark lies to you.** Compile/warmup tax on epoch 1 was 2.3x the steady-state per-epoch cost. Measure the delta between epoch 1 and epoch 2, or just run ≥2 epochs.
+- **Drift comparison is the promotion gate, not val metrics.** The val split is 663 images the model *trained against*. The 6,458-image drift comparison is the actual production set, and it caught qualitative improvements (the FP stamps-on-stamp-graphics case) that val-metric deltas alone don't surface.
+- **Hard-cap the cost before you launch.** The EC2 cost monitor fired 13 times during the run and was prepared to kill the instance if it ran past $4.50. It never had to. But knowing it existed meant I could leave the run unattended without nervously refreshing the billing page.
+- **Resume logic is still a landmine.** `gpu_bench_one_epoch.py` staged a fresh run from whatever `runs/` directory was on disk, which was a prior yolo26m checkpoint. I thought I was running yolo26n based on the CLI default and only noticed when the val log came back with "YOLO26m summary: 20,350,223 parameters." Not what I planned. Got lucky that medium + GPU was basically free at this scale and the model is objectively better than nano would have been. Same fix as last time, and I still haven't done it: make resume respect the `--model` flag and error out if architectures don't match.
+
+So the new story is: CPU training is a fine development loop -- you can iterate on annotation, augmentation, and training config without touching a credit card -- but the moment you have a config worth committing to, spend 35 cents and promote from the GPU run. The two workflows don't compete; they stack.
+
+And the review queue got shorter, which is what I actually cared about.
