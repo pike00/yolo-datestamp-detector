@@ -241,7 +241,11 @@ def cmd_merge_stage1(args) -> int:
         print(f"ERROR: shard result not found: {shard_path}", file=sys.stderr)
         return 2
 
-    data = load_json(shard_path, None)
+    try:
+        data = load_json(shard_path, None)
+    except json.JSONDecodeError as e:
+        print(f"ERROR: invalid JSON in {shard_path.name}: {e}", file=sys.stderr)
+        return 3
     ok, err = _validate_stage1_shard_result(data)
     if not ok:
         print(f"ERROR: invalid shard result {shard_path.name}: {err}", file=sys.stderr)

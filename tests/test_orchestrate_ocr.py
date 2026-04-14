@@ -205,7 +205,7 @@ def test_merge_stage1_rejects_bad_shape(tmp_state):
     shard_result = oo.STAGE1_SHARDS_DIR / "shard_0000_result.json"
     oo.save_json(shard_result, {"shard_id": "0000"})  # missing "results"
     rc = oo.main(["merge-stage1", str(shard_result)])
-    assert rc != 0
+    assert rc == 3
 
 
 def test_merge_stage1_rejects_missing_text_field(tmp_state):
@@ -216,4 +216,29 @@ def test_merge_stage1_rejects_missing_text_field(tmp_state):
         "results": {"d1_1": {"bbox_source": "yolo"}},  # no text
     })
     rc = oo.main(["merge-stage1", str(shard_result)])
-    assert rc != 0
+    assert rc == 3
+
+
+def test_merge_stage1_rejects_results_not_dict(tmp_state):
+    shard_result = oo.STAGE1_SHARDS_DIR / "shard_0000_result.json"
+    oo.save_json(shard_result, {"shard_id": "0000", "results": []})  # list, not dict
+    rc = oo.main(["merge-stage1", str(shard_result)])
+    assert rc == 3
+
+
+def test_merge_stage1_rejects_entry_not_dict(tmp_state):
+    shard_result = oo.STAGE1_SHARDS_DIR / "shard_0000_result.json"
+    oo.save_json(shard_result, {
+        "shard_id": "0000",
+        "results": {"d1_1": "10 3 '99"},  # string, not dict
+    })
+    rc = oo.main(["merge-stage1", str(shard_result)])
+    assert rc == 3
+
+
+def test_merge_stage1_rejects_invalid_json(tmp_state):
+    shard_result = oo.STAGE1_SHARDS_DIR / "shard_0000_result.json"
+    shard_result.parent.mkdir(parents=True, exist_ok=True)
+    shard_result.write_text("{not valid json")
+    rc = oo.main(["merge-stage1", str(shard_result)])
+    assert rc == 3
