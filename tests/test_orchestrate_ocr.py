@@ -292,3 +292,37 @@ def test_select_review_stems(tmp_state):
     })
     stems = oo.select_review_stems()
     assert sorted(stems) == ["d1_2", "d1_3", "d1_4"]
+
+
+def test_crop_stage2_writes_two_views_per_stem(tmp_state):
+    oo.save_json(oo.PREDICTIONS_FILE, {
+        "d1_1": {"x": 0.84, "y": 0.9, "w": 0.12, "h": 0.05, "confidence": 0.9},
+        "d1_2": {"x": 0.84, "y": 0.9, "w": 0.12, "h": 0.05, "confidence": 0.2},  # low conf → triggers
+        "d1_3": {"x": 0.84, "y": 0.9, "w": 0.12, "h": 0.05, "confidence": 0.9},
+    })
+    oo.save_json(oo.RESULTS_FILE, {
+        "d1_1": {"text": "10 3 '99", "confidence": 0.9},    # clean
+        "d1_2": {"text": "1? 3 '99", "confidence": 0.2},    # triggers on ? and conf
+        "d1_3": {"text": "wrong", "confidence": 0.9},       # triggers on format
+    })
+    for stem in ("d1_2", "d1_3"):
+        _make_test_photo(oo.SCANMYPHOTOS_DIR / f"{stem}.jpg")
+
+    rc = oo.main(["crop-stage2"])
+    assert rc == 0
+
+    # two view crops per triggered stem
+    assert (oo.STAGE2_CROP_DIR / "d1_2.jpg").exists()
+    assert (oo.STAGE2_FULL_DIR / "d1_2.jpg").exists()
+    assert (oo.STAGE2_CROP_DIR / "d1_3.jpg").exists()
+    assert (oo.STAGE2_FULL_DIR / "d1_3.jpg").exists()
+    # d1_1 was clean; no stage-2 crops
+    assert not (oo.STAGE2_CROP_DIR / "d1_1.jpg").exists()
+
+    shards = [s for s in oo.STAGE2_SHARDS_DIR.glob("shard_*.json") if "_result" not in s.stem]
+    assert len(shards) == 1
+    manifest = json.loads(shards[0].read_text())
+    stems_in_shard = sorted(s["stem"] for s in manifest["stems"])
+    assert stems_in_shard == ["d1_2", "d1_3"]
+    assert manifest["stems"][0]["stage1_text"] in ("1? 3 '99", "wrong")
+    assert "full_path" in manifest["stems"][0]

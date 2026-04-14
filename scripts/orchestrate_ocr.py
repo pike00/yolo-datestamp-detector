@@ -314,6 +314,85 @@ def cmd_requeue(args) -> int:
     return 0
 
 
+def _save_full_image(src: Path, dst: Path, max_side: int) -> None:
+    from PIL import Image
+    img = Image.open(src).convert("RGB")
+    if max(img.size) > max_side:
+        img.thumbnail((max_side, max_side), Image.LANCZOS)
+    dst.parent.mkdir(parents=True, exist_ok=True)
+    img.save(dst, "JPEG", quality=90)
+
+
+def cmd_crop_stage2(_args) -> int:
+    flagged = select_review_stems()
+    if not flagged:
+        print("No stems trigger stage-2 review.")
+        return 0
+
+    bbox_map = load_bbox_map()
+    results = load_json(RESULTS_FILE, {})
+
+    STAGE2_SHARDS_DIR.mkdir(parents=True, exist_ok=True)
+    STAGE2_CROP_DIR.mkdir(parents=True, exist_ok=True)
+    STAGE2_FULL_DIR.mkdir(parents=True, exist_ok=True)
+
+    print(f"Preparing stage-2 review for {len(flagged)} stems...")
+    shard_index = 0
+    shard_entries: list[dict] = []
+
+    def flush_shard() -> None:
+        nonlocal shard_entries, shard_index
+        if not shard_entries:
+            return
+        shard_id = f"{shard_index:04d}"
+        manifest_path = STAGE2_SHARDS_DIR / f"shard_{shard_id}.json"
+        result_path = STAGE2_SHARDS_DIR / f"shard_{shard_id}_result.json"
+        save_json(manifest_path, {
+            "shard_id": shard_id,
+            "stage": 2,
+            "result_path": str(result_path.relative_to(BASE_DIR)),
+            "stems": shard_entries,
+        })
+        shard_index += 1
+        shard_entries = []
+
+    for stem in flagged:
+        src = SCANMYPHOTOS_DIR / f"{stem}.jpg"
+        if not src.exists():
+            print(f"  SKIP {stem}: source missing")
+            continue
+        bbox = bbox_map.get(stem)
+        if not bbox:
+            print(f"  SKIP {stem}: no bbox")
+            continue
+
+        crop_dst = STAGE2_CROP_DIR / f"{stem}.jpg"
+        full_dst = STAGE2_FULL_DIR / f"{stem}.jpg"
+        try:
+            crop_image_to_file(
+                src=src, dst=crop_dst, bbox=bbox,
+                pad_factor=STAGE2_PAD_FACTOR, max_side=STAGE2_MAX_SIDE,
+            )
+            _save_full_image(src=src, dst=full_dst, max_side=STAGE2_MAX_SIDE)
+        except Exception as e:
+            print(f"  SKIP {stem}: crop failed ({e})")
+            continue
+
+        shard_entries.append({
+            "stem": stem,
+            "crop_path": str(crop_dst.relative_to(BASE_DIR)),
+            "full_path": str(full_dst.relative_to(BASE_DIR)),
+            "stage1_text": results.get(stem, {}).get("text", ""),
+            "confidence": bbox.get("confidence"),
+        })
+        if len(shard_entries) >= STAGE2_SHARD_SIZE:
+            flush_shard()
+
+    flush_shard()
+    print(f"Wrote {shard_index} stage-2 shard manifest(s)")
+    return 0
+
+
 def cmd_status(_args) -> int:
     results = load_json(RESULTS_FILE, {})
     manual_queue = load_json(MANUAL_QUEUE_FILE, [])
@@ -358,6 +437,8 @@ def main(argv: list[str] | None = None) -> int:
     p_requeue = sub.add_parser("requeue", help="Mark a shard as pending again")
     p_requeue.add_argument("shard_path", help="Path to shard_NNNN.json")
 
+    sub.add_parser("crop-stage2", help="Prepare stage-2 review shards")
+
     args = parser.parse_args(argv)
     if args.cmd == "crop-stage1":
         return cmd_crop_stage1(args)
@@ -367,6 +448,8 @@ def main(argv: list[str] | None = None) -> int:
         return cmd_list_shards(args)
     if args.cmd == "requeue":
         return cmd_requeue(args)
+    if args.cmd == "crop-stage2":
+        return cmd_crop_stage2(args)
     if args.cmd == "status":
         return cmd_status(args)
     raise AssertionError(f"unhandled cmd: {args.cmd}")
