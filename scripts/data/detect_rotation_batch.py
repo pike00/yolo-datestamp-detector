@@ -22,9 +22,9 @@ Output schema (state/rotation_predictions.json):
 }
 
 Usage:
-    uv run scripts/detect_rotation_batch.py
-    uv run scripts/detect_rotation_batch.py --limit 100
-    uv run scripts/detect_rotation_batch.py --resume
+    uv run scripts/data/detect_rotation_batch.py
+    uv run scripts/data/detect_rotation_batch.py --limit 100
+    uv run scripts/data/detect_rotation_batch.py --resume
 """
 
 from __future__ import annotations

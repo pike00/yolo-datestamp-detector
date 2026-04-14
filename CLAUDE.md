@@ -14,29 +14,38 @@ Single class detection: bounding box around the date stamp area.
 
 ## Project Structure
 
-- `scripts/` -- All Python scripts (training, inference, annotation, OCR, etc.)
+- `scripts/` -- Python scripts, grouped by role (train/infer/annotate/ocr/data)
 - `ui/` -- Browser UIs (annotation, corrections dashboard, batch review)
 - `state/` -- Runtime state files (JSON queues, progress, predictions, skipped.txt)
-- `output/` -- Generated outputs (inference visualizations, crops, enhancements)
+- `output/` -- Generated outputs (inference visualizations, crops, enhancements, pilot_review.html)
 - `docker/` -- Dockerfiles and compose configs
 - `dataset/` -- Training data (images, labels, augmented, corrections)
 - `runs/` -- Model training artifacts and weights
 - `scanmyphotos/` -- Source images (gitignored)
 - `examples/` -- README images and sample detections
+- `tests/` -- Pytest suite
 
 ## Architecture
 
-- `scripts/annotate.py` -- HTTP server + REST API for bounding box annotation (:8888)
-- `scripts/train.py` -- YOLO fine-tuning using `ultralytics`
-- `scripts/infer_all.py` -- Batch inference on pending images
-- `scripts/corrections_dashboard.py` -- Review/correct predictions (:8889)
-- `scripts/feedback.py` -- Feedback loop orchestration (prepare/finalize/status)
-- `scripts/ocr_stamps.py` -- OCR via Claude Haiku (requires ANTHROPIC_API_KEY)
-- `scripts/ocr_gemma.py` -- OCR via local Gemma4 (requires Ollama)
-- `scripts/augment_hard_cases.py` -- Data augmentation for failure modes
-- `scripts/enhance_stamps.py` -- Stamp enhancement experiments
-- `scripts/setup_scanmyphotos.py` -- Optional: import images from dedup database
-- `scripts/stratified_sample.py` -- Stratified sampling across image sources
+- `scripts/train/train.py` -- YOLO fine-tuning using `ultralytics`
+- `scripts/train/gpu_bench_one_epoch.py` -- AWS GPU spot one-epoch bench
+- `scripts/train/regen_val_plots.py` -- Refresh validation plots in `examples/`
+- `scripts/infer/infer_all.py` -- Batch inference on pending images
+- `scripts/infer/compare_predictions.py` -- Diff old vs new model predictions
+- `scripts/infer/render_drift_examples.py` -- Render drift visualization crops
+- `scripts/annotate/annotate.py` -- HTTP server + REST API for bounding box annotation (:8888)
+- `scripts/annotate/corrections_dashboard.py` -- Review/correct predictions (:8889)
+- `scripts/annotate/feedback.py` -- Feedback loop orchestration (prepare/finalize/status)
+- `scripts/ocr/orchestrate_ocr.py` -- Parallel Haiku OCR orchestrator (crop/merge/reconcile)
+- `scripts/ocr/ocr_stamps.py` -- OCR via Claude Haiku (requires ANTHROPIC_API_KEY)
+- `scripts/ocr/ocr_gemma.py` -- OCR via local Gemma4 (requires Ollama)
+- `scripts/ocr/ocr_ollama_bench.py` -- Local Ollama vision accuracy bench
+- `scripts/ocr/build_pilot_review_html.py` -- Render OCR pilot review HTML
+- `scripts/data/setup_scanmyphotos.py` -- Optional: import images from dedup database
+- `scripts/data/stratified_sample.py` -- Stratified sampling across image sources
+- `scripts/data/augment_hard_cases.py` -- Data augmentation for failure modes
+- `scripts/data/detect_rotation_batch.py` -- Pre-compute rotation predictions
+- `scripts/data/enhance_stamps.py` -- Stamp enhancement experiments
 - `ui/index.html` -- Annotation UI (vanilla JS + Canvas)
 - `ui/dashboard.html` / `ui/batch_review.html` -- Dashboard UIs
 

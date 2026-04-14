@@ -49,14 +49,14 @@ I picked YOLOv8-nano to start, because (a) I'm on a desktop with no discrete GPU
 
 The first real problem: there are no labels. YOLO wants a `.txt` file per image with normalized `class cx cy w h` lines. I need to draw bounding boxes on a few thousand scans.
 
-I built a tiny browser-based annotator ([scripts/annotate.py](../scripts/annotate.py) + [ui/index.html](../ui/index.html)). It's a Python HTTP server exposing a REST API and serving a vanilla-JS Canvas frontend. Features I ended up caring about, in order of how much they mattered:
+I built a tiny browser-based annotator ([scripts/annotate/annotate.py](../scripts/annotate/annotate.py) + [ui/index.html](../ui/index.html)). It's a Python HTTP server exposing a REST API and serving a vanilla-JS Canvas frontend. Features I ended up caring about, in order of how much they mattered:
 
 1. **Keyboard-first workflow.** Arrow keys to move between images, `s` to skip, `enter` to save, `z` to undo. Mouse only for drawing the box. Labeling thousands of photos gets painful fast if you have to click buttons.
 2. **Skip as signal.** When I marked a photo "no stamp here," the stem got written to `state/skipped.txt`. These become *negative* training examples -- photos with no label file but present in the dataset. YOLO handles this correctly (it treats them as "nothing to detect here") and they matter a lot for precision.
 3. **Auto-advance.** When I saved a box, the next image loaded immediately. No confirmation dialogs, no "are you sure." I can afford to mislabel one out of a thousand; I cannot afford a two-second stall per photo.
 4. **Persistent state.** The server tracked my position, so when I got bored and closed the tab, the next session picked up where I left off.
 
-Edge case that took an hour to diagnose: my first annotator session produced labels named `00000080.txt`, matching the original scan filenames. I later reorganized source photos with disc prefixes (`d1_00000080.jpg`) so I could tell Disc 1 from Disc 3, and suddenly every label was orphaned. I wrote a migration block in [scripts/train.py:33-64](../scripts/train.py#L33-L64) that walks old-style label filenames and rewrites them to match disc-prefixed image stems. Keeping it in `setup_dataset()` is ugly but it runs every train and means I never have to think about it again.
+Edge case that took an hour to diagnose: my first annotator session produced labels named `00000080.txt`, matching the original scan filenames. I later reorganized source photos with disc prefixes (`d1_00000080.jpg`) so I could tell Disc 1 from Disc 3, and suddenly every label was orphaned. I wrote a migration block in [scripts/train/train.py:33-64](../scripts/train/train.py#L33-L64) that walks old-style label filenames and rewrites them to match disc-prefixed image stems. Keeping it in `setup_dataset()` is ugly but it runs every train and means I never have to think about it again.
 
 ## Labels and the 80/20 split
 
@@ -96,7 +96,7 @@ Training early-stopped at epoch 37. That 73.8% mAP@50-95 was the only result I w
 
 Running the trained model across ~7,500 scans took about 40 minutes on CPU with `imgsz=384` (smaller than training, deliberately -- inference doesn't need full resolution). I got 6,458 detections at `conf >= 0.01`.
 
-I built a corrections dashboard ([scripts/corrections_dashboard.py](../scripts/corrections_dashboard.py), [ui/dashboard.html](../ui/dashboard.html)) to review the results. Same keyboard-first vibe as the annotator, but now the model proposes a box and I either confirm it, nudge it, or mark it as wrong.
+I built a corrections dashboard ([scripts/annotate/corrections_dashboard.py](../scripts/annotate/corrections_dashboard.py), [ui/dashboard.html](../ui/dashboard.html)) to review the results. Same keyboard-first vibe as the annotator, but now the model proposes a box and I either confirm it, nudge it, or mark it as wrong.
 
 The confidence histogram was bimodal: a big peak near 0.8 (obvious correct detections) and a smaller cluster around 0.3-0.4 (borderline cases worth reviewing). Anything above 0.7 I could bulk-approve with a glance. Anything below 0.5 I actually looked at.
 
@@ -109,7 +109,7 @@ The failure modes I saw:
 
 ## Hard-case augmentation: the bright-background fix
 
-I built [scripts/augment_hard_cases.py](../scripts/augment_hard_cases.py) specifically to fight the bright-background failure mode. The idea: take the photos I already labeled and synthesize augmented copies with the characteristics the model was missing. Brightness up 1.6x and 2.0x. Contrast down to 0.5x. Gamma corrections. Warm and cool color-temperature shifts. Since all the transforms are global (no rotation, no crop), the bounding box labels are valid on the augmented copies without any remapping.
+I built [scripts/data/augment_hard_cases.py](../scripts/data/augment_hard_cases.py) specifically to fight the bright-background failure mode. The idea: take the photos I already labeled and synthesize augmented copies with the characteristics the model was missing. Brightness up 1.6x and 2.0x. Contrast down to 0.5x. Gamma corrections. Warm and cool color-temperature shifts. Since all the transforms are global (no rotation, no crop), the bounding box labels are valid on the augmented copies without any remapping.
 
 Quick implementation notes that paid off:
 
@@ -198,13 +198,13 @@ Alternative: rent a T4 or RTX 4000 at $0.50/hour, rsync the dataset up, and the 
 
 ## CLI flags for the things that should always have been CLI flags
 
-The underlying bug was that model, epochs, imgsz, and batch were all hardcoded in [scripts/train.py](../scripts/train.py). Iterating on them meant editing the script, which meant git diffs, which meant I would stop iterating and pick a plausible-sounding default and move on. I added argparse flags for all of them, wired them through the `justfile` recipe (which already used `*ARGS`), and now `just train --model yolo26n.pt --no-aug --imgsz 416 --epochs 40` does what it says.
+The underlying bug was that model, epochs, imgsz, and batch were all hardcoded in [scripts/train/train.py](../scripts/train/train.py). Iterating on them meant editing the script, which meant git diffs, which meant I would stop iterating and pick a plausible-sounding default and move on. I added argparse flags for all of them, wired them through the `justfile` recipe (which already used `*ARGS`), and now `just train --model yolo26n.pt --no-aug --imgsz 416 --epochs 40` does what it says.
 
 Moral: if you find yourself considering a default, you probably want a flag.
 
 ## One last landmine: the resume logic
 
-[train.py:223-229](../scripts/train.py#L223-L229) has this:
+[train.py:223-229](../scripts/train/train.py#L223-L229) has this:
 
 ```python
 best_pt = BASE_DIR / "runs" / "detect" / "train" / "weights" / "best.pt"
@@ -267,7 +267,7 @@ The sunset count is the metric I'm proudest of.
 
 A couple of weeks after writing everything above, I stopped saying "I should just rent a GPU" and actually did it. The result was pretty embarrassing for the CPU side of this story.
 
-I wrote [scripts/gpu_bench_one_epoch.py](../scripts/gpu_bench_one_epoch.py) as a throwaway "one epoch and bail" benchmarking harness -- stage a clean copy of the dataset (resolving every symlink, skipping the broken ones from my reorg), upload via presigned S3 URLs, launch a `g4dn.xlarge` spot instance with a bash cost monitor and a hard safety-net shutdown, run N epochs, pull the weights back, and terminate the instance on every exit path. I was nervous enough about leaving an EC2 instance running that I also put a second process on the host polling EC2 every 3 minutes and set to issue `terminate-instances` if `wall_hours * $0.5342/hr` ever exceeded `$4.50`. Belt, suspenders, and a third belt.
+I wrote [scripts/train/gpu_bench_one_epoch.py](../scripts/train/gpu_bench_one_epoch.py) as a throwaway "one epoch and bail" benchmarking harness -- stage a clean copy of the dataset (resolving every symlink, skipping the broken ones from my reorg), upload via presigned S3 URLs, launch a `g4dn.xlarge` spot instance with a bash cost monitor and a hard safety-net shutdown, run N epochs, pull the weights back, and terminate the instance on every exit path. I was nervous enough about leaving an EC2 instance running that I also put a second process on the host polling EC2 every 3 minutes and set to issue `terminate-instances` if `wall_hours * $0.5342/hr` ever exceeded `$4.50`. Belt, suspenders, and a third belt.
 
 Passing `--epochs 40` instead of the default `--epochs 1` quietly repurposed the benchmark into a full training run. The script's output header still says "GPU BENCH RESULTS" and "validation metrics (after 1 epoch)" even when it's doing 40. I did not fix this. The lie is the feature.
 
@@ -289,7 +289,7 @@ The other thing that surprised me: the 1-epoch benchmark projected ~117 s/epoch,
 
 ### Did the new weights actually get better, or just different?
 
-Validation metrics moving from 0.95 to 0.962 mAP@50 is real but not dramatic. I was more worried about the failure modes shifting silently -- i.e. the new model scoring better on the *val split* while quietly breaking detections on photos the val split doesn't exercise. So before promoting the new weights I wrote [scripts/compare_predictions.py](../scripts/compare_predictions.py) to diff the two models' predictions across all 6,458 scans the old CPU model had already handled.
+Validation metrics moving from 0.95 to 0.962 mAP@50 is real but not dramatic. I was more worried about the failure modes shifting silently -- i.e. the new model scoring better on the *val split* while quietly breaking detections on photos the val split doesn't exercise. So before promoting the new weights I wrote [scripts/infer/compare_predictions.py](../scripts/infer/compare_predictions.py) to diff the two models' predictions across all 6,458 scans the old CPU model had already handled.
 
 For each stem, compute the IoU between the old bounding box and the new one. Flag each as:
 

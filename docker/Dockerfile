@@ -14,6 +14,7 @@ ENV UV_EXTRA_INDEX_URL=https://pypi.org/simple/
 ENV UV_INDEX_STRATEGY=first-index
 
 COPY justfile ./
-COPY scripts/train.py scripts/infer_all.py scripts/
+COPY scripts/train/train.py scripts/train/
+COPY scripts/infer/infer_all.py scripts/infer/
 
 CMD ["just", "cycle"]

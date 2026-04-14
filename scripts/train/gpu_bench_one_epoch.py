@@ -17,10 +17,10 @@ presigned URLs baked into user-data.
 
 Usage:
   export S3_BUCKET=my-bucket
-  ./scripts/gpu_bench_one_epoch.py
-  ./scripts/gpu_bench_one_epoch.py --dry-run          # stage only
-  ./scripts/gpu_bench_one_epoch.py --epochs 2         # more signal
-  ./scripts/gpu_bench_one_epoch.py --model yolo26s.pt # override model
+  ./scripts/train/gpu_bench_one_epoch.py
+  ./scripts/train/gpu_bench_one_epoch.py --dry-run          # stage only
+  ./scripts/train/gpu_bench_one_epoch.py --epochs 2         # more signal
+  ./scripts/train/gpu_bench_one_epoch.py --model yolo26s.pt # override model
 
 Required: AWS credentials with ec2:* and s3:* on the target bucket.
 """

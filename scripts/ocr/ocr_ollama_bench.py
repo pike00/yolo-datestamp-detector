@@ -11,8 +11,8 @@ result JSON in the same shape as the Haiku/Sonnet subagent outputs so the
 pilot review HTML can display it.
 
 Usage:
-    uv run scripts/ocr_ollama_bench.py --model gemma3:4b --shard 0000
-    uv run scripts/ocr_ollama_bench.py --model qwen2.5vl:3b --shard 0000
+    uv run scripts/ocr/ocr_ollama_bench.py --model gemma3:4b --shard 0000
+    uv run scripts/ocr/ocr_ollama_bench.py --model qwen2.5vl:3b --shard 0000
 """
 
 from __future__ import annotations

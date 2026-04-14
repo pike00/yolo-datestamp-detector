@@ -49,7 +49,7 @@ Two full training runs produced the numbers above:
 
 To confirm the GPU run was a clean upgrade, the new weights were re-run across the
 same 6,458 scans the CPU model had already predicted on, and the two prediction sets
-compared box-for-box via [scripts/compare_predictions.py](scripts/compare_predictions.py):
+compared box-for-box via [scripts/infer/compare_predictions.py](scripts/infer/compare_predictions.py):
 
 | Category | Count | Share |
 |---|---|---|
@@ -170,7 +170,7 @@ The pipeline is iterative: corrections from step 4 feed back into training data 
 - [just](https://github.com/casey/just) task runner
 - PostgreSQL (optional, for corrections dashboard rotation tracking)
 - No GPU required (CPU training takes ~9 hours; a one-off GPU training run is
-  scripted in [scripts/gpu_bench_one_epoch.py](scripts/gpu_bench_one_epoch.py)
+  scripted in [scripts/train/gpu_bench_one_epoch.py](scripts/train/gpu_bench_one_epoch.py)
   and costs about $0.35)
 
 ### Quick Start
@@ -237,17 +237,11 @@ just infer-one <photo>  # Single-image inference
 ```
 .
 |-- scripts/
-|   |-- train.py                 # YOLO fine-tuning with train/val split
-|   |-- infer_all.py             # Batch inference with progress tracking
-|   |-- annotate.py              # Annotation server + REST API
-|   |-- corrections_dashboard.py # Prediction review/correction server
-|   |-- feedback.py              # Feedback loop orchestration
-|   |-- ocr_stamps.py            # Date stamp OCR via Claude Haiku
-|   |-- ocr_gemma.py             # Date stamp OCR via local Gemma4
-|   |-- augment_hard_cases.py    # Data augmentation for failure modes
-|   |-- enhance_stamps.py        # Stamp enhancement experiments
-|   |-- setup_scanmyphotos.py    # Import images from dedup database
-|   `-- stratified_sample.py     # Stratified sampling across image sources
+|   |-- train/                   # Model training + GPU benchmark + val-plot regen
+|   |-- infer/                   # Batch inference + prediction drift analysis
+|   |-- annotate/                # Annotation server, corrections dashboard, feedback loop
+|   |-- ocr/                     # Haiku/Gemma/Ollama OCR + parallel orchestrator
+|   `-- data/                    # Dataset prep: import, sampling, augmentation, rotation
 |-- ui/
 |   |-- index.html               # Browser annotation UI (vanilla JS + Canvas)
 |   |-- dashboard.html           # Corrections dashboard UI

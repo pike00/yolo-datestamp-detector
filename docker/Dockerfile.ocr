@@ -3,6 +3,6 @@ FROM python:3.14-slim
 RUN pip install --no-cache-dir pillow requests "psycopg[binary]>=3.1.0"
 
 WORKDIR /app
-COPY scripts/ocr_gemma.py .
+COPY scripts/ocr/ocr_gemma.py .
 
 ENTRYPOINT ["python", "ocr_gemma.py"]

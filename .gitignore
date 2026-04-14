@@ -56,5 +56,5 @@ output/ocr_crops_stage1/
 output/ocr_crops_stage2_crop/
 output/ocr_crops_stage2_full/
 
-# Generated pilot review HTML (output of scripts/build_pilot_review_html.py)
+# Generated pilot review HTML (output of scripts/ocr/build_pilot_review_html.py)
 pilot_review.html

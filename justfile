@@ -5,11 +5,11 @@ default:
 
 # Train the model (resumes from previous best.pt if available)
 train *ARGS:
-    uv run scripts/train.py {{ARGS}}
+    uv run scripts/train/train.py {{ARGS}}
 
 # Run batch inference on pending images
 infer:
-    uv run scripts/infer_all.py
+    uv run scripts/infer/infer_all.py
 
 # Train then infer (full cycle)
 cycle: train infer
@@ -28,19 +28,19 @@ docker-cycle:
 
 # Start annotation server on :8888
 annotate:
-    uv run scripts/annotate.py
+    uv run scripts/annotate/annotate.py
 
 # Start annotation in correction mode on :8888
 annotate-correct:
-    uv run scripts/annotate.py --mode correct
+    uv run scripts/annotate/annotate.py --mode correct
 
 # Start the corrections dashboard on :8889
 dashboard:
-    uv run scripts/corrections_dashboard.py
+    uv run scripts/annotate/corrections_dashboard.py
 
 # Run OCR on detected stamps (requires ANTHROPIC_API_KEY)
 ocr *ARGS:
-    uv run scripts/ocr_stamps.py {{ARGS}}
+    uv run scripts/ocr/ocr_stamps.py {{ARGS}}
 
 # Run OCR via local Gemma4 (requires Ollama running with gemma4:e4b)
 ocr-gemma *ARGS:
@@ -53,18 +53,18 @@ ocr-gemma-build:
 
 # Generate augmented hard cases from labeled images
 augment *ARGS:
-    uv run scripts/augment_hard_cases.py {{ARGS}}
+    uv run scripts/data/augment_hard_cases.py {{ARGS}}
 
 # Remove all augmented files
 augment-clean:
-    uv run scripts/augment_hard_cases.py --clean
+    uv run scripts/data/augment_hard_cases.py --clean
 
 # Full improvement cycle: augment, train, infer
 improve: augment train infer
 
 # One-time setup: copy ScanMyPhotos images to working directory
 setup-scanmyphotos:
-    uv run scripts/setup_scanmyphotos.py
+    uv run scripts/data/setup_scanmyphotos.py
 
 # Run inference on a single photo
 infer-one photo conf="0.35":
@@ -158,12 +158,12 @@ tensorboard:
 
 # Feedback loop: prepare correction images
 feedback-prepare:
-    uv run scripts/feedback.py prepare
+    uv run scripts/annotate/feedback.py prepare
 
 # Feedback loop: finalize corrections
 feedback-finalize:
-    uv run scripts/feedback.py finalize
+    uv run scripts/annotate/feedback.py finalize
 
 # Feedback loop: show status
 feedback-status:
-    uv run scripts/feedback.py status
+    uv run scripts/annotate/feedback.py status

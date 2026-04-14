@@ -10,7 +10,7 @@ import pytest
 from PIL import Image
 
 # Make the script importable as a module
-SCRIPTS_DIR = Path(__file__).parent.parent / "scripts"
+SCRIPTS_DIR = Path(__file__).parent.parent / "scripts" / "ocr"
 sys.path.insert(0, str(SCRIPTS_DIR))
 import orchestrate_ocr as oo  # noqa: E402
 
