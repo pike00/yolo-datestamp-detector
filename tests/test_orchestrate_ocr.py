@@ -104,6 +104,4 @@ def test_crop_box_clamps_to_image():
     box = oo.compute_crop_box(img_w=100, img_h=100, bbox={
         "x": 0.95, "y": 0.95, "w": 0.2, "h": 0.2
     }, pad_factor=0.5)
-    x1, y1, x2, y2 = box
-    assert x1 >= 0 and y1 >= 0
-    assert x2 <= 100 and y2 <= 100
+    assert box == (75, 75, 100, 100)
