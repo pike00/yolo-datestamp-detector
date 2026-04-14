@@ -14,6 +14,18 @@ infer:
 # Train then infer (full cycle)
 cycle: train infer
 
+# Train in Docker (background)
+docker-train:
+    docker compose -f docker/docker-compose.yml run -d --build --rm train
+
+# Infer in Docker (background)
+docker-infer:
+    docker compose -f docker/docker-compose.yml run -d --build --rm infer
+
+# Train then infer in Docker (background)
+docker-cycle:
+    docker compose -f docker/docker-compose.yml run -d --build --rm cycle
+
 # Start annotation server on :8888
 annotate:
     uv run scripts/annotate.py

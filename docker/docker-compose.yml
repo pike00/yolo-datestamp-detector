@@ -1,12 +1,31 @@
+x-common: &common
+  build:
+    context: ..
+    dockerfile: docker/Dockerfile
+  volumes:
+    - ../dataset:/app/dataset
+    - ../scanmyphotos:/app/scanmyphotos
+    - ../runs:/app/runs
+    - ../state/skipped.txt:/app/state/skipped.txt
+    - ../state/scanmyphotos_predictions.json:/app/state/scanmyphotos_predictions.json
+    - ../state/worker_status.json:/app/state/worker_status.json
+  networks:
+    - default
+    - pikenet-private
+  environment:
+    - APPRISE_URL=${APPRISE_URL:-mmost://mattermost:8065/918rokyemjboifstiwqaqht7fy}
+
 services:
+  train:
+    <<: *common
+    command: ["just", "train"]
+  infer:
+    <<: *common
+    command: ["just", "infer"]
   cycle:
-    build:
-      context: ..
-      dockerfile: docker/Dockerfile
-    volumes:
-      - ../dataset:/app/dataset
-      - ../scanmyphotos:/app/scanmyphotos
-      - ../runs:/app/runs
-      - ../state/skipped.txt:/app/state/skipped.txt
-      - ../state/scanmyphotos_predictions.json:/app/state/scanmyphotos_predictions.json
-      - ../state/worker_status.json:/app/state/worker_status.json
+    <<: *common
+    command: ["just", "cycle"]
+
+networks:
+  pikenet-private:
+    external: true
