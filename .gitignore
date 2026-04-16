@@ -46,6 +46,11 @@ scripts/rotation/.env.rotation
 # ML model weights and caches
 models/
 
+# Generated results and metrics
+data/*.json
+data/*.csv
+archive/
+
 # Empty metadata placeholder dirs
 data/metadata/
 
