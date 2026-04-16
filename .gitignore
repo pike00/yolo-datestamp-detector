@@ -2,6 +2,7 @@
 scanmyphotos/
 stratified_samples/
 output/
+pilot_review.html
 
 # Dataset images (symlinks to scanmyphotos/) and train/val splits
 dataset/images/
@@ -11,6 +12,7 @@ dataset/corrections/*.jpg
 dataset/to_annotate/
 dataset/augmented/
 dataset/augmented_labels/
+dataset/labels/*.cache
 
 # Model weights and training runs
 runs/
@@ -27,6 +29,8 @@ state/progress.json
 state/progress_correct.json
 state/worker_status.json
 state/rotation_predictions.json
+state/ocr_manual_queue.json
+state/shards/
 
 # Python
 __pycache__/
