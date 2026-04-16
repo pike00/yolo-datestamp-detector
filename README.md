@@ -1,284 +1,207 @@
-# YOLO Date Stamp Detector
+# Photo Project
 
-Fine-tuned YOLOv8 model to detect camera date stamp regions on scanned photographs.
+Consolidate ~77K media files (467 GB) from HDD into a deduplicated, organized, metadata-enriched collection.
 
-Many consumer cameras from the 1980s-2000s imprinted date stamps directly onto film --
-small orange/red/amber LED digits (typically `M D 'YY`, e.g. "10 3 '99") burned into
-the bottom edge of each photo. When these photos are later bulk-scanned, the date stamps
-become the only reliable source of temporal metadata.
+**Status:** Phase 2 (Deduplication) in progress. Phase 1 (backup) complete.
 
-This project trains a single-class object detector to locate these stamp regions, enabling
-downstream OCR to extract actual dates and write them back as EXIF metadata.
+## Quick Navigation
 
-### Detection Example
+### Active Work
+- **[dedup/](dedup/)** — Hash-based deduplication pipeline (PostgreSQL, 4 stages)
+- **[yolo_finetune/](yolo_finetune/)** — YOLO fine-tuning for date stamp detection
 
-| Input scan | Model output (conf 0.82) |
-|:---:|:---:|
-| ![Original photo](examples/stamp_golden_gate.jpg) | ![Detection result](examples/detection_example.jpg) |
+### Working Directories
+- **staging/** — Files being ingested (HDD → SSD copy)
+- **originals/** — Deduplicated canonicals (final deduplicated set)
+- **needs_date/** — Photos awaiting date extraction
 
-The model draws a bounding box around the orange "4 23 '95" date stamp in the bottom-right corner.
+### Reference & Documentation
+- **[docs/](docs/)** -- All design documents, plans, and guides
+- **[data/](data/)** -- Results, samples, and metadata
+- **[scripts/](scripts/)** -- Utility scripts organized by domain
+- **[archive/](archive/)** -- Historical debug outputs
 
-## Results
+## Project Phases
 
-Trained on ~3,000 hand-labeled scanned photos, the current model achieves:
+### Phase 1: Lock Down Backup ✅ COMPLETE
+- **95,519 files hashed** and backed up
+- SHA-256 manifest created
+- Sealed archive: `Photos_BACKUP_DO_NOT_TOUCH.tar` (467 GB)
 
-| Metric | Value |
-|--------|-------|
-| Precision | 95.9% |
-| Recall | 96.1% |
-| mAP@50 | 96.2% |
-| mAP@50-95 | 75.4% |
+### Phase 2: Deduplicate and Move to SSD 🟡 IN PROGRESS
+Four-stage pipeline in [dedup/](dedup/):
+1. **Ingest** — Copy HDD→staging, compute hashes
+2. **Enrich** — Extract EXIF metadata
+3. **Deduplicate** — Select canonical per hash using priority rules
+4. **Export** — Copy to originals/ and verify
 
-The lower mAP@50-95 reflects some imprecision in tight bounding box localization,
-which is acceptable since the box only needs to roughly locate the stamp region
-for OCR cropping.
+**Database:** PostgreSQL (2 tables: `SourceFile`, `UniqueFile`)  
+**Duration:** ~7 hours on full dataset  
+**Status:** Ready to run on full 77K files
 
-### Training runs
+### Phase 3: Organize and Enrich Metadata ⏸️ PLANNED
+- Sort files into date-based structure (YYYY/YYYY-MM-DD/)
+- Extract dates from scanned photo stamps via OCR/ML
+- Write metadata back to files (EXIF, tags, ratings)
 
-Two full training runs produced the numbers above:
-
-1. **CPU run** -- earlier YOLOv8-nano run on a Ryzen 5 5600G, `imgsz=640`, `batch=4`,
-   early-stopped at epoch 37/100. Wall time ~9 hours. Reached precision 95.3% /
-   recall 95.8% / mAP@50 95.0%.
-2. **GPU run (current)** -- YOLO26-medium, `imgsz=416`, `batch=16`, 40 epochs on an
-   AWS `g4dn.xlarge` on-demand instance. Training wall time **33.55 min**
-   (50.3 s/epoch), total cost **$0.35** including instance spin-up and data
-   staging. The plots below come from this run.
-
-### Drift vs. prior model
-
-To confirm the GPU run was a clean upgrade, the new weights were re-run across the
-same 6,458 scans the CPU model had already predicted on, and the two prediction sets
-compared box-for-box via [scripts/infer/compare_predictions.py](scripts/infer/compare_predictions.py):
-
-| Category | Count | Share |
-|---|---|---|
-| **stable** (IoU >= 0.5 with old box) | 6,229 | 96.5% |
-| **drift** (IoU < 0.5, new box in a different place) | 197 | 3.0% |
-| **gone** (new model finds nothing where old one did) | 32 | 0.5% |
-
-Median IoU across the stable set was 0.92, and mean detection confidence jumped from
-**0.70 to 0.85**. The number of predictions clearing `conf >= 0.7` went from 4,583 to
-6,075 -- roughly 1,500 borderline cases got promoted into "obviously correct"
-territory, shrinking the manual-review queue by a corresponding amount.
-
-#### What those categories look like
-
-The three examples below are cropped around the union of the old and new bounding
-boxes. Red is the CPU-run prediction, green is the GPU-run prediction. The rest of
-the family photo is cropped out for privacy.
-
-**Stable (IoU 0.99):** both models agree to within a couple of pixels. The vast
-majority of the dataset looks like this.
-
-![Stable example](examples/drift_stable.jpg)
-
-**Drift (IoU 0.00):** the old model confidently boxed a toy train across the lower
-half of the frame; the new model ignored the toy and found the actual "'94 7 23"
-stamp tucked into the corner.
-
-![Drift example](examples/drift_drift.jpg)
-
-**Gone:** the old model was fooled by a decorative "Old Post Office" postage-stamp
-graphic painted on a mall banner and scored it at 0.42 confidence. The new model
-produces no detection, which is the correct answer.
-
-![Gone example](examples/drift_gone.jpg)
-
-These three failure-mode recoveries -- confusing toys for stamps, and hallucinating
-stamps on top of stamp-like graphics -- account for most of the ~230 drifted or
-gone predictions.
-
-### Precision-Recall Curve
-
-![Precision-Recall curve](examples/precision_recall_curve.png)
-
-The PR curve hugs the top-right corner with 0.962 mAP@0.5. Precision stays above 95%
-across almost the entire recall range before dropping off past recall 0.97.
-
-### F1-Confidence Curve
-
-![F1-Confidence curve](examples/f1_confidence_curve.png)
-
-Peak F1 of 0.96 at confidence threshold 0.50. The broad plateau from 0.1 to 0.85
-means the model is robust to threshold selection -- you don't need to fine-tune
-the threshold to get good results.
-
-### Confusion Matrix
-
-![Confusion matrix](examples/confusion_matrix.png)
-
-On the 663-image validation split: 587 true positives, 17 stamps missed (recall
-97.2%), and 40 background-only images where the model drew a spurious box. The
-bulk of the residual error sits in that 40-image FP column; no-stamp photos added
-as negative training examples keep the rate from being much worse.
-
-### Confidence Distribution
-
-![Confidence distribution](examples/confidence_distribution.png)
-
-Inference across 6,458 scans, same images both runs. Red bars are the CPU model's
-confidence histogram; green bars are the GPU model's. The GPU run collapses the
-entire distribution into a single dominant peak above 0.85 -- the secondary cluster
-around 0.3 that was driving most of the manual-review work is gone.
-
-## Approach
-
-### Why YOLO?
-
-Initial attempts used OpenCV heuristics (color filtering for orange digits, edge detection)
-but these proved unreliable -- date stamps vary in color, brightness, position, and some
-photos have orange-tinted content that triggers false positives. A learned detector
-generalizes far better from labeled examples.
-
-YOLO (You Only Look Once) is a family of object detection models that process an entire
-image in a single forward pass, predicting bounding box locations and class labels
-simultaneously. This project uses YOLO26-medium (~20M parameters) from
-[Ultralytics](https://github.com/ultralytics/ultralytics). It starts from weights
-pre-trained on the COCO dataset (330K images, 80 object classes), then fine-tunes on a
-few thousand labeled date stamp examples. The CPU variant of the training runs on a
-Ryzen 5 5600G in ~9 hours; a single `g4dn.xlarge` GPU finishes the same run in about
-half an hour for roughly 35 cents.
-
-### Pipeline
+## Directory Structure
 
 ```
- Annotate          Train           Infer           Review          OCR
- (browser UI) --> (YOLO26m) --> (batch pred) --> (dashboard) --> (LLM/Tesseract)
-      |               |              |               |               |
-  human labels    fine-tune     predictions    corrections      date strings
-  (bbox + skip)   on labels    (confidence)   (confirm/edit)   (EXIF-ready)
+photo_project/
+├── scripts/                        # Utility scripts organized by domain
+│   ├── date_extraction/            # OCR and stamp detection
+│   │   ├── ocr_stamps.py          # YOLO + Tesseract/TrOCR pipeline
+│   │   ├── stamp_detect.py        # Stamp region detection
+│   │   ├── ocr_compare.py         # Compare OCR engines
+│   │   └── florence.py            # Florence VLM approach
+│   ├── rotation/                   # Orientation detection
+│   │   ├── detect_rotation.py     # EfficientNet orientation model
+│   │   └── docker-compose.yml     # Rotation service
+│   └── dedup/                      # Dedup pipeline utilities
+│       └── check_progress.py      # Pipeline status checker
+│
+├── data/                           # Results, samples, and metadata
+│   ├── ocr_results.json           # OCR pipeline output
+│   ├── rotation_results.json      # Orientation predictions
+│   ├── samples/                   # 100 pre-selected sample photos
+│   └── metadata/                  # Albums, ML predictions
+│
+├── dedup/                          # Deduplication pipeline (self-contained)
+│   ├── main.py                    # Pipeline orchestrator
+│   ├── models/                    # PostgreSQL schema
+│   ├── pipeline/                  # 4 stages (ingest, enrich, deduplicate, export)
+│   ├── utils/                     # Shared utilities (db, exif, threading)
+│   ├── tests/                     # Unit & integration tests
+│   └── docker-compose.yml         # PostgreSQL + pipeline services
+│
+├── yolo_finetune/                  # YOLO stamp detector (separate repo)
+│   ├── train.py                   # Fine-tune YOLO model
+│   ├── annotate.py                # HTTP annotation server
+│   ├── infer_all.py               # Batch inference
+│   ├── justfile                   # Task runner (run `just` to list)
+│   └── dataset/                   # YOLO-format training data
+│
+├── docs/                           # Documentation
+│   ├── PLAN.md                    # Master plan (all phases)
+│   ├── HANDOFF.md                 # Current handoff state
+│   ├── DATE_EXTRACTION_APPROACHES.md
+│   ├── IMPLEMENTATION_CHECKLIST.md
+│   └── CLAUDE_CODE_WORKFLOW.md
+│
+├── archive/                        # Historical debug outputs
+│   └── debug_stamps{_v2..v10}/    # Iterative stamp detection debug
+│
+├── models/                         # ML model weights (gitignored)
+├── staging/                        # Files being ingested (gitignored)
+├── originals/                      # Deduplicated canonicals (gitignored)
+├── needs_date/                     # Photos awaiting dates (gitignored)
+├── organized/                      # Final organized output (gitignored)
+│
+├── CLAUDE.md                       # Project instructions
+├── pyproject.toml                  # Python dependencies
+└── README.md                       # This file
 ```
 
-1. **Annotate** -- Browser-based labeling UI for drawing bounding boxes around date stamps. Keyboard-driven workflow (arrow keys to navigate, click-drag to draw). Skipped photos become negative training examples.
+## Getting Started
 
-2. **Train** -- YOLO26-medium fine-tuned on labeled data. Automatic train/val split (80/20). Resumes from previous best weights if available. Early stopping prevents overfitting.
+### Run the Dedup Pipeline
 
-3. **Infer** -- Batch inference on all unlabeled photos. Low confidence threshold (0.01) to catch all candidates. Predictions saved as JSON for review.
-
-4. **Review** -- Corrections dashboard for reviewing predictions. Supports confirm, edit bbox, mark as no-stamp, and skip. Bulk approve for high-confidence batches. Handles rotated photos.
-
-5. **OCR** -- Crops detected stamp regions and sends to an LLM (Claude Haiku) or Tesseract for text extraction. Tracks token usage and cost.
-
-The pipeline is iterative: corrections from step 4 feed back into training data for the next training round, improving the model over time.
-
-## Setup
-
-### Prerequisites
-
-- Python 3.12+ via [uv](https://github.com/astral-sh/uv)
-- [just](https://github.com/casey/just) task runner
-- PostgreSQL (optional, for corrections dashboard rotation tracking)
-- No GPU required (CPU training takes ~9 hours; a one-off GPU training run is
-  scripted in [scripts/train/gpu_bench_one_epoch.py](scripts/train/gpu_bench_one_epoch.py)
-  and costs about $0.35)
-
-### Quick Start
-
-```sh
-git clone https://github.com/pike00/yolo-datestamp-detector.git
-cd yolo-datestamp-detector
-
-# uv handles dependencies automatically via inline PEP 723 script headers.
-# No pip install or requirements.txt needed.
-
-# Place scanned photo JPGs in scanmyphotos/ with naming: d{disc}_{number}.jpg
-# Or use your own images -- any JPGs in scanmyphotos/ work for annotation.
-
-# Start annotating
-just annotate
-
-# Train the model (after labeling some images)
-just train
-
-# Run batch inference
-just infer
-
-# Review predictions
-just dashboard
+```bash
+cd dedup
+docker-compose build
+docker-compose up
 ```
 
-### Data Setup
+See [dedup/README.md](dedup/README.md) for detailed setup and monitoring.
 
-Source images go in `scanmyphotos/` (gitignored). The naming convention is
-`d{disc}_{filename}.jpg` (e.g. `d1_00000133.jpg`), but any JPGs will work.
+### Run YOLO Fine-tuning
 
-If you have a PostgreSQL database with file metadata, `setup_scanmyphotos.py` can
-query it and copy images automatically. Configure via environment variables:
-
-```sh
-export ORIGINALS_DIR=/path/to/deduplicated/originals
-export DB_HOST=localhost
-export DB_PORT=5432
-export DB_NAME=dedup
-export DB_USER=dedup
-export DB_PASSWORD=changeme
-just setup-scanmyphotos
+```bash
+cd yolo_finetune
+python train.py
+python infer.py
 ```
 
-## Usage
+See [yolo_finetune/](yolo_finetune/) for details.
 
-```sh
-just                    # List all commands
-just annotate           # Label bounding boxes (browser UI, :8888)
-just train              # Train model (resumes from best.pt)
-just infer              # Batch inference on pending images
-just cycle              # Train then infer
-just dashboard          # Corrections dashboard (:8889)
-just ocr                # OCR detected stamps (requires ANTHROPIC_API_KEY)
-just stats              # Dataset statistics
-just update-status      # Refresh state/status.json
-just tensorboard        # Training metrics
-just infer-one <photo>  # Single-image inference
+### Run Utility Scripts
+
+```bash
+# Run from project root
+uv run scripts/date_extraction/ocr_stamps.py        # YOLO + OCR pipeline
+uv run scripts/date_extraction/stamp_detect.py       # Stamp detection
+uv run scripts/rotation/detect_rotation.py           # Orientation detection
 ```
 
-## Project Structure
+## Key Files
 
+- **[docs/PLAN.md](docs/PLAN.md)** — Master plan for all 3 phases
+- **[docs/HANDOFF.md](docs/HANDOFF.md)** — Current session handoff
+- **[docs/DATE_EXTRACTION_APPROACHES.md](docs/DATE_EXTRACTION_APPROACHES.md)** — Analysis of date extraction methods
+- **[CLAUDE.md](CLAUDE.md)** — Global project constraints and guidelines
+
+## Database
+
+- **Phase 2:** PostgreSQL in Docker (dedup pipeline)
+  - Tables: `source_files`, `unique_files`
+  - Connection: `postgres://dedup:dedup_local_dev@localhost:5432/dedup`
+  - See [dedup/README.md](dedup/README.md) for queries
+
+## Configuration
+
+Environment variables in `.env` (not tracked):
+- `HDD_SOURCE_PATH` — HDD mount point
+- `SSD_STAGING_PATH` — Staging directory
+- `SSD_ORIGINALS_PATH` — Originals directory
+- `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD` — PostgreSQL
+- `THREAD_WORKERS` — Threads for pipeline stages
+- `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID` — Notifications (optional)
+
+## Storage Locations
+
+| Path | Size | Status | Purpose |
+|------|------|--------|---------|
+| `/mnt/823c.../Photos/img/` | 467 GB | READ-ONLY | Original files (HDD) |
+| `/mnt/823c.../SHA256SUMS.txt` | 6 MB | READ-ONLY | Hash manifest |
+| `/mnt/823c.../Photos_BACKUP_DO_NOT_TOUCH.tar` | 467 GB | SEALED | Backup archive |
+| `staging/` | ~467 GB | Temporary | Ingestion stage |
+| `originals/` | ~280-350 GB | Permanent | Deduplicated canonicals |
+| `needs_date/` | Variable | Temporary | Photos awaiting dates |
+
+## Development Notes
+
+### Code Organization Principles
+- **dedup/** and **yolo_finetune/** are independent subsystems with their own configs, tests, and docs
+- **scripts/** contains standalone utilities organized by domain (no cross-dependencies)
+- **data/** holds results, samples, and metadata
+- **docs/** has all design decisions and operational guides
+
+### Resumability
+All pipelines are resumable via database state tracking:
+```bash
+# Resume where it left off
+docker-compose up dedup
 ```
-.
-|-- scripts/
-|   |-- train/                   # Model training + GPU benchmark + val-plot regen
-|   |-- infer/                   # Batch inference + prediction drift analysis
-|   |-- annotate/                # Annotation server, corrections dashboard, feedback loop
-|   |-- ocr/                     # Haiku/Gemma/Ollama OCR + parallel orchestrator
-|   `-- data/                    # Dataset prep: import, sampling, augmentation, rotation
-|-- ui/
-|   |-- index.html               # Browser annotation UI (vanilla JS + Canvas)
-|   |-- dashboard.html           # Corrections dashboard UI
-|   `-- batch_review.html        # Bulk review UI for high-confidence predictions
-|-- state/                       # Runtime state files (gitignored, except skipped.txt)
-|-- output/                      # Inference visualizations and previews (gitignored)
-|-- docker/                      # Dockerfiles and compose configs
-|-- dataset/
-|   |-- data.yaml                # YOLO dataset config
-|   |-- labels/                  # YOLO-format bounding box labels
-|   |-- corrections/             # Corrected labels from feedback loop
-|   `-- to_annotate/             # Staging area for correction annotation
-|-- examples/                    # Sample photos and model evaluation plots
-|-- scanmyphotos/                # Working image directory (gitignored)
-`-- runs/                        # Training runs + model weights (gitignored)
+
+### Testing
+```bash
+# Unit tests
+cd dedup && python -m pytest tests/test_schema.py -v
+
+# Integration tests
+cd dedup && python -m pytest tests/test_integration.py -v
 ```
 
-## Model Details
+## Support
 
-| Parameter | Value |
-|-----------|-------|
-| Base model | YOLO26-medium (~20M params, ~68 GFLOPs) |
-| Classes | 1 ("target" = date stamp region) |
-| Training image size | 416px |
-| Inference image size | 384px |
-| Batch size | 16 |
-| Epochs | 40 (no early stopping triggered) |
-| Confidence threshold | 0.01 (batch inference), 0.50 (recommended operational) |
+For issues or questions, check:
+1. **[docs/PLAN.md](docs/PLAN.md)** — Architecture and design decisions
+2. **[dedup/README.md](dedup/README.md)** — Dedup pipeline specific docs
+3. **[yolo_finetune/](yolo_finetune/)** — ML training docs
+4. **[docs/IMPLEMENTATION_CHECKLIST.md](docs/IMPLEMENTATION_CHECKLIST.md)** — Progress tracking
 
-## Docker
+---
 
-```sh
-docker compose -f docker/docker-compose.yml up cycle    # Train + infer in container
-```
-
-Mounts `dataset/`, `scanmyphotos/`, and `runs/` as volumes.
-
-## License
-
-MIT
+**Last Updated:** 2026-04-04  
+**Current Phase:** 2 (Deduplication)  
+**Next Phase:** 3 (Organization & Metadata Enrichment)

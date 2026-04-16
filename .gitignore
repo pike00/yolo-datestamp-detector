@@ -1,60 +1,53 @@
-# Working photo directories (too large to commit)
-scanmyphotos/
-stratified_samples/
-output/
-
-# Dataset images (symlinks to scanmyphotos/) and train/val splits
-dataset/images/
-dataset/labels/train/
-dataset/labels/val/
-dataset/corrections/*.jpg
-dataset/to_annotate/
-dataset/augmented/
-dataset/augmented_labels/
-
-# Model weights and training runs
-runs/
-*.pt
-
-# State files (runtime JSON, progress, queues)
-state/corrections_queue.json
-state/scanmyphotos_predictions.json
-state/scanmyphotos_manifest.json
-state/ocr_results.json
-state/ocr_results_gemma.json
-state/ocr_cost_log.json
-state/progress.json
-state/progress_correct.json
-state/worker_status.json
-state/prediction_drift.json
-state/rotation_predictions.json
-
-# Python
+# Python-generated files
 __pycache__/
-*.pyc
-*.pyo
-.venv/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
 
-# Superpowers plugin state
-.superpowers/
-docs/superpowers/
+# Virtual environments
+.venv
+dedup/.venv
 
-# YOLO cache files
-*.cache
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
 
-# Misc
-*.jpg
-*.png
-!examples/*.jpg
-!examples/*.png
+# Working directories (large files, not tracked)
+staging/
+originals/
+needs_date/
+organized/
 
-# Parallel OCR orchestrator
-state/shards/
-state/ocr_manual_queue.json
-state/failed_shards.json
-output/ocr_crops_stage1/
-output/ocr_crops_stage2_crop/
-output/ocr_crops_stage2_full/
+# Database files
+dedup.duckdb
+*.db
 
-# Generated pilot review HTML (output of scripts/ocr/build_pilot_review_html.py)
-pilot_review.html
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Cache and temporary files
+.pytest_cache/
+.mypy_cache/
+.cache/
+*.log
+*.tmp
+scripts/rotation/.env.rotation
+
+# ML model weights and caches
+models/
+
+# Empty metadata placeholder dirs
+data/metadata/
+
+# Separate git repo (pike00/yolo-datestamp-detector)
+yolo_finetune/
