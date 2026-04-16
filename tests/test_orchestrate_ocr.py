@@ -1,4 +1,9 @@
-"""Tests for orchestrate_ocr.py — pure logic only, no network or subagent calls."""
+"""Tests for orchestrate_ocr.py — pure logic only, no network or subagent calls.
+
+Predictions and OCR results live in Postgres at runtime. Tests substitute the
+DB helpers with in-memory dicts so they stay hermetic; rotation predictions
+still live on disk and are exercised through the real ROTATION_FILE.
+"""
 
 from __future__ import annotations
 
@@ -9,15 +14,22 @@ from pathlib import Path
 import pytest
 from PIL import Image
 
-# Make the script importable as a module
-SCRIPTS_DIR = Path(__file__).parent.parent / "scripts" / "ocr"
+# Make the script + shared _db importable as modules
+SCRIPTS_DIR = Path(__file__).parent.parent / "scripts"
 sys.path.insert(0, str(SCRIPTS_DIR))
+sys.path.insert(0, str(SCRIPTS_DIR / "ocr"))
 import orchestrate_ocr as oo  # noqa: E402
 
 
 @pytest.fixture
 def tmp_state(tmp_path, monkeypatch):
-    """Redirect all BASE_DIR-derived paths to a temp tree."""
+    """Redirect all BASE_DIR-derived paths and DB helpers to a temp tree.
+
+    Returns the tmp_path root. Two attributes on the fixture object are
+    available for tests that need to seed in-memory state:
+        oo.predictions_state   -> dict[stem, bbox]
+        oo.ocr_results_state   -> dict[stem, ocr_entry]
+    """
     state = tmp_path / "state"
     output = tmp_path / "output"
     state.mkdir()
@@ -26,9 +38,8 @@ def tmp_state(tmp_path, monkeypatch):
     monkeypatch.setattr(oo, "BASE_DIR", tmp_path)
     monkeypatch.setattr(oo, "STATE_DIR", state)
     monkeypatch.setattr(oo, "OUTPUT_DIR", output)
-    monkeypatch.setattr(oo, "PREDICTIONS_FILE", state / "scanmyphotos_predictions.json")
     monkeypatch.setattr(oo, "CORRECTIONS_FILE", state / "corrections_queue.json")
-    monkeypatch.setattr(oo, "RESULTS_FILE", state / "ocr_results.json")
+    monkeypatch.setattr(oo, "ROTATION_FILE", state / "rotation_predictions.json")
     monkeypatch.setattr(oo, "MANUAL_QUEUE_FILE", state / "ocr_manual_queue.json")
     monkeypatch.setattr(oo, "FAILED_SHARDS_FILE", state / "failed_shards.json")
     monkeypatch.setattr(oo, "SHARDS_DIR", state / "shards")
@@ -39,6 +50,65 @@ def tmp_state(tmp_path, monkeypatch):
     monkeypatch.setattr(oo, "STAGE2_FULL_DIR", output / "ocr_crops_stage2_full")
     monkeypatch.setattr(oo, "SCANMYPHOTOS_DIR", tmp_path / "scanmyphotos")
     (tmp_path / "scanmyphotos").mkdir()
+
+    # In-memory replacements for the Postgres-backed helpers. Each test gets a
+    # fresh empty pair of dicts; tests seed them via oo.predictions_state /
+    # oo.ocr_results_state.
+    predictions: dict[str, dict] = {}
+    ocr_results: dict[str, dict] = {}
+
+    def fake_load_predictions():
+        return {k: dict(v) for k, v in predictions.items()}
+
+    def fake_load_ocr_results(model="haiku"):
+        return {k: dict(v) for k, v in ocr_results.items()}
+
+    def fake_upsert_ocr_result(
+        stem,
+        text,
+        *,
+        bbox_source=None,
+        confidence=None,
+        stage=None,
+        review_status=None,
+        model="haiku",
+    ):
+        existing = ocr_results.get(stem, {})
+        ocr_results[stem] = {
+            **existing,
+            "text": text,
+            "bbox_source": bbox_source if bbox_source is not None else existing.get("bbox_source"),
+            "confidence": confidence if confidence is not None else existing.get("confidence"),
+            "stage": stage if stage is not None else existing.get("stage"),
+            "review_status": review_status if review_status is not None else existing.get("review_status"),
+        }
+
+    def fake_update_ocr_review_status(stem, review_status, model="haiku"):
+        if stem in ocr_results:
+            ocr_results[stem] = {**ocr_results[stem], "review_status": review_status}
+
+    def fake_upsert_ocr_results_bulk(items, model="haiku"):
+        rows = list(items)
+        for stem, text, bbox_source, confidence, stage in rows:
+            ocr_results[stem] = {
+                "text": text,
+                "bbox_source": bbox_source,
+                "confidence": confidence,
+                "stage": stage,
+                "review_status": ocr_results.get(stem, {}).get("review_status"),
+            }
+        return len(rows)
+
+    monkeypatch.setattr(oo, "db_load_predictions", fake_load_predictions)
+    monkeypatch.setattr(oo, "load_ocr_results", fake_load_ocr_results)
+    monkeypatch.setattr(oo, "upsert_ocr_result", fake_upsert_ocr_result)
+    monkeypatch.setattr(oo, "update_ocr_review_status", fake_update_ocr_review_status)
+    monkeypatch.setattr(oo, "upsert_ocr_results_bulk", fake_upsert_ocr_results_bulk)
+
+    # Expose the in-memory state so tests can seed and inspect it.
+    oo.predictions_state = predictions
+    oo.ocr_results_state = ocr_results
+
     return tmp_path
 
 
@@ -55,18 +125,18 @@ def test_status_empty(tmp_state, capsys):
 
 
 def test_pending_set_excludes_already_processed(tmp_state):
-    oo.save_json(oo.PREDICTIONS_FILE, {
+    oo.predictions_state.update({
         "d1_1": {"x": 0.5, "y": 0.5, "w": 0.1, "h": 0.05, "confidence": 0.8},
         "d1_2": {"x": 0.5, "y": 0.5, "w": 0.1, "h": 0.05, "confidence": 0.8},
         "d1_3": {"x": 0.5, "y": 0.5, "w": 0.1, "h": 0.05, "confidence": 0.8},
     })
-    oo.save_json(oo.RESULTS_FILE, {"d1_2": {"text": "1 1 '99"}})
+    oo.ocr_results_state.update({"d1_2": {"text": "1 1 '99"}})
     pending = oo.compute_pending_stems()
     assert pending == ["d1_1", "d1_3"]
 
 
 def test_pending_set_sorted(tmp_state):
-    oo.save_json(oo.PREDICTIONS_FILE, {
+    oo.predictions_state.update({
         "d2_1": {"x": 0.5, "y": 0.5, "w": 0.1, "h": 0.05, "confidence": 0.8},
         "d1_1": {"x": 0.5, "y": 0.5, "w": 0.1, "h": 0.05, "confidence": 0.8},
     })
@@ -75,7 +145,7 @@ def test_pending_set_sorted(tmp_state):
 
 
 def test_load_bbox_prefers_human_correction(tmp_state):
-    oo.save_json(oo.PREDICTIONS_FILE, {
+    oo.predictions_state.update({
         "d1_1": {"x": 0.1, "y": 0.1, "w": 0.1, "h": 0.05, "confidence": 0.3},
     })
     oo.save_json(oo.CORRECTIONS_FILE, {
@@ -136,12 +206,12 @@ def test_crop_image_to_file_produces_resized_jpeg(tmp_state, tmp_path):
 
 def test_crop_stage1_writes_shards_and_crops(tmp_state):
     # 3 predictions, one already processed → 2 pending → 1 shard (shard size 50)
-    oo.save_json(oo.PREDICTIONS_FILE, {
+    oo.predictions_state.update({
         "d1_1": {"x": 0.84, "y": 0.9, "w": 0.12, "h": 0.05, "confidence": 0.9},
         "d1_2": {"x": 0.84, "y": 0.9, "w": 0.12, "h": 0.05, "confidence": 0.4},
         "d1_3": {"x": 0.84, "y": 0.9, "w": 0.12, "h": 0.05, "confidence": 0.9},
     })
-    oo.save_json(oo.RESULTS_FILE, {"d1_2": {"text": "1 1 '99"}})
+    oo.ocr_results_state.update({"d1_2": {"text": "1 1 '99"}})
 
     for stem in ("d1_1", "d1_3"):
         _make_test_photo(oo.SCANMYPHOTOS_DIR / f"{stem}.jpg")
@@ -166,7 +236,7 @@ def test_crop_stage1_writes_shards_and_crops(tmp_state):
 
 def test_crop_stage1_resumes_shard_numbering(tmp_state):
     """Second incremental run appends new shards rather than clobbering the first run's manifests."""
-    oo.save_json(oo.PREDICTIONS_FILE, {
+    oo.predictions_state.update({
         f"d1_{i}": {"x": 0.5, "y": 0.9, "w": 0.1, "h": 0.05, "confidence": 0.9}
         for i in range(1, 11)
     })
@@ -176,7 +246,7 @@ def test_crop_stage1_resumes_shard_numbering(tmp_state):
     # First run: 3 stems → shard_0000
     oo.main(["crop-stage1", "--limit", "3"])
     # Simulate those 3 being merged into results
-    oo.save_json(oo.RESULTS_FILE, {f"d1_{i}": {"text": "1 1 '99"} for i in (1, 10, 2)})
+    oo.ocr_results_state.update({f"d1_{i}": {"text": "1 1 '99"} for i in (1, 10, 2)})
 
     # Second run: remaining stems → must start at shard_0001, NOT clobber shard_0000
     oo.main(["crop-stage1"])
@@ -190,7 +260,7 @@ def test_crop_stage1_resumes_shard_numbering(tmp_state):
 
 
 def test_crop_stage1_limit_caps_pending(tmp_state):
-    oo.save_json(oo.PREDICTIONS_FILE, {
+    oo.predictions_state.update({
         f"d1_{i}": {"x": 0.5, "y": 0.9, "w": 0.1, "h": 0.05, "confidence": 0.9}
         for i in range(1, 6)
     })
@@ -205,7 +275,7 @@ def test_crop_stage1_limit_caps_pending(tmp_state):
 
 
 def test_merge_stage1_adds_entries(tmp_state):
-    oo.save_json(oo.RESULTS_FILE, {"d1_0": {"text": "NONE"}})
+    oo.ocr_results_state.update({"d1_0": {"text": "NONE"}})
     shard_result = oo.STAGE1_SHARDS_DIR / "shard_0000_result.json"
     oo.save_json(shard_result, {
         "shard_id": "0000",
@@ -219,7 +289,7 @@ def test_merge_stage1_adds_entries(tmp_state):
     rc = oo.main(["merge-stage1", str(shard_result)])
     assert rc == 0
 
-    merged = oo.load_json(oo.RESULTS_FILE, {})
+    merged = oo.ocr_results_state
     assert merged["d1_0"]["text"] == "NONE"  # untouched
     assert merged["d1_1"]["text"] == "10 3 '99"
     assert merged["d1_1"]["stage"] == 1
@@ -313,7 +383,7 @@ def test_should_review(text, conf, expected):
 
 
 def test_select_review_stems(tmp_state):
-    oo.save_json(oo.RESULTS_FILE, {
+    oo.ocr_results_state.update({
         "d1_1": {"text": "10 3 '99", "confidence": 0.9},     # no
         "d1_2": {"text": "1? 3 '99", "confidence": 0.9},     # yes (?)
         "d1_3": {"text": "10 3 '99", "confidence": 0.2},     # yes (conf)
@@ -324,13 +394,73 @@ def test_select_review_stems(tmp_state):
     assert sorted(stems) == ["d1_2", "d1_3", "d1_4"]
 
 
+def test_select_review_stems_includes_rotated(tmp_state):
+    """Rotation != 0 should auto-flag a stem even if its text is clean."""
+    oo.ocr_results_state.update({
+        "d1_1": {"text": "10 3 '99", "confidence": 0.9},     # clean text
+        "d1_2": {"text": "10 3 '99", "confidence": 0.9},     # clean text
+        "d1_3": {"text": "1? 3 '99", "confidence": 0.9},     # text trigger
+    })
+    oo.save_json(oo.ROTATION_FILE, {
+        "d1_1": {"rotation": 0,  "confidence": 0.9},  # upright -> not flagged
+        "d1_2": {"rotation": 90, "confidence": 0.9},  # rotated -> flagged
+        "d1_3": {"rotation": 0,  "confidence": 0.9},  # text trigger only
+    })
+    stems = oo.select_review_stems()
+    assert sorted(stems) == ["d1_2", "d1_3"]
+
+
+@pytest.mark.parametrize("rotation,expected", [
+    (0,   {"x": 0.8, "y": 0.9, "w": 0.12, "h": 0.05}),
+    # 90 CW: (1-y, x, h, w)
+    (90,  {"x": 0.1,  "y": 0.8,  "w": 0.05, "h": 0.12}),
+    # 180: (1-x, 1-y, w, h)
+    (180, {"x": 0.2,  "y": 0.1,  "w": 0.12, "h": 0.05}),
+    # 270 CW: (y, 1-x, h, w)
+    (270, {"x": 0.9,  "y": 0.2,  "w": 0.05, "h": 0.12}),
+])
+def test_rotate_bbox(rotation, expected):
+    bbox = {"x": 0.8, "y": 0.9, "w": 0.12, "h": 0.05, "confidence": 0.9}
+    out = oo.rotate_bbox(bbox, rotation)
+    for k in ("x", "y", "w", "h"):
+        assert abs(out[k] - expected[k]) < 1e-9, f"key {k}: {out[k]} != {expected[k]}"
+    # Extra fields preserved
+    assert out["confidence"] == 0.9
+
+
+def test_rotate_bbox_rejects_unsupported():
+    with pytest.raises(ValueError):
+        oo.rotate_bbox({"x": 0.5, "y": 0.5, "w": 0.1, "h": 0.1}, 45)
+
+
+def test_rotate_pil_image_dimensions(tmp_state):
+    """Rotating 90/270 should swap width and height; 180 should keep them."""
+    from PIL import Image
+    img = Image.new("RGB", (100, 50), (0, 0, 0))
+    assert oo.rotate_pil_image(img, 0).size == (100, 50)
+    assert oo.rotate_pil_image(img, 90).size == (50, 100)
+    assert oo.rotate_pil_image(img, 180).size == (100, 50)
+    assert oo.rotate_pil_image(img, 270).size == (50, 100)
+
+
+def test_rotate_pil_image_corners_90cw(tmp_state):
+    """Top-left red pixel should land at top-right after a 90 CW rotation."""
+    from PIL import Image
+    img = Image.new("RGB", (4, 4), (0, 0, 0))
+    img.putpixel((0, 0), (255, 0, 0))   # mark top-left
+    rotated = oo.rotate_pil_image(img, 90)
+    # New image is 4x4; the marked pixel should be at top-right (3, 0)
+    assert rotated.getpixel((3, 0)) == (255, 0, 0)
+    assert rotated.getpixel((0, 0)) == (0, 0, 0)
+
+
 def test_crop_stage2_writes_two_views_per_stem(tmp_state):
-    oo.save_json(oo.PREDICTIONS_FILE, {
+    oo.predictions_state.update({
         "d1_1": {"x": 0.84, "y": 0.9, "w": 0.12, "h": 0.05, "confidence": 0.9},
         "d1_2": {"x": 0.84, "y": 0.9, "w": 0.12, "h": 0.05, "confidence": 0.2},  # low conf → triggers
         "d1_3": {"x": 0.84, "y": 0.9, "w": 0.12, "h": 0.05, "confidence": 0.9},
     })
-    oo.save_json(oo.RESULTS_FILE, {
+    oo.ocr_results_state.update({
         "d1_1": {"text": "10 3 '99", "confidence": 0.9},    # clean
         "d1_2": {"text": "1? 3 '99", "confidence": 0.2},    # triggers on ? and conf
         "d1_3": {"text": "wrong", "confidence": 0.9},       # triggers on format
@@ -379,7 +509,7 @@ def test_normalize_text_collapses_whitespace():
 
 
 def test_merge_stage2_confirmed_overwrites_results(tmp_state):
-    oo.save_json(oo.RESULTS_FILE, {
+    oo.ocr_results_state.update({
         "d1_1": {"text": "1? 3 '99", "stage": 1, "confidence": 0.9},
     })
     shard_result = oo.STAGE2_SHARDS_DIR / "shard_0000_result.json"
@@ -394,14 +524,14 @@ def test_merge_stage2_confirmed_overwrites_results(tmp_state):
     rc = oo.main(["merge-stage2", str(shard_result)])
     assert rc == 0
 
-    merged = oo.load_json(oo.RESULTS_FILE, {})
+    merged = oo.ocr_results_state
     assert merged["d1_1"]["text"] == "10 3 '99"
     assert merged["d1_1"]["review_status"] == "confirmed"
     assert merged["d1_1"]["stage"] == 2
 
 
 def test_merge_stage2_disagreement_preserves_stage1_and_queues(tmp_state):
-    oo.save_json(oo.RESULTS_FILE, {
+    oo.ocr_results_state.update({
         "d1_1": {"text": "1? 3 '99", "stage": 1, "confidence": 0.4},
     })
     shard_result = oo.STAGE2_SHARDS_DIR / "shard_0000_result.json"
@@ -416,7 +546,7 @@ def test_merge_stage2_disagreement_preserves_stage1_and_queues(tmp_state):
     rc = oo.main(["merge-stage2", str(shard_result)])
     assert rc == 0
 
-    merged = oo.load_json(oo.RESULTS_FILE, {})
+    merged = oo.ocr_results_state
     # stage-1 entry unchanged on disagreement
     assert merged["d1_1"]["text"] == "1? 3 '99"
     assert merged["d1_1"].get("review_status") == "disagreement"
@@ -430,7 +560,7 @@ def test_merge_stage2_disagreement_preserves_stage1_and_queues(tmp_state):
 
 
 def test_merge_stage2_no_stamp_overwrites(tmp_state):
-    oo.save_json(oo.RESULTS_FILE, {
+    oo.ocr_results_state.update({
         "d1_1": {"text": "wrong", "stage": 1, "confidence": 0.9},
     })
     shard_result = oo.STAGE2_SHARDS_DIR / "shard_0000_result.json"
@@ -442,6 +572,6 @@ def test_merge_stage2_no_stamp_overwrites(tmp_state):
 
     rc = oo.main(["merge-stage2", str(shard_result)])
     assert rc == 0
-    merged = oo.load_json(oo.RESULTS_FILE, {})
+    merged = oo.ocr_results_state
     assert merged["d1_1"]["text"] == "NONE"
     assert merged["d1_1"]["review_status"] == "no_stamp"

@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-04-09",
+  "generated_at": "2026-04-14",
   "source_images": {
     "total": 7455,
     "disc_1": 1774,
@@ -8,28 +8,28 @@
     "disc_4": 1575
   },
   "annotation": {
-    "labeled_with_stamp": 2917,
-    "confirmed_no_stamp": 194,
+    "labeled_with_stamp": 3030,
+    "confirmed_no_stamp": 278,
     "skipped": 19,
-    "pending_review": 4325,
-    "percent_reviewed": 42.0
+    "pending_review": 4128,
+    "percent_reviewed": 44.4
   },
   "training": {
-    "labels_total": 3011,
-    "labels_disc_prefixed": 2922,
-    "train_images": 2364,
-    "val_images": 591,
-    "base_model": "yolov8n.pt",
+    "labels_total": 3124,
+    "labels_disc_prefixed": 3035,
+    "train_images": 17824,
+    "val_images": 663,
+    "base_model": "yolo26m.pt",
     "training_config": {
       "epochs": 100,
       "patience": 10,
       "imgsz": 640,
-      "batch": 8,
+      "batch": 4,
       "device": "cpu"
     }
   },
   "inference": {
-    "predictions_total": 6458,
+    "predictions_total": 6679,
     "inference_size": 384,
     "confidence_threshold": 0.01
   }

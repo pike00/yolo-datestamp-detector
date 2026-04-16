@@ -1,27 +1,35 @@
 #!/usr/bin/env -S uv run --script
 # /// script
 # requires-python = ">=3.11,<3.13"
-# dependencies = ["ultralytics>=8.3", "matplotlib>=3.8"]
+# dependencies = [
+#     "ultralytics>=8.3",
+#     "matplotlib>=3.8",
+#     "psycopg[binary]>=3.1.0",
+# ]
 # ///
 """Regenerate validation plots and confidence distribution for the new GPU weights.
 
 Runs `model.val()` with the new best.pt to produce fresh PR / F1 / confusion matrix
 curves, then copies them into examples/ replacing the old CPU-run plots. Also
-regenerates examples/confidence_distribution.png from state/prediction_drift.json.
+regenerates examples/confidence_distribution.png from the stamp_prediction_drift
+table.
 """
 from __future__ import annotations
 
-import json
 import shutil
+import sys
 from pathlib import Path
 
 import matplotlib.pyplot as plt
 from ultralytics import YOLO
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT / "scripts"))
+
+from _db import load_drift  # noqa: E402
+
 WEIGHTS = ROOT / "runs" / "detect" / "gpu-40ep" / "weights" / "best.pt"
 EXAMPLES = ROOT / "examples"
-DRIFT_PATH = ROOT / "state" / "prediction_drift.json"
 
 DATA_YAML_STAGED = ROOT / "dataset" / "data.local.yaml"
 
@@ -89,7 +97,7 @@ def copy_plots(val_dir: Path) -> None:
 
 
 def regen_confidence_distribution() -> None:
-    drift = json.loads(DRIFT_PATH.read_text())
+    drift = load_drift()
     new_conf = [e["new"]["confidence"] for e in drift.values() if e.get("new")]
     old_conf = [e["old"]["confidence"] for e in drift.values() if e.get("old")]
 
@@ -104,7 +112,11 @@ def regen_confidence_distribution() -> None:
     fig.tight_layout()
     out = EXAMPLES / "confidence_distribution.png"
     fig.savefig(out)
-    print(f"wrote {out.relative_to(ROOT)}")
+    try:
+        rel = out.relative_to(ROOT)
+    except ValueError:
+        rel = out
+    print(f"wrote {rel}")
 
 
 def main() -> None:

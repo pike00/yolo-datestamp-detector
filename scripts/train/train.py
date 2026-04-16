@@ -5,6 +5,7 @@
 #     "pyyaml",
 #     "tensorboard",
 #     "apprise",
+#     "psycopg[binary]>=3.1.0",
 # ]
 # ///
 """YOLO fine-tuning on annotated bounding box data."""
@@ -13,15 +14,19 @@ import argparse
 import os
 import random
 import shutil
+import sys
 from pathlib import Path
 
 import yaml
 
-BASE_DIR = Path(__file__).parent.parent
+BASE_DIR = Path(__file__).resolve().parent.parent.parent
+sys.path.insert(0, str(BASE_DIR / "scripts"))
+
+from _db import load_skipped_stems  # noqa: E402
+
 DATASET_DIR = BASE_DIR / "dataset"
 IMAGES_DIR = DATASET_DIR / "images"
 LABELS_DIR = DATASET_DIR / "labels"
-SKIPPED_FILE = BASE_DIR / "state" / "skipped.txt"
 IMAGE_SOURCE = BASE_DIR / "scanmyphotos"
 AUG_IMAGES_DIR = DATASET_DIR / "augmented"
 AUG_LABELS_DIR = DATASET_DIR / "augmented_labels"
@@ -47,36 +52,14 @@ def setup_dataset():
                     shutil.copy2(label_path, new_label)
                 print(f"  {stem} -> {new_stem}")
 
-    # Migrate old-style skipped entries too
-    if SKIPPED_FILE.exists():
-        skipped_lines = [l.strip() for l in SKIPPED_FILE.read_text().splitlines() if l.strip()]
-        migrated = []
-        for entry in skipped_lines:
-            stem = Path(entry).stem
-            if stem.startswith("d"):
-                migrated.append(stem)
-                continue
-            matches = list(IMAGE_SOURCE.glob(f"d*_{stem}.jpg"))
-            if matches:
-                migrated.append(matches[0].stem)
-            else:
-                migrated.append(stem)
-        SKIPPED_FILE.write_text("\n".join(sorted(set(migrated))) + "\n")
-
     # Collect labeled images (those with a .txt in labels/)
     labeled = sorted(p.stem for p in LABELS_DIR.glob("*.txt") if p.stem.startswith("d"))
     if not labeled:
         print("No labels found in dataset/labels/. Run annotate.py first.")
         raise SystemExit(1)
 
-    # Collect skipped images (negative examples)
-    skipped = []
-    if SKIPPED_FILE.exists():
-        skipped = [
-            line.strip() for line in SKIPPED_FILE.read_text().splitlines()
-            if line.strip()
-        ]
-    skipped_stems = [Path(f).stem for f in skipped]
+    # Collect skipped images (negative examples) from stamp_no_stamp
+    skipped_stems = sorted(load_skipped_stems())
 
     print(f"Found {len(labeled)} labeled images, {len(skipped_stems)} skipped (negative examples)")
 

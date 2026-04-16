@@ -3,12 +3,14 @@
 # dependencies = [
 #     "anthropic>=0.52.0",
 #     "pillow>=12.0",
+#     "psycopg[binary]>=3.1.0",
 # ]
 # ///
 """OCR date stamps from scanned photos using Claude Haiku.
 
 Uses human-confirmed bounding boxes from corrections_queue.json when available,
-falls back to YOLO predictions, then to bottom-right quadrant crop.
+falls back to YOLO predictions in stamp_predictions, then to a bottom-right
+quadrant crop. OCR results are upserted into stamp_ocr (model='haiku').
 
 Tracks token usage per-image and writes a cost summary.
 
@@ -32,11 +34,17 @@ from pathlib import Path
 import anthropic
 from PIL import Image
 
-BASE_DIR = Path(__file__).parent.parent
+BASE_DIR = Path(__file__).resolve().parent.parent.parent
+sys.path.insert(0, str(BASE_DIR / "scripts"))
+
+from _db import (  # noqa: E402
+    load_ocr_results,
+    load_predictions as db_load_predictions,
+    upsert_ocr_result,
+)
+
 SCANMYPHOTOS_DIR = BASE_DIR / "scanmyphotos"
-PREDICTIONS_FILE = BASE_DIR / "state" / "scanmyphotos_predictions.json"
 CORRECTIONS_FILE = BASE_DIR / "state" / "corrections_queue.json"
-RESULTS_FILE = BASE_DIR / "state" / "ocr_results.json"
 COST_LOG_FILE = BASE_DIR / "state" / "ocr_cost_log.json"
 
 MODEL = "claude-haiku-4-5-20251001"
@@ -87,10 +95,7 @@ def load_corrections() -> dict[str, dict]:
 
 def load_predictions() -> dict[str, dict]:
     """Load YOLO predictions, tagged with source."""
-    if not PREDICTIONS_FILE.exists():
-        return {}
-    with open(PREDICTIONS_FILE) as f:
-        raw = json.load(f)
+    raw = db_load_predictions()
     return {k: {**v, "source": "yolo"} for k, v in raw.items()}
 
 
@@ -105,10 +110,7 @@ def load_bboxes(source: str) -> dict[str, dict]:
 
 
 def load_results() -> dict:
-    if RESULTS_FILE.exists():
-        with open(RESULTS_FILE) as f:
-            return json.load(f)
-    return {}
+    return load_ocr_results()
 
 
 def crop_stamp_region(img: Image.Image, pred: dict) -> Image.Image:
@@ -267,12 +269,13 @@ def main():
             print(f"  API error on {stem}: {e}")
             continue
 
-        results[stem] = {
-            "text": text,
-            "bbox_source": bbox["source"] if bbox else None,
-            "confidence": bbox.get("confidence") if bbox else None,
-            **usage,
-        }
+        upsert_ocr_result(
+            stem,
+            text,
+            bbox_source=bbox["source"] if bbox else None,
+            confidence=bbox.get("confidence") if bbox else None,
+            stage=1,
+        )
 
         totals["input_tokens"] += usage["input_tokens"]
         totals["output_tokens"] += usage["output_tokens"]
@@ -286,17 +289,8 @@ def main():
         status = text if text != "NONE" else "-"
         print(f"  [{i + 1}/{len(stems)}] {stem}: {status}  ({usage['input_tokens']}in/{usage['output_tokens']}out/${usage['cost_usd']:.6f})")
 
-        # Save every 50 images
-        if (i + 1) % 50 == 0:
-            with open(RESULTS_FILE, "w") as f:
-                json.dump(results, f, indent=2)
-
         # Respect rate limits: small delay between calls
         time.sleep(0.1)
-
-    # Final save
-    with open(RESULTS_FILE, "w") as f:
-        json.dump(results, f, indent=2)
 
     with open(COST_LOG_FILE, "w") as f:
         json.dump({"summary": totals, "per_image": cost_log}, f, indent=2)
@@ -308,7 +302,7 @@ def main():
     print(f"Output tokens:{totals['output_tokens']:,}")
     print(f"Total cost:   ${totals['cost_usd']:.4f}")
     print(f"Avg cost/img: ${totals['cost_usd'] / max(totals['processed'], 1):.6f}")
-    print(f"\nResults: {RESULTS_FILE}")
+    print("\nResults stored in stamp_ocr (model='haiku')")
     print(f"Cost log: {COST_LOG_FILE}")
 
 

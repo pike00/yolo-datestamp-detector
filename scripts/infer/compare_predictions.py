@@ -4,26 +4,29 @@
 # dependencies = [
 #     "ultralytics>=8.0",
 #     "opencv-python-headless",
+#     "psycopg[binary]>=3.1.0",
 # ]
 # ///
 """Re-run inference with new weights and flag photos whose prediction drifted.
 
-Compares old predictions in state/scanmyphotos_predictions.json against a
-fresh inference run using the new model. Writes a drift report to
-state/prediction_drift.json and prints a summary.
+Compares the predictions currently in stamp_predictions against a fresh
+inference run using NEW_WEIGHTS, and upserts the comparison into the
+stamp_prediction_drift table.
 
 A prediction is flagged "drift" if IoU(old, new) < IOU_THRESHOLD.
 "gone" means the old model found a stamp and the new model did not.
 """
 import argparse
-import json
+import sys
 import time
 from pathlib import Path
 
-BASE_DIR = Path(__file__).parent.parent
+BASE_DIR = Path(__file__).resolve().parent.parent.parent
+sys.path.insert(0, str(BASE_DIR / "scripts"))
+
+from _db import load_predictions, upsert_drift  # noqa: E402
+
 SCANMYPHOTOS_DIR = BASE_DIR / "scanmyphotos"
-OLD_PREDS_FILE = BASE_DIR / "state" / "scanmyphotos_predictions.json"
-DRIFT_FILE = BASE_DIR / "state" / "prediction_drift.json"
 NEW_WEIGHTS = BASE_DIR / "runs" / "detect" / "gpu-40ep" / "weights" / "best.pt"
 
 INFERENCE_SIZE = 384
@@ -79,7 +82,7 @@ def main():
     if not NEW_WEIGHTS.exists():
         raise SystemExit(f"new weights not found at {NEW_WEIGHTS}")
 
-    old = json.loads(OLD_PREDS_FILE.read_text())
+    old = load_predictions()
     stems = sorted(old.keys())
     if args.limit:
         stems = stems[: args.limit]
@@ -95,7 +98,8 @@ def main():
     model = YOLO(str(NEW_WEIGHTS))
     torch.set_num_threads(torch.get_num_threads() or 12)
 
-    drift = {}
+    drift: dict[str, dict] = {}
+    pending_rows: list[tuple] = []
     t0 = time.time()
     for batch_start in range(0, total, BATCH_SIZE):
         batch_stems = stems[batch_start : batch_start + BATCH_SIZE]
@@ -119,12 +123,9 @@ def main():
             else:
                 iou_val = iou(old_pred, new_pred)
                 flag = "drift" if iou_val < args.iou_threshold else "stable"
-            drift[stem] = {
-                "old": old_pred,
-                "new": new_pred,
-                "iou": round(iou_val, 4),
-                "flag": flag,
-            }
+            iou_rounded = round(iou_val, 4)
+            drift[stem] = {"old": old_pred, "new": new_pred, "iou": iou_rounded, "flag": flag}
+            pending_rows.append((stem, old_pred, new_pred, iou_rounded, flag))
 
         done = batch_start + len(batch_stems)
         if done % (BATCH_SIZE * 5) == 0 or done == total:
@@ -132,11 +133,12 @@ def main():
             rate = done / elapsed if elapsed > 0 else 0
             eta = (total - done) / rate if rate > 0 else 0
             print(f"  [{done}/{total}]  {rate:.1f} img/s  eta {eta:.0f}s")
-            # checkpoint
-            DRIFT_FILE.write_text(json.dumps(drift, indent=2))
+            if pending_rows:
+                upsert_drift(pending_rows)
+                pending_rows.clear()
 
-    # final write
-    DRIFT_FILE.write_text(json.dumps(drift, indent=2))
+    if pending_rows:
+        upsert_drift(pending_rows)
 
     flagged = [s for s, v in drift.items() if v["flag"] in ("drift", "gone")]
     drifted = sum(1 for v in drift.values() if v["flag"] == "drift")
@@ -149,7 +151,7 @@ def main():
     print(f"drift:   {drifted} (IoU < {args.iou_threshold})")
     print(f"gone:    {gone} (new model found nothing)")
     print(f"flagged: {len(flagged)}")
-    print(f"report:  {DRIFT_FILE.relative_to(BASE_DIR)}")
+    print("report:  stamp_prediction_drift table")
 
 
 if __name__ == "__main__":

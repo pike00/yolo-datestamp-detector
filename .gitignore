@@ -17,16 +17,15 @@ runs/
 *.pt
 
 # State files (runtime JSON, progress, queues)
+# Note: stamp_predictions, stamp_prediction_drift, stamp_ocr (haiku),
+# and stamp_no_stamp now live in the dedup Postgres database.
 state/corrections_queue.json
-state/scanmyphotos_predictions.json
 state/scanmyphotos_manifest.json
-state/ocr_results.json
 state/ocr_results_gemma.json
 state/ocr_cost_log.json
 state/progress.json
 state/progress_correct.json
 state/worker_status.json
-state/prediction_drift.json
 state/rotation_predictions.json
 
 # Python

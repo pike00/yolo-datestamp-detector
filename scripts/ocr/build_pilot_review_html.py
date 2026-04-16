@@ -1,11 +1,18 @@
 # /// script
 # requires-python = ">=3.14"
+# dependencies = [
+#     "psycopg[binary]>=3.1.0",
+# ]
 # ///
 """Generate an HTML review page for the stage-1 pilot results.
 
-Renders one card per OCR result: original photo, stage-1 crop, and the
-transcribed text, plus metadata (bbox source, confidence, trigger status).
-Uses relative paths so the HTML can be opened directly from output/.
+3x3 grid review flow:
+- Cards auto-approve once scrolled above the viewport (unless flagged)
+- Per-card buttons: approve / flag for rotation re-pass / flag for Opus re-pass
+- Inline-editable OCR text (click to edit, blur to save)
+- Manual rotation override (0/90/180/270)
+- All state persisted in localStorage as a single unified review record
+- Download review_state.json for downstream consumption
 """
 
 from __future__ import annotations
@@ -13,14 +20,17 @@ from __future__ import annotations
 import html
 import json
 import re
+import sys
 from pathlib import Path
 
-BASE_DIR = Path(__file__).parent.parent
-RESULTS_FILE = BASE_DIR / "state" / "ocr_results.json"
+# Script lives at scripts/ocr/build_pilot_review_html.py
+BASE_DIR = Path(__file__).resolve().parent.parent.parent
+sys.path.insert(0, str(BASE_DIR / "scripts"))
+
+from _db import load_ocr_results  # noqa: E402
+
 ROTATION_FILE = BASE_DIR / "state" / "rotation_predictions.json"
-# Put the HTML at the repo root so both scanmyphotos/ and output/ are child
-# paths — VS Code's HTML preview blocks parent-directory (../) paths.
-OUTPUT_HTML = BASE_DIR / "pilot_review.html"
+OUTPUT_HTML = BASE_DIR / "output" / "pilot_review.html"
 
 # Same regex the orchestrator uses
 DATE_FORMAT_RE = re.compile(
@@ -44,7 +54,7 @@ def should_review(text: str, confidence: float | None) -> bool:
 
 
 def main() -> None:
-    results = json.loads(RESULTS_FILE.read_text())
+    results = load_ocr_results()
     rotations = {}
     if ROTATION_FILE.exists():
         rotations = json.loads(ROTATION_FILE.read_text())
@@ -53,7 +63,7 @@ def main() -> None:
     total = len(stems)
     clean = sum(1 for s in stems if not should_review(results[s]["text"], results[s].get("confidence")) and results[s]["text"] != "NONE")
     none_ct = sum(1 for s in stems if results[s]["text"] == "NONE")
-    flagged = sum(1 for s in stems if should_review(results[s]["text"], results[s].get("confidence")))
+    flagged_auto = sum(1 for s in stems if should_review(results[s]["text"], results[s].get("confidence")))
 
     cards = []
     rotated_count = 0
@@ -62,48 +72,54 @@ def main() -> None:
         text = entry.get("text", "")
         conf = entry.get("confidence")
         source = entry.get("bbox_source", "?")
-        flag = should_review(text, conf)
+        auto_flag = should_review(text, conf)
 
-        # Rotation: degrees CW required to make the photo upright.
-        # CSS rotate must apply that many degrees CW to the displayed image.
         rot_entry = rotations.get(stem) or {}
         cnn_rot = int(rot_entry.get("rotation", 0))
         cnn_conf = rot_entry.get("confidence")
         if cnn_rot != 0:
             rotated_count += 1
 
-        # Relative to yolo_finetune/pilot_review.html
-        photo_rel = f"scanmyphotos/{stem}.jpg"
-        crop_rel = f"output/ocr_crops_stage1/{stem}.jpg"
+        # Paths relative to output/pilot_review.html
+        photo_rel = f"../scanmyphotos/{stem}.jpg"
+        crop_rel = f"ocr_crops_stage1/{stem}.jpg"
 
-        badge_class = "flag" if flag else ("none" if text == "NONE" else "ok")
-        badge_label = "REVIEW" if flag else ("NONE" if text == "NONE" else "OK")
+        initial_class = "auto-flag" if auto_flag else ("none" if text == "NONE" else "auto-ok")
+        initial_label = "REVIEW" if auto_flag else ("NONE" if text == "NONE" else "OK")
 
         conf_str = f"{conf:.2f}" if conf is not None else "—"
         cnn_conf_str = f"{cnn_conf:.2f}" if cnn_conf is not None else "—"
 
+        text_escaped = html.escape(text) if text else ""
+        text_attr = html.escape(text)
+
         cards.append(f"""
-<div class="card {badge_class}" data-stem="{html.escape(stem)}" data-cnn-rot="{cnn_rot}" data-cnn-conf="{cnn_conf_str}">
+<div class="card {initial_class}" data-stem="{html.escape(stem)}" data-cnn-rot="{cnn_rot}" data-cnn-conf="{cnn_conf_str}" data-original-text="{text_attr}">
+  <div class="status-pill"></div>
   <div class="meta">
-    <label class="opus-toggle" title="Flag for Opus stage-2 review">
-      <input type="checkbox" class="opus-flag" data-stem="{html.escape(stem)}"> Opus
-    </label>
     <span class="stem">{html.escape(stem)}</span>
-    <span class="badge">{badge_label}</span>
+    <span class="badge auto-badge">{initial_label}</span>
     <span class="src">{html.escape(source)}</span>
-    <span class="conf">conf: {conf_str}</span>
-    <span class="rot-info" title="EfficientNetV2 rotation prediction">rot: <span class="rot-display">{cnn_rot}°</span></span>
-    <span class="rot-buttons">
-      <button class="rot-btn" data-rot="0">0</button>
-      <button class="rot-btn" data-rot="90">90</button>
-      <button class="rot-btn" data-rot="180">180</button>
-      <button class="rot-btn" data-rot="270">270</button>
-    </span>
+    <span class="conf">c:{conf_str}</span>
+    <span class="rot-info">rot:<span class="rot-display">{cnn_rot}</span>°<span class="rot-conf">({cnn_conf_str})</span></span>
   </div>
-  <div class="text">{html.escape(text) or "&nbsp;"}</div>
+  <div class="text" contenteditable="plaintext-only" spellcheck="false">{text_escaped}</div>
+  <div class="controls">
+    <button class="ctl-btn approve-btn" title="Approve (A)">✓ Approve</button>
+    <button class="ctl-btn rotation-btn" title="Flag for rotation re-pass (R)">↻ Rotation</button>
+    <button class="ctl-btn opus-btn" title="Flag for Opus re-pass (O)">⟲ Opus</button>
+    <button class="ctl-btn reset-btn" title="Clear all review state">↶ Reset</button>
+  </div>
+  <div class="rot-override">
+    <span class="rot-label">Override:</span>
+    <button class="rot-btn" data-rot="0">0</button>
+    <button class="rot-btn" data-rot="90">90</button>
+    <button class="rot-btn" data-rot="180">180</button>
+    <button class="rot-btn" data-rot="270">270</button>
+  </div>
   <div class="images">
     <a href="{photo_rel}" target="_blank" class="photo-link"><img loading="lazy" src="{photo_rel}" alt="photo" class="photo-img"></a>
-    <a href="{crop_rel}" target="_blank" class="crop-link"><img loading="lazy" src="{crop_rel}" alt="crop" class="crop crop-img"></a>
+    <a href="{crop_rel}" target="_blank" class="crop-link"><img loading="lazy" src="{crop_rel}" alt="crop" class="crop-img"></a>
   </div>
 </div>
 """)
@@ -114,210 +130,299 @@ def main() -> None:
 <meta charset="utf-8">
 <title>Pilot OCR Review ({total} photos)</title>
 <style>
-  :root {{ color-scheme: light dark; }}
-  body {{ font: 14px/1.4 system-ui, sans-serif; margin: 16px; background: #111; color: #eee; }}
-  h1 {{ font-size: 18px; margin: 0 0 8px; }}
-  .summary {{ margin-bottom: 16px; padding: 8px 12px; background: #222; border-radius: 6px; }}
-  .summary span {{ margin-right: 20px; }}
-  .filters {{ margin-bottom: 16px; }}
-  .filters button {{ padding: 6px 12px; margin-right: 6px; background: #333; color: #eee; border: 1px solid #555; border-radius: 4px; cursor: pointer; font: inherit; }}
+  :root {{ color-scheme: dark; --bg: #0e0e10; --panel: #1a1a1d; --panel2: #242428; --border: #333; --text: #e8e8ea; --muted: #888; --ok: #4c4; --flag: #c44; --warn: #fa3; --opus: #f66; --rot: #4af; --edit: #0ce; }}
+  * {{ box-sizing: border-box; }}
+  body {{ font: 13px/1.4 system-ui, sans-serif; margin: 0; background: var(--bg); color: var(--text); }}
+  h1 {{ font-size: 16px; margin: 0; }}
+  .header {{ position: sticky; top: 0; z-index: 20; background: var(--panel); border-bottom: 1px solid var(--border); padding: 10px 16px; display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }}
+  .counts {{ display: flex; gap: 14px; font-size: 12px; flex-wrap: wrap; }}
+  .counts span b {{ font-weight: 700; }}
+  .counts .unreviewed b {{ color: var(--muted); }}
+  .counts .approved b {{ color: var(--ok); }}
+  .counts .autoapproved b {{ color: #6b6; }}
+  .counts .rotation b {{ color: var(--rot); }}
+  .counts .opus b {{ color: var(--opus); }}
+  .counts .edited b {{ color: var(--edit); }}
+  .filters {{ display: flex; gap: 4px; }}
+  .filters button, .actions button {{ padding: 5px 10px; background: var(--panel2); color: var(--text); border: 1px solid var(--border); border-radius: 4px; cursor: pointer; font: inherit; font-size: 12px; }}
   .filters button.active {{ background: #4a9eff; color: #000; border-color: #4a9eff; }}
-  .grid {{ display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 12px; }}
-  .card {{ background: #1a1a1a; border: 1px solid #333; border-radius: 6px; padding: 8px; }}
-  .card.flag {{ border-color: #c44; }}
-  .card.none {{ border-color: #777; opacity: 0.6; }}
-  .card.ok {{ border-color: #4c4; }}
-  .meta {{ display: flex; gap: 8px; align-items: center; font-size: 12px; margin-bottom: 4px; flex-wrap: wrap; }}
+  .actions {{ display: flex; gap: 6px; margin-left: auto; }}
+  .actions button.primary {{ background: var(--warn); color: #000; font-weight: 600; border-color: var(--warn); }}
+  .grid {{ display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; padding: 14px; max-width: 1800px; margin: 0 auto; }}
+  .card {{ position: relative; background: var(--panel); border: 1px solid var(--border); border-radius: 6px; padding: 8px; display: flex; flex-direction: column; gap: 6px; }}
+  .card.auto-flag {{ border-left: 3px solid var(--flag); }}
+  .card.auto-ok {{ border-left: 3px solid var(--ok); }}
+  .card.none {{ border-left: 3px solid var(--muted); }}
+  .card.state-approved {{ outline: 2px solid var(--ok); outline-offset: -2px; }}
+  .card.state-approved.auto-approved {{ outline-style: dashed; opacity: 0.55; }}
+  .card.state-rotation-flag {{ outline: 2px solid var(--rot); outline-offset: -2px; }}
+  .card.state-opus-flag {{ outline: 2px solid var(--opus); outline-offset: -2px; }}
+  .card.state-edited .text {{ border-color: var(--edit); }}
+  .status-pill {{ position: absolute; top: 4px; right: 4px; padding: 1px 6px; font-size: 10px; font-weight: 700; border-radius: 3px; display: none; }}
+  .card.state-approved .status-pill {{ display: block; background: var(--ok); color: #000; }}
+  .card.state-approved .status-pill::before {{ content: '✓ APPROVED'; }}
+  .card.state-approved.auto-approved .status-pill::before {{ content: '✓ AUTO'; }}
+  .card.state-rotation-flag .status-pill {{ display: block; background: var(--rot); color: #000; }}
+  .card.state-rotation-flag .status-pill::before {{ content: '↻ ROT'; }}
+  .card.state-opus-flag .status-pill {{ display: block; background: var(--opus); color: #000; }}
+  .card.state-opus-flag .status-pill::before {{ content: '⟲ OPUS'; }}
+  .meta {{ display: flex; gap: 6px; align-items: center; font-size: 11px; flex-wrap: wrap; }}
   .stem {{ font-family: ui-monospace, monospace; color: #aaa; }}
-  .badge {{ padding: 2px 6px; border-radius: 3px; font-weight: bold; font-size: 11px; }}
-  .card.flag .badge {{ background: #c44; }}
-  .card.none .badge {{ background: #555; }}
-  .card.ok .badge {{ background: #4c4; color: #000; }}
-  .src {{ color: #888; font-size: 11px; }}
-  .conf {{ color: #888; font-size: 11px; }}
-  .text {{ font: 16px ui-monospace, monospace; background: #000; color: #fa3; padding: 6px 8px; border-radius: 3px; margin: 4px 0; min-height: 24px; white-space: pre; }}
+  .badge {{ padding: 1px 5px; border-radius: 3px; font-weight: 700; font-size: 10px; }}
+  .auto-flag .badge {{ background: var(--flag); color: #fff; }}
+  .auto-ok .badge {{ background: var(--ok); color: #000; }}
+  .none .badge {{ background: #555; color: #ccc; }}
+  .src, .conf, .rot-info {{ color: var(--muted); font-size: 10px; }}
+  .rot-info {{ color: var(--warn); }}
+  .rot-conf {{ color: var(--muted); margin-left: 2px; }}
+  .text {{ font: 18px ui-monospace, monospace; background: #000; color: var(--warn); padding: 8px 10px; border-radius: 4px; min-height: 36px; white-space: pre; border: 1px solid #333; cursor: text; outline: none; }}
+  .text:focus {{ border-color: var(--edit); background: #001a1a; }}
+  .controls {{ display: grid; grid-template-columns: repeat(4, 1fr); gap: 3px; }}
+  .ctl-btn {{ padding: 4px 2px; background: var(--panel2); color: var(--text); border: 1px solid var(--border); border-radius: 3px; cursor: pointer; font: inherit; font-size: 10px; }}
+  .ctl-btn:hover {{ background: #333; }}
+  .approve-btn.active {{ background: var(--ok); color: #000; border-color: var(--ok); font-weight: 700; }}
+  .rotation-btn.active {{ background: var(--rot); color: #000; border-color: var(--rot); font-weight: 700; }}
+  .opus-btn.active {{ background: var(--opus); color: #000; border-color: var(--opus); font-weight: 700; }}
+  .rot-override {{ display: flex; gap: 3px; align-items: center; font-size: 10px; color: var(--muted); }}
+  .rot-label {{ color: var(--muted); }}
+  .rot-btn {{ padding: 1px 6px; font-size: 10px; background: var(--panel2); color: #aaa; border: 1px solid var(--border); border-radius: 3px; cursor: pointer; font-family: ui-monospace, monospace; }}
+  .rot-btn.active {{ background: var(--warn); color: #000; border-color: var(--warn); font-weight: 700; }}
   .images {{ display: flex; gap: 4px; align-items: flex-start; }}
-  .images img {{ max-width: 100%; max-height: 240px; object-fit: contain; background: #000; }}
-  .images img.crop {{ max-height: 80px; }}
-  .images a {{ display: block; flex: 1; min-width: 0; overflow: hidden; }}
-  /* Containers must reserve square-ish space because rotated children change effective bounds. */
-  .images a.photo-link {{ aspect-ratio: 4/3; display: flex; align-items: center; justify-content: center; }}
-  .images a.crop-link {{ height: 80px; display: flex; align-items: center; justify-content: center; }}
+  .images a {{ display: block; overflow: hidden; }}
+  .images a.photo-link {{ flex: 3; aspect-ratio: 4/3; display: flex; align-items: center; justify-content: center; background: #000; border-radius: 3px; }}
+  .images a.crop-link {{ flex: 1; aspect-ratio: 4/1; display: flex; align-items: center; justify-content: center; background: #000; border-radius: 3px; }}
+  .images img {{ max-width: 100%; max-height: 100%; object-fit: contain; }}
   .photo-img, .crop-img {{ transition: transform 0.15s ease; transform-origin: center; }}
-  .rot-info {{ color: #fa3; font-size: 11px; }}
-  .rot-display {{ font-weight: bold; }}
-  .rot-buttons {{ display: inline-flex; gap: 2px; margin-left: 4px; }}
-  .rot-btn {{ padding: 1px 5px; font-size: 10px; background: #2a2a2a; color: #aaa; border: 1px solid #444; border-radius: 3px; cursor: pointer; font-family: ui-monospace, monospace; }}
-  .rot-btn.active {{ background: #fa3; color: #000; border-color: #fa3; font-weight: bold; }}
-  .rot-btn:hover {{ background: #444; }}
-  .rot-btn.active:hover {{ background: #fb4; }}
-  .card.rot-overridden {{ border-style: dashed; }}
-  .opus-toggle {{ display: inline-flex; align-items: center; gap: 3px; padding: 2px 6px; background: #2a2a2a; border: 1px solid #555; border-radius: 3px; cursor: pointer; font-size: 11px; color: #ccc; user-select: none; }}
-  .opus-toggle input {{ margin: 0; cursor: pointer; }}
-  .card.opus-flagged {{ outline: 2px solid #fa3; outline-offset: -2px; }}
-  .opus-bar {{ position: sticky; top: 0; z-index: 10; background: #1a1a1a; border: 1px solid #fa3; border-radius: 6px; padding: 8px 12px; margin-bottom: 12px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }}
-  .opus-bar b {{ color: #fa3; font-size: 16px; }}
-  .opus-bar button {{ padding: 6px 12px; background: #fa3; color: #000; border: none; border-radius: 4px; cursor: pointer; font: inherit; font-weight: bold; }}
-  .opus-bar button.secondary {{ background: #444; color: #eee; }}
-  .opus-bar textarea {{ flex: 1; min-width: 200px; background: #000; color: #fa3; border: 1px solid #555; border-radius: 3px; padding: 4px 6px; font: 11px ui-monospace, monospace; resize: vertical; min-height: 28px; max-height: 200px; }}
+  /* Filter modes — applied via body class */
+  body.filter-unreviewed .card.state-approved,
+  body.filter-unreviewed .card.state-rotation-flag,
+  body.filter-unreviewed .card.state-opus-flag {{ display: none; }}
+  body.filter-flagged .card:not(.state-rotation-flag):not(.state-opus-flag) {{ display: none; }}
+  body.filter-edited .card:not(.state-edited) {{ display: none; }}
 </style>
 </head>
 <body>
-<h1>Pilot OCR Review</h1>
-<div class="summary">
-  <span><b>{total}</b> total</span>
-  <span>OK: <b style="color:#4c4">{clean}</b></span>
-  <span>NONE: <b style="color:#888">{none_ct}</b></span>
-  <span>REVIEW: <b style="color:#c44">{flagged}</b></span>
-  <span>Rotated (CNN): <b style="color:#fa3">{rotated_count}</b></span>
-</div>
-<div class="opus-bar">
-  <span>Manual Opus flags: <b id="opus-count">0</b></span>
-  <button id="opus-download">Download manual_opus_flags.json</button>
-  <button id="opus-clear" class="secondary">Clear all</button>
-  <button id="opus-filter" class="secondary">Show only flagged</button>
-  <textarea id="opus-list" readonly placeholder="(no manual flags)"></textarea>
-</div>
-<div class="filters">
-  <button data-filter="all" class="active">All</button>
-  <button data-filter="ok">OK only</button>
-  <button data-filter="flag">Review only</button>
-  <button data-filter="none">NONE only</button>
+<div class="header">
+  <h1>OCR Review</h1>
+  <div class="counts">
+    <span class="total"><b id="c-total">{total}</b> total</span>
+    <span class="unreviewed">unreviewed <b id="c-unreviewed">0</b></span>
+    <span class="approved">approved <b id="c-approved">0</b></span>
+    <span class="autoapproved">auto <b id="c-auto">0</b></span>
+    <span class="rotation">rot-flagged <b id="c-rotation">0</b></span>
+    <span class="opus">opus-flagged <b id="c-opus">0</b></span>
+    <span class="edited">edited <b id="c-edited">0</b></span>
+  </div>
+  <div class="filters">
+    <button data-filter="all" class="active">All</button>
+    <button data-filter="unreviewed">Unreviewed</button>
+    <button data-filter="flagged">Flagged</button>
+    <button data-filter="edited">Edited</button>
+  </div>
+  <div class="actions">
+    <button id="download-btn" class="primary">Download review_state.json</button>
+    <button id="clear-btn">Clear all</button>
+  </div>
 </div>
 <div class="grid">
 {"".join(cards)}
 </div>
 <script>
-const buttons = document.querySelectorAll('.filters button');
-const cards = document.querySelectorAll('.card');
-buttons.forEach(btn => btn.addEventListener('click', () => {{
-  buttons.forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
-  const f = btn.dataset.filter;
-  cards.forEach(c => {{
-    c.style.display = (f === 'all' || c.classList.contains(f)) ? '' : 'none';
-  }});
-}}));
+const STORAGE_KEY = 'pilot_review_state_v2';
 
-// --- Manual Opus flagging (persisted in localStorage) ---
-const STORAGE_KEY = 'opus_manual_flags_v1';
-const opusCount = document.getElementById('opus-count');
-const opusList = document.getElementById('opus-list');
-const opusFilterBtn = document.getElementById('opus-filter');
-
-function loadFlags() {{
-  try {{ return new Set(JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]')); }}
-  catch (e) {{ return new Set(); }}
-}}
-function saveFlags(set) {{
-  localStorage.setItem(STORAGE_KEY, JSON.stringify([...set].sort()));
-}}
-function refreshUI() {{
-  const flags = loadFlags();
-  opusCount.textContent = flags.size;
-  opusList.value = [...flags].sort().join('\\n');
-  document.querySelectorAll('.opus-flag').forEach(cb => {{
-    const stem = cb.dataset.stem;
-    cb.checked = flags.has(stem);
-    cb.closest('.card').classList.toggle('opus-flagged', flags.has(stem));
-  }});
-}}
-
-document.querySelectorAll('.opus-flag').forEach(cb => {{
-  cb.addEventListener('change', (e) => {{
-    const flags = loadFlags();
-    const stem = e.target.dataset.stem;
-    if (e.target.checked) flags.add(stem); else flags.delete(stem);
-    saveFlags(flags);
-    refreshUI();
-  }});
-}});
-
-document.getElementById('opus-download').addEventListener('click', () => {{
-  const flags = [...loadFlags()].sort();
-  const blob = new Blob([JSON.stringify(flags, null, 2)], {{type: 'application/json'}});
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = 'manual_opus_flags.json';
-  a.click();
-  URL.revokeObjectURL(url);
-}});
-
-document.getElementById('opus-clear').addEventListener('click', () => {{
-  if (confirm('Clear all manual Opus flags?')) {{
-    localStorage.removeItem(STORAGE_KEY);
-    refreshUI();
-  }}
-}});
-
-let opusFilterActive = false;
-opusFilterBtn.addEventListener('click', () => {{
-  opusFilterActive = !opusFilterActive;
-  opusFilterBtn.textContent = opusFilterActive ? 'Show all' : 'Show only flagged';
-  cards.forEach(c => {{
-    if (opusFilterActive) {{
-      c.style.display = c.classList.contains('opus-flagged') ? '' : 'none';
-    }} else {{
-      c.style.display = '';
-    }}
-  }});
-}});
-
-refreshUI();
-
-// --- Manual rotation overrides (persisted in localStorage) ---
-const ROT_KEY = 'rotation_overrides_v1';
-
-function loadRotOverrides() {{
-  try {{ return JSON.parse(localStorage.getItem(ROT_KEY) || '{{}}'); }}
+function loadState() {{
+  try {{ return JSON.parse(localStorage.getItem(STORAGE_KEY) || '{{}}'); }}
   catch (e) {{ return {{}}; }}
 }}
-function saveRotOverrides(map) {{
-  localStorage.setItem(ROT_KEY, JSON.stringify(map));
-}}
-function effectiveRotation(card) {{
-  const stem = card.dataset.stem;
-  const overrides = loadRotOverrides();
-  if (overrides[stem] !== undefined) return parseInt(overrides[stem], 10);
-  return parseInt(card.dataset.cnnRot, 10) || 0;
-}}
-function applyRotation(card) {{
-  const rot = effectiveRotation(card);
-  const photo = card.querySelector('.photo-img');
-  const crop = card.querySelector('.crop-img');
-  // CSS rotates clockwise positive. Our stored rotation is "degrees CW required to make upright",
-  // so we apply the same value as the rotate transform.
-  if (photo) photo.style.transform = `rotate(${{rot}}deg)`;
-  if (crop) crop.style.transform = `rotate(${{rot}}deg)`;
-  card.querySelector('.rot-display').textContent = rot + '\\u00b0';
-  card.querySelectorAll('.rot-btn').forEach(b => {{
-    b.classList.toggle('active', parseInt(b.dataset.rot, 10) === rot);
-  }});
-  // Mark cards whose effective rotation differs from the CNN prediction
-  const overrides = loadRotOverrides();
-  card.classList.toggle('rot-overridden', overrides[card.dataset.stem] !== undefined);
+function saveState(s) {{ localStorage.setItem(STORAGE_KEY, JSON.stringify(s)); }}
+function getCard(state, stem) {{ return state[stem] || {{}}; }}
+function updateCard(stem, patch) {{
+  const s = loadState();
+  const merged = {{...getCard(s, stem), ...patch}};
+  // Drop empty keys so the stored object stays compact
+  for (const k of Object.keys(merged)) {{
+    if (merged[k] === null || merged[k] === undefined || merged[k] === false) delete merged[k];
+  }}
+  if (Object.keys(merged).length === 0) delete s[stem];
+  else s[stem] = merged;
+  saveState(s);
+  renderCard(document.querySelector(`.card[data-stem="${{CSS.escape(stem)}}"]`));
+  renderCounts();
 }}
 
+function renderCard(card) {{
+  if (!card) return;
+  const stem = card.dataset.stem;
+  const s = getCard(loadState(), stem);
+
+  // Review state classes
+  card.classList.toggle('state-approved', !!s.approved);
+  card.classList.toggle('auto-approved', !!s.auto_approved);
+  card.classList.toggle('state-rotation-flag', !!s.rotation_flag);
+  card.classList.toggle('state-opus-flag', !!s.opus_flag);
+  card.classList.toggle('state-edited', s.edited_text !== undefined && s.edited_text !== null);
+
+  // Button active states
+  card.querySelector('.approve-btn').classList.toggle('active', !!s.approved && !s.auto_approved);
+  card.querySelector('.rotation-btn').classList.toggle('active', !!s.rotation_flag);
+  card.querySelector('.opus-btn').classList.toggle('active', !!s.opus_flag);
+
+  // Text content
+  const textEl = card.querySelector('.text');
+  const original = card.dataset.originalText;
+  const display = s.edited_text !== undefined && s.edited_text !== null ? s.edited_text : original;
+  if (textEl.innerText !== display) textEl.innerText = display;
+
+  // Rotation
+  const cnnRot = parseInt(card.dataset.cnnRot, 10) || 0;
+  const effRot = s.rotation_override !== undefined && s.rotation_override !== null ? s.rotation_override : cnnRot;
+  const photo = card.querySelector('.photo-img');
+  const crop = card.querySelector('.crop-img');
+  if (photo) photo.style.transform = `rotate(${{effRot}}deg)`;
+  if (crop) crop.style.transform = `rotate(${{effRot}}deg)`;
+  card.querySelector('.rot-display').textContent = effRot;
+  card.querySelectorAll('.rot-btn').forEach(b => {{
+    b.classList.toggle('active', parseInt(b.dataset.rot, 10) === effRot);
+  }});
+}}
+
+function renderAll() {{
+  document.querySelectorAll('.card').forEach(renderCard);
+  renderCounts();
+}}
+
+function renderCounts() {{
+  const state = loadState();
+  const cards = document.querySelectorAll('.card');
+  let approved = 0, auto = 0, rot = 0, opus = 0, edited = 0;
+  cards.forEach(c => {{
+    const s = getCard(state, c.dataset.stem);
+    if (s.approved) {{
+      approved++;
+      if (s.auto_approved) auto++;
+    }}
+    if (s.rotation_flag) rot++;
+    if (s.opus_flag) opus++;
+    if (s.edited_text !== undefined && s.edited_text !== null) edited++;
+  }});
+  const total = cards.length;
+  const touched = approved + rot + opus;
+  document.getElementById('c-unreviewed').textContent = total - touched;
+  document.getElementById('c-approved').textContent = approved;
+  document.getElementById('c-auto').textContent = auto;
+  document.getElementById('c-rotation').textContent = rot;
+  document.getElementById('c-opus').textContent = opus;
+  document.getElementById('c-edited').textContent = edited;
+}}
+
+// --- Per-card event wiring ---
 document.querySelectorAll('.card').forEach(card => {{
-  applyRotation(card);
+  const stem = card.dataset.stem;
+
+  card.querySelector('.approve-btn').addEventListener('click', () => {{
+    const s = getCard(loadState(), stem);
+    const currentlyManual = s.approved && !s.auto_approved;
+    if (currentlyManual) {{
+      updateCard(stem, {{approved: null, auto_approved: null}});
+    }} else {{
+      updateCard(stem, {{approved: true, auto_approved: null, rotation_flag: null, opus_flag: null}});
+    }}
+  }});
+  card.querySelector('.rotation-btn').addEventListener('click', () => {{
+    const s = getCard(loadState(), stem);
+    if (s.rotation_flag) updateCard(stem, {{rotation_flag: null}});
+    else updateCard(stem, {{rotation_flag: true, approved: null, auto_approved: null}});
+  }});
+  card.querySelector('.opus-btn').addEventListener('click', () => {{
+    const s = getCard(loadState(), stem);
+    if (s.opus_flag) updateCard(stem, {{opus_flag: null}});
+    else updateCard(stem, {{opus_flag: true, approved: null, auto_approved: null}});
+  }});
+  card.querySelector('.reset-btn').addEventListener('click', () => {{
+    updateCard(stem, {{approved: null, auto_approved: null, rotation_flag: null, opus_flag: null, edited_text: null, rotation_override: null}});
+  }});
+
+  // Inline text editing
+  const textEl = card.querySelector('.text');
+  textEl.addEventListener('blur', () => {{
+    const newText = textEl.innerText.replace(/\\r?\\n/g, '').trim();
+    const original = card.dataset.originalText;
+    if (newText === original) {{
+      updateCard(stem, {{edited_text: null}});
+    }} else {{
+      updateCard(stem, {{edited_text: newText}});
+    }}
+  }});
+  textEl.addEventListener('keydown', (e) => {{
+    if (e.key === 'Enter') {{ e.preventDefault(); textEl.blur(); }}
+    if (e.key === 'Escape') {{
+      const s = getCard(loadState(), stem);
+      const current = s.edited_text !== undefined && s.edited_text !== null ? s.edited_text : card.dataset.originalText;
+      textEl.innerText = current;
+      textEl.blur();
+    }}
+  }});
+
+  // Rotation override buttons
   card.querySelectorAll('.rot-btn').forEach(btn => {{
     btn.addEventListener('click', () => {{
       const newRot = parseInt(btn.dataset.rot, 10);
-      const stem = card.dataset.stem;
       const cnnRot = parseInt(card.dataset.cnnRot, 10) || 0;
-      const overrides = loadRotOverrides();
       if (newRot === cnnRot) {{
-        // Reverting to CNN value clears the override
-        delete overrides[stem];
+        updateCard(stem, {{rotation_override: null}});
       }} else {{
-        overrides[stem] = newRot;
+        updateCard(stem, {{rotation_override: newRot}});
       }}
-      saveRotOverrides(overrides);
-      applyRotation(card);
     }});
   }});
 }});
+
+// --- Auto-approve on scroll past ---
+const scrollObserver = new IntersectionObserver((entries) => {{
+  entries.forEach(entry => {{
+    if (!entry.isIntersecting && entry.boundingClientRect.bottom < 0) {{
+      const card = entry.target;
+      const stem = card.dataset.stem;
+      const s = getCard(loadState(), stem);
+      // Only auto-approve if the card is untouched
+      if (!s.approved && !s.rotation_flag && !s.opus_flag) {{
+        updateCard(stem, {{approved: true, auto_approved: true}});
+      }}
+    }}
+  }});
+}}, {{ threshold: 0 }});
+document.querySelectorAll('.card').forEach(c => scrollObserver.observe(c));
+
+// --- Filter buttons ---
+document.querySelectorAll('.filters button').forEach(btn => {{
+  btn.addEventListener('click', () => {{
+    document.querySelectorAll('.filters button').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    const f = btn.dataset.filter;
+    document.body.className = f === 'all' ? '' : `filter-${{f}}`;
+  }});
+}});
+
+// --- Download + Clear ---
+document.getElementById('download-btn').addEventListener('click', () => {{
+  const state = loadState();
+  const blob = new Blob([JSON.stringify(state, null, 2)], {{type: 'application/json'}});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'review_state.json';
+  a.click();
+  URL.revokeObjectURL(url);
+}});
+document.getElementById('clear-btn').addEventListener('click', () => {{
+  if (confirm('Clear ALL review state (approvals, flags, edits, rotation overrides)?')) {{
+    localStorage.removeItem(STORAGE_KEY);
+    renderAll();
+  }}
+}});
+
+// --- Initial render ---
+renderAll();
 </script>
 </body>
 </html>
@@ -326,7 +431,7 @@ document.querySelectorAll('.card').forEach(card => {{
     OUTPUT_HTML.parent.mkdir(parents=True, exist_ok=True)
     OUTPUT_HTML.write_text(html_doc)
     print(f"Wrote {OUTPUT_HTML.relative_to(BASE_DIR)}")
-    print(f"  total={total} ok={clean} none={none_ct} review={flagged}")
+    print(f"  total={total} auto-ok={clean} auto-none={none_ct} auto-flagged={flagged_auto} cnn-rotated={rotated_count}")
 
 
 if __name__ == "__main__":

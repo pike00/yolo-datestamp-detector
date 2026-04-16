@@ -13,6 +13,5 @@ services:
     volumes:
       - ../scanmyphotos:/data/scanmyphotos:ro
       - ../state/corrections_queue.json:/data/corrections_queue.json:ro
-      - ../state/scanmyphotos_predictions.json:/data/scanmyphotos_predictions.json:ro
     # Default: process all confirmed bboxes with resume
     command: ["--resume", "--source", "confirmed-only"]

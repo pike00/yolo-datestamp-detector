@@ -1,5 +1,8 @@
 # /// script
 # requires-python = ">=3.14"
+# dependencies = [
+#     "psycopg[binary]>=3.1.0",
+# ]
 # ///
 """Annotation server — serves UI and REST API for bounding box labeling."""
 
@@ -13,7 +16,11 @@ from pathlib import Path
 from urllib.parse import urlparse, parse_qs
 
 PORT = 8888
-BASE_DIR = Path(__file__).parent.parent
+BASE_DIR = Path(__file__).resolve().parent.parent.parent
+sys.path.insert(0, str(BASE_DIR / "scripts"))
+
+from _db import add_skipped, load_skipped_stems, remove_skipped  # noqa: E402
+
 UI_DIR = BASE_DIR / "ui"
 
 
@@ -44,9 +51,6 @@ if ARGS.mode == "correct":
     PROGRESS_FILE = BASE_DIR / "state" / "progress_correct.json"
 else:
     PROGRESS_FILE = BASE_DIR / "state" / "progress.json"
-
-SKIPPED_FILE = BASE_DIR / "state" / "skipped.txt"
-
 
 def load_predictions_metadata():
     """Load model predictions from corrections_meta.json if in correct mode."""
@@ -122,9 +126,8 @@ def save_label(filename, box):
 
 
 def save_skip(filename):
-    """Append filename to skipped.txt."""
-    with open(SKIPPED_FILE, "a") as f:
-        f.write(filename + "\n")
+    """Mark a stem as having no date stamp in stamp_no_stamp."""
+    add_skipped(Path(filename).stem)
 
 
 def remove_label(filename):
@@ -139,12 +142,8 @@ def remove_label(filename):
 
 
 def remove_skip(filename):
-    """Remove a filename from skipped.txt if present."""
-    if not SKIPPED_FILE.exists():
-        return
-    lines = SKIPPED_FILE.read_text().splitlines()
-    lines = [l for l in lines if l.strip() != filename]
-    SKIPPED_FILE.write_text("\n".join(lines) + "\n" if lines else "")
+    """Remove a stem from stamp_no_stamp if present."""
+    remove_skipped(Path(filename).stem)
 
 
 class AnnotationHandler(http.server.SimpleHTTPRequestHandler):

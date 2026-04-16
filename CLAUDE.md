@@ -16,7 +16,7 @@ Single class detection: bounding box around the date stamp area.
 
 - `scripts/` -- Python scripts, grouped by role (train/infer/annotate/ocr/data)
 - `ui/` -- Browser UIs (annotation, corrections dashboard, batch review)
-- `state/` -- Runtime state files (JSON queues, progress, predictions, skipped.txt)
+- `state/` -- Runtime state files (JSON queues, progress, shard manifests). Predictions, OCR results, drift, and the no-stamp set live in Postgres now.
 - `output/` -- Generated outputs (inference visualizations, crops, enhancements, pilot_review.html)
 - `docker/` -- Dockerfiles and compose configs
 - `dataset/` -- Training data (images, labels, augmented, corrections)
@@ -52,7 +52,8 @@ Single class detection: bounding box around the date stamp area.
 ## Configuration
 
 Several scripts accept configuration via environment variables:
-- `DATABASE_URL` -- PostgreSQL connection (corrections_dashboard.py)
+- `DATABASE_URL` -- PostgreSQL connection (defaults to `postgresql://dedup:dedup_local_dev@localhost:5432/dedup`); used by every script that touches `stamp_predictions`, `stamp_ocr`, `stamp_prediction_drift`, or `stamp_no_stamp` via `scripts/_db.py`
+- `YOLO_MODEL_LABEL` -- Label written into `stamp_predictions.model` for new infer runs (default `yolo26m-best`)
 - `IMAGE_DIR` -- Source image directory for annotation (annotate.py)
 - `ORIGINALS_DIR` -- Deduplicated originals path (setup_scanmyphotos.py)
 - `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD` -- DB config (setup_scanmyphotos.py)
@@ -72,11 +73,20 @@ Several scripts accept configuration via environment variables:
 - Many photos have NO stamp -- detector must handle absence
 - Some photos are rotated 90/180/270 -- stamps may appear on side edges
 
-## Key Data Files
+## Key Data Stores
 
+Postgres tables (`dedup` database, see `scripts/_db.py`):
+- `stamp_predictions` -- YOLO bbox predictions per stem (model label tracked in `model` column)
+- `stamp_ocr` -- OCR results, composite PK `(stem, model)`; haiku and gemma both live here
+- `stamp_prediction_drift` -- old vs new bbox diff with iou and flag
+- `stamp_no_stamp` -- stems confirmed to have no date stamp
+- `stamp_rotations` -- user-confirmed rotations from corrections_dashboard
+- `rotation_predictions` -- rotation classifier output (managed by the dedup pipeline, joined on sha256)
+
+Files still on disk:
 - `state/corrections_queue.json` -- Full review queue with statuses (gitignored)
-- `state/scanmyphotos_predictions.json` -- YOLO predictions (gitignored)
 - `state/scanmyphotos_manifest.json` -- Source file mapping (gitignored)
-- `state/skipped.txt` -- Stems of images confirmed to have no date stamp
+- `state/rotation_predictions.json` -- Local rotation cache keyed by stem (gitignored)
+- `state/shards/` -- Shard manifests for the parallel OCR orchestrator
 - `state/status.json` -- Summary stats (run `just update-status` to refresh)
 - `dataset/labels/*.txt` -- YOLO bounding box labels

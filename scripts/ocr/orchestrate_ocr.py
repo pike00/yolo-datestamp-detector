@@ -2,6 +2,7 @@
 # requires-python = ">=3.14"
 # dependencies = [
 #     "pillow>=12.0",
+#     "psycopg[binary]>=3.1.0",
 # ]
 # ///
 """Parallel Haiku OCR orchestrator for ScanMyPhotos date stamps.
@@ -12,9 +13,12 @@ Haiku subagents, and reconciles stage-2 review outputs. It does NOT call
 any LLM — subagent dispatch is driven by a Claude Code orchestrator
 session using the Task tool.
 
+Predictions and OCR results live in Postgres (stamp_predictions and
+stamp_ocr filtered to model='haiku').
+
 Subcommands:
     crop-stage1 [--limit N]  Pre-crop pending stems and write stage-1 shards
-    merge-stage1 <result>    Merge a stage-1 shard result into ocr_results.json
+    merge-stage1 <result>    Merge a stage-1 shard result into stamp_ocr
     crop-stage2              Compute triggered stems and write stage-2 shards
     merge-stage2 <result>    Reconcile a stage-2 shard result
     list-shards <stage>      List shard manifests that have no result yet
@@ -30,14 +34,24 @@ import re
 import sys
 from pathlib import Path
 
-BASE_DIR = Path(__file__).parent.parent
+# Script lives at scripts/ocr/orchestrate_ocr.py — three levels above is yolo_finetune root
+BASE_DIR = Path(__file__).resolve().parent.parent.parent
+sys.path.insert(0, str(BASE_DIR / "scripts"))
+
+from _db import (  # noqa: E402
+    load_ocr_results,
+    load_predictions as db_load_predictions,
+    update_ocr_review_status,
+    upsert_ocr_result,
+    upsert_ocr_results_bulk,
+)
+
 SCANMYPHOTOS_DIR = BASE_DIR / "scanmyphotos"
 STATE_DIR = BASE_DIR / "state"
 OUTPUT_DIR = BASE_DIR / "output"
 
-PREDICTIONS_FILE = STATE_DIR / "scanmyphotos_predictions.json"
 CORRECTIONS_FILE = STATE_DIR / "corrections_queue.json"
-RESULTS_FILE = STATE_DIR / "ocr_results.json"
+ROTATION_FILE = STATE_DIR / "rotation_predictions.json"
 MANUAL_QUEUE_FILE = STATE_DIR / "ocr_manual_queue.json"
 FAILED_SHARDS_FILE = STATE_DIR / "failed_shards.json"
 
@@ -92,7 +106,7 @@ def _result_path(manifest_path: Path) -> Path:
 
 def load_predictions() -> dict[str, dict]:
     """YOLO predictions, tagged with source."""
-    raw = load_json(PREDICTIONS_FILE, {})
+    raw = db_load_predictions()
     return {k: {**v, "source": "yolo"} for k, v in raw.items()}
 
 
@@ -121,9 +135,9 @@ def load_bbox_map() -> dict[str, dict]:
 
 
 def compute_pending_stems() -> list[str]:
-    """Stems that have a YOLO prediction but no entry in ocr_results.json."""
-    predictions = load_json(PREDICTIONS_FILE, {})
-    results = load_json(RESULTS_FILE, {})
+    """Stems that have a YOLO prediction but no haiku OCR row yet."""
+    predictions = db_load_predictions()
+    results = load_ocr_results()
     pending = [s for s in predictions if s not in results]
     return sorted(pending)
 
@@ -160,13 +174,70 @@ def should_review(text: str, confidence: float | None) -> bool:
     return False
 
 
+def load_rotation_predictions() -> dict[str, dict]:
+    """Per-stem rotation predictions from the EfficientNetV2 detector."""
+    return load_json(ROTATION_FILE, {})
+
+
+def rotate_bbox(bbox: dict, rotation: int) -> dict:
+    """Rotate a normalized center-form bbox to match a CW image rotation.
+
+    The image is rotated `rotation` degrees clockwise (to make it upright);
+    this function returns the bbox in the rotated image's coordinate system.
+
+    For (x, y, w, h) where (x, y) is the normalized center:
+      0°:   (x, y, w, h)              identity
+      90°:  (1 - y, x,    h, w)
+      180°: (1 - x, 1 - y, w, h)
+      270°: (y,    1 - x, h, w)
+    """
+    x, y, w, h = bbox["x"], bbox["y"], bbox["w"], bbox["h"]
+    if rotation == 0:
+        nx, ny, nw, nh = x, y, w, h
+    elif rotation == 90:
+        nx, ny, nw, nh = 1 - y, x, h, w
+    elif rotation == 180:
+        nx, ny, nw, nh = 1 - x, 1 - y, w, h
+    elif rotation == 270:
+        nx, ny, nw, nh = y, 1 - x, h, w
+    else:
+        raise ValueError(f"Unsupported rotation {rotation!r}; must be one of 0, 90, 180, 270")
+    return {**bbox, "x": nx, "y": ny, "w": nw, "h": nh}
+
+
+def rotate_pil_image(img, rotation: int):
+    """Rotate a PIL image clockwise by 0/90/180/270 degrees using lossless transpose."""
+    from PIL import Image
+    if rotation == 0:
+        return img
+    if rotation == 90:
+        return img.transpose(Image.Transpose.ROTATE_270)  # ROTATE_270 = 270 CCW = 90 CW
+    if rotation == 180:
+        return img.transpose(Image.Transpose.ROTATE_180)
+    if rotation == 270:
+        return img.transpose(Image.Transpose.ROTATE_90)   # ROTATE_90  =  90 CCW = 270 CW
+    raise ValueError(f"Unsupported rotation {rotation!r}")
+
+
 def select_review_stems() -> list[str]:
-    results = load_json(RESULTS_FILE, {})
+    """Stems that need stage-2 review.
+
+    A stem is flagged if EITHER:
+      - The stage-1 text trips the should_review() rules (?, malformed, low conf), OR
+      - The rotation classifier says it needs to be rotated (rotation != 0)
+
+    Rotation triggers exist because Sonnet may have read a rotated photo
+    correctly OR may have been fooled by it; Opus re-checks both views with
+    the source rotated upright first.
+    """
+    results = load_ocr_results()
+    rotations = load_rotation_predictions()
     flagged: list[str] = []
     for stem, entry in results.items():
         text = entry.get("text", "")
         conf = entry.get("confidence")
-        if should_review(text, conf):
+        rot = (rotations.get(stem) or {}).get("rotation", 0)
+        if should_review(text, conf) or rot != 0:
             flagged.append(stem)
     return sorted(flagged)
 
@@ -309,12 +380,17 @@ def cmd_merge_stage1(args) -> int:
         print(f"ERROR: invalid shard result {shard_path.name}: {err}", file=sys.stderr)
         return 3
 
-    results = load_json(RESULTS_FILE, {})
-    added = 0
-    for stem, entry in data["results"].items():
-        results[stem] = {**entry, "stage": 1}
-        added += 1
-    save_json(RESULTS_FILE, results)
+    rows = [
+        (
+            stem,
+            entry["text"],
+            entry.get("bbox_source"),
+            entry.get("confidence"),
+            1,
+        )
+        for stem, entry in data["results"].items()
+    ]
+    added = upsert_ocr_results_bulk(rows)
     print(f"Merged {added} stems from {shard_path.name}")
     return 0
 
@@ -346,13 +422,40 @@ def cmd_requeue(args) -> int:
     return 0
 
 
-def _save_full_image(src: Path, dst: Path, max_side: int) -> None:
+def _save_full_image(src: Path, dst: Path, max_side: int, rotation: int = 0) -> None:
     from PIL import Image
     img = Image.open(src).convert("RGB")
+    if rotation:
+        img = rotate_pil_image(img, rotation)
     if max(img.size) > max_side:
         img.thumbnail((max_side, max_side), Image.LANCZOS)
     dst.parent.mkdir(parents=True, exist_ok=True)
     img.save(dst, "JPEG", quality=90)
+
+
+def crop_image_to_file_rotated(
+    src: Path,
+    dst: Path,
+    bbox: dict,
+    pad_factor: float,
+    max_side: int,
+    rotation: int = 0,
+) -> None:
+    """Like crop_image_to_file but rotates the source first, then crops the rotated bbox."""
+    from PIL import Image
+
+    img = Image.open(src).convert("RGB")
+    if rotation:
+        img = rotate_pil_image(img, rotation)
+        eff_bbox = rotate_bbox(bbox, rotation)
+    else:
+        eff_bbox = bbox
+    box = compute_crop_box(img.width, img.height, eff_bbox, pad_factor)
+    crop = img.crop(box)
+    if max(crop.size) > max_side:
+        crop.thumbnail((max_side, max_side), Image.LANCZOS)
+    dst.parent.mkdir(parents=True, exist_ok=True)
+    crop.save(dst, "JPEG", quality=90)
 
 
 def cmd_crop_stage2(_args) -> int:
@@ -362,7 +465,8 @@ def cmd_crop_stage2(_args) -> int:
         return 0
 
     bbox_map = load_bbox_map()
-    results = load_json(RESULTS_FILE, {})
+    results = load_ocr_results()
+    rotations = load_rotation_predictions()
 
     STAGE2_SHARDS_DIR.mkdir(parents=True, exist_ok=True)
     STAGE2_CROP_DIR.mkdir(parents=True, exist_ok=True)
@@ -388,6 +492,7 @@ def cmd_crop_stage2(_args) -> int:
         shard_index += 1
         shard_entries = []
 
+    rotated = 0
     for stem in flagged:
         src = SCANMYPHOTOS_DIR / f"{stem}.jpg"
         if not src.exists():
@@ -398,14 +503,19 @@ def cmd_crop_stage2(_args) -> int:
             print(f"  SKIP {stem}: no bbox")
             continue
 
+        rot = int((rotations.get(stem) or {}).get("rotation", 0))
+        if rot:
+            rotated += 1
+
         crop_dst = STAGE2_CROP_DIR / f"{stem}.jpg"
         full_dst = STAGE2_FULL_DIR / f"{stem}.jpg"
         try:
-            crop_image_to_file(
+            crop_image_to_file_rotated(
                 src=src, dst=crop_dst, bbox=bbox,
                 pad_factor=STAGE2_PAD_FACTOR, max_side=STAGE2_MAX_SIDE,
+                rotation=rot,
             )
-            _save_full_image(src=src, dst=full_dst, max_side=STAGE2_MAX_SIDE)
+            _save_full_image(src=src, dst=full_dst, max_side=STAGE2_MAX_SIDE, rotation=rot)
         except Exception as e:
             print(f"  SKIP {stem}: crop failed ({e})")
             continue
@@ -416,12 +526,13 @@ def cmd_crop_stage2(_args) -> int:
             "full_path": str(full_dst.relative_to(BASE_DIR)),
             "stage1_text": results.get(stem, {}).get("text", ""),
             "confidence": bbox.get("confidence"),
+            "applied_rotation": rot,
         })
         if len(shard_entries) >= STAGE2_SHARD_SIZE:
             flush_shard()
 
     flush_shard()
-    print(f"Wrote {shard_index} stage-2 shard manifest(s)")
+    print(f"Wrote {shard_index} stage-2 shard manifest(s) ({rotated} stems pre-rotated)")
     return 0
 
 
@@ -456,35 +567,32 @@ def cmd_merge_stage2(args) -> int:
         print(f"ERROR: invalid shard result {shard_path.name}: {err}", file=sys.stderr)
         return 3
 
-    results = load_json(RESULTS_FILE, {})
+    existing = load_ocr_results()
     manual_queue = load_json(MANUAL_QUEUE_FILE, [])
 
     confirmed = no_stamp = disagree = 0
     for stem, entry in data["results"].items():
         status, final_text = reconcile_pair(entry["view_crop"], entry["view_full"])
         if status == "confirmed":
-            results[stem] = {
-                **results.get(stem, {}),
-                "text": final_text,
-                "stage": 2,
-                "review_status": "confirmed",
-            }
+            upsert_ocr_result(
+                stem,
+                final_text,
+                stage=2,
+                review_status="confirmed",
+            )
             confirmed += 1
         elif status == "no_stamp":
-            results[stem] = {
-                **results.get(stem, {}),
-                "text": "NONE",
-                "stage": 2,
-                "review_status": "no_stamp",
-            }
+            upsert_ocr_result(
+                stem,
+                "NONE",
+                stage=2,
+                review_status="no_stamp",
+            )
             no_stamp += 1
         else:  # disagree
-            stage1_entry = results.get(stem, {})
+            stage1_entry = existing.get(stem, {})
             stage1_text = stage1_entry.get("text", "")
-            results[stem] = {
-                **stage1_entry,
-                "review_status": "disagreement",
-            }
+            update_ocr_review_status(stem, "disagreement")
             manual_queue.append({
                 "stem": stem,
                 "stage1_text": stage1_text,
@@ -494,17 +602,16 @@ def cmd_merge_stage2(args) -> int:
             })
             disagree += 1
 
-    save_json(RESULTS_FILE, results)
     save_json(MANUAL_QUEUE_FILE, manual_queue)
     print(f"Merged {shard_path.name}: {confirmed} confirmed, {no_stamp} no-stamp, {disagree} disagreements")
     return 0
 
 
 def cmd_status(_args) -> int:
-    results = load_json(RESULTS_FILE, {})
+    results = load_ocr_results()
     manual_queue = load_json(MANUAL_QUEUE_FILE, [])
     failed = load_json(FAILED_SHARDS_FILE, [])
-    predictions = load_json(PREDICTIONS_FILE, {})
+    predictions = db_load_predictions()
 
     def _count_pending_done(stage_dir: Path) -> tuple[int, int]:
         if not stage_dir.exists():

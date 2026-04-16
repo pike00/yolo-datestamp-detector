@@ -31,7 +31,6 @@ from PIL import Image
 BASE_DIR = Path(os.environ.get("DATA_DIR", "/data"))
 SCANMYPHOTOS_DIR = BASE_DIR / "scanmyphotos"
 CORRECTIONS_FILE = BASE_DIR / "corrections_queue.json"
-PREDICTIONS_FILE = BASE_DIR / "scanmyphotos_predictions.json"
 
 OLLAMA_URL = os.environ.get("OLLAMA_HOST", "http://ollama:11434")
 MODEL = os.environ.get("OLLAMA_MODEL", "gemma4:e4b")
@@ -101,12 +100,22 @@ def load_confirmed_boxes() -> dict[str, dict]:
 
 
 def load_predictions() -> dict[str, dict]:
-    """Load YOLO predictions."""
-    if not PREDICTIONS_FILE.exists():
-        return {}
-    with open(PREDICTIONS_FILE) as f:
-        raw = json.load(f)
-    return {k: {**v, "source": "yolo"} for k, v in raw.items()}
+    """Load YOLO predictions from stamp_predictions."""
+    with psycopg.connect(DB_CONN_STRING) as conn:
+        rows = conn.execute(
+            "SELECT stem, x, y, w, h, confidence FROM stamp_predictions"
+        ).fetchall()
+    return {
+        r[0]: {
+            "x": r[1],
+            "y": r[2],
+            "w": r[3],
+            "h": r[4],
+            "confidence": r[5],
+            "source": "yolo",
+        }
+        for r in rows
+    }
 
 
 def load_bboxes(source: str) -> dict[str, dict]:
@@ -124,42 +133,29 @@ def get_db():
 
 
 def ensure_ocr_table(conn):
-    """Create stamp_ocr table if it doesn't exist."""
-    conn.execute("""
-        CREATE TABLE IF NOT EXISTS stamp_ocr (
-            stem VARCHAR(256) PRIMARY KEY,
-            raw_text VARCHAR(256) NOT NULL,
-            normalized_date DATE,
-            bbox_source VARCHAR(32),
-            model VARCHAR(128) NOT NULL,
-            elapsed_s FLOAT,
-            eval_count INTEGER,
-            prompt_eval_count INTEGER,
-            created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-            updated_at TIMESTAMP NOT NULL DEFAULT NOW()
-        )
-    """)
-    conn.commit()
+    """No-op kept for backward compatibility -- table is managed centrally."""
+    return None
 
 
 def load_processed_stems(conn) -> set[str]:
-    """Get set of stems already processed in the database."""
-    rows = conn.execute("SELECT stem FROM stamp_ocr").fetchall()
+    """Stems already processed by this model in the database."""
+    rows = conn.execute(
+        "SELECT stem FROM stamp_ocr WHERE model = %s", (MODEL,)
+    ).fetchall()
     return {r[0] for r in rows}
 
 
 def upsert_result(conn, stem: str, result: dict):
-    """Insert or update a single OCR result."""
+    """Insert or update a single OCR result for this model."""
     normalized = result["normalized_date"]
     conn.execute(
         """INSERT INTO stamp_ocr (stem, raw_text, normalized_date, bbox_source,
                                    model, elapsed_s, eval_count, prompt_eval_count)
            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-           ON CONFLICT (stem) DO UPDATE SET
+           ON CONFLICT (stem, model) DO UPDATE SET
                raw_text = EXCLUDED.raw_text,
                normalized_date = EXCLUDED.normalized_date,
                bbox_source = EXCLUDED.bbox_source,
-               model = EXCLUDED.model,
                elapsed_s = EXCLUDED.elapsed_s,
                eval_count = EXCLUDED.eval_count,
                prompt_eval_count = EXCLUDED.prompt_eval_count,

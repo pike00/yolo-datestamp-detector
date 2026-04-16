@@ -15,20 +15,22 @@ from pathlib import Path
 from datetime import datetime
 from http.server import HTTPServer, SimpleHTTPRequestHandler
 
-BASE_DIR = Path(__file__).parent.parent
+BASE_DIR = Path(__file__).resolve().parent.parent.parent
+sys.path.insert(0, str(BASE_DIR / "scripts"))
+
+from _db import (  # noqa: E402
+    DB_CONN_STRING,
+    add_skipped,
+    load_predictions,
+    load_skipped_stems,
+)
+
 UI_DIR = BASE_DIR / "ui"
 DATASET_DIR = BASE_DIR / "dataset"
 LABELS_DIR = DATASET_DIR / "labels"
 SCANMYPHOTOS_DIR = BASE_DIR / "scanmyphotos"
 QUEUE_FILE = BASE_DIR / "state" / "corrections_queue.json"
-PREDICTIONS_FILE = BASE_DIR / "state" / "scanmyphotos_predictions.json"
-SKIPPED_FILE = BASE_DIR / "state" / "skipped.txt"
 STATUS_FILE = BASE_DIR / "state" / "worker_status.json"
-
-DB_CONN_STRING = os.environ.get(
-    "DATABASE_URL",
-    "postgresql://dedup:dedup_local_dev@localhost:5432/dedup",
-)
 
 # Create required directories
 LABELS_DIR.mkdir(parents=True, exist_ok=True)
@@ -242,14 +244,6 @@ def save_queue(queue):
         json.dump(queue, f, indent=2)
 
 
-def load_predictions():
-    """Load model predictions from scanmyphotos_predictions.json."""
-    if PREDICTIONS_FILE.exists():
-        with open(PREDICTIONS_FILE) as f:
-            return json.load(f)
-    return {}
-
-
 def discover_files():
     """Build queue from scanmyphotos/ directory."""
     queue = load_queue()
@@ -257,9 +251,7 @@ def discover_files():
     predictions = load_predictions()
 
     labeled_stems = {p.stem for p in LABELS_DIR.glob("*.txt")}
-    skipped_stems = set()
-    if SKIPPED_FILE.exists():
-        skipped_stems = {line.strip() for line in SKIPPED_FILE.read_text().splitlines() if line.strip()}
+    skipped_stems = load_skipped_stems()
 
     for img_path in sorted(SCANMYPHOTOS_DIR.glob("*.jpg")):
         stem = img_path.stem
@@ -370,11 +362,7 @@ def handle_action(data):
             save_rotation_for_stem(stem, rotation)
 
     elif action == "no_stamp":
-        skipped = set()
-        if SKIPPED_FILE.exists():
-            skipped = {line.strip() for line in SKIPPED_FILE.read_text().splitlines() if line.strip()}
-        skipped.add(stem)
-        SKIPPED_FILE.write_text("\n".join(sorted(skipped)) + "\n")
+        add_skipped(stem)
         file_entry["status"] = "no_stamp"
 
     elif action == "skipped":
@@ -404,12 +392,9 @@ def handle_bulk_action(data):
     queue = load_queue()
     stem_set = set(stems)
 
-    # Add all to skipped.txt
-    skipped = set()
-    if SKIPPED_FILE.exists():
-        skipped = {line.strip() for line in SKIPPED_FILE.read_text().splitlines() if line.strip()}
-    skipped |= stem_set
-    SKIPPED_FILE.write_text("\n".join(sorted(skipped)) + "\n")
+    # Add all to stamp_no_stamp
+    for stem in stem_set:
+        add_skipped(stem)
 
     # Update queue entries
     for f in queue["files"]:
@@ -496,7 +481,7 @@ def start_worker():
     _worker_process = subprocess.Popen(
         [
             "bash", "-c",
-            f"uv run {BASE_DIR / 'scripts' / 'train.py'} && uv run {BASE_DIR / 'scripts' / 'infer_all.py'}"
+            f"uv run {BASE_DIR / 'scripts' / 'train' / 'train.py'} && uv run {BASE_DIR / 'scripts' / 'infer' / 'infer_all.py'}"
         ],
         cwd=str(BASE_DIR),
         stdout=subprocess.PIPE,

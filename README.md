@@ -246,7 +246,7 @@ just infer-one <photo>  # Single-image inference
 |   |-- index.html               # Browser annotation UI (vanilla JS + Canvas)
 |   |-- dashboard.html           # Corrections dashboard UI
 |   `-- batch_review.html        # Bulk review UI for high-confidence predictions
-|-- state/                       # Runtime state files (gitignored, except skipped.txt)
+|-- state/                       # Runtime state files (gitignored). Predictions, OCR, drift, no-stamp set live in Postgres.
 |-- output/                      # Inference visualizations and previews (gitignored)
 |-- docker/                      # Dockerfiles and compose configs
 |-- dataset/

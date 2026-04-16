@@ -1,25 +1,31 @@
 #!/usr/bin/env -S uv run --script
 # /// script
 # requires-python = ">=3.11"
-# dependencies = ["Pillow>=10"]
+# dependencies = [
+#     "Pillow>=10",
+#     "psycopg[binary]>=3.1.0",
+# ]
 # ///
 """Render example drift visualizations for README.
 
-Picks one stable, one drift, one gone example from state/prediction_drift.json
-and writes cropped old-vs-new box overlays to examples/drift_*.jpg.
+Picks one stable, one drift, one gone example from the stamp_prediction_drift
+table and writes cropped old-vs-new box overlays to examples/drift_*.jpg.
 
 The crop is tight around the union of old and new boxes (with padding) so the
 rest of the family photo stays private.
 """
 from __future__ import annotations
 
-import json
+import sys
 from pathlib import Path
 
 from PIL import Image, ImageDraw, ImageFont
 
-ROOT = Path(__file__).resolve().parents[1]
-DRIFT_PATH = ROOT / "state" / "prediction_drift.json"
+ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT / "scripts"))
+
+from _db import load_drift  # noqa: E402
+
 IMG_DIR = ROOT / "scanmyphotos"
 OUT_DIR = ROOT / "examples"
 
@@ -116,11 +122,15 @@ def render(stem: str, entry: dict, flag: str, out: Path) -> None:
 
     out.parent.mkdir(parents=True, exist_ok=True)
     crop.save(out, "JPEG", quality=88)
-    print(f"wrote {out.relative_to(ROOT)} ({crop.size[0]}x{crop.size[1]})")
+    try:
+        rel = out.relative_to(ROOT)
+    except ValueError:
+        rel = out
+    print(f"wrote {rel} ({crop.size[0]}x{crop.size[1]})")
 
 
 def main() -> None:
-    drift = json.loads(DRIFT_PATH.read_text())
+    drift = load_drift()
     for flag, stem in PICKS.items():
         entry = drift[stem]
         render(stem, entry, flag, OUT_DIR / f"drift_{flag}.jpg")

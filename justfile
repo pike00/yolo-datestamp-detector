@@ -79,15 +79,15 @@ infer-one photo conf="0.35":
 
 # Show dataset statistics
 stats:
-    #!/usr/bin/env python3
+    #!/usr/bin/env -S uv run --with 'psycopg[binary]>=3.1.0' python
+    import sys
     from pathlib import Path
-    import json
+    sys.path.insert(0, 'scripts')
+    from _db import get_predicted_stems, load_skipped_stems
     labels = {p.stem for p in Path('dataset/labels').glob('*.txt') if p.stem.startswith('d')}
-    skipped = set()
-    if Path('state/skipped.txt').exists():
-        skipped = {l.strip() for l in open('state/skipped.txt').readlines() if l.strip()}
+    skipped = load_skipped_stems()
     image_stems = {p.stem for p in Path('scanmyphotos').glob('*.jpg')} if Path('scanmyphotos').exists() else set()
-    preds = len(json.load(open('state/scanmyphotos_predictions.json'))) if Path('state/scanmyphotos_predictions.json').exists() else 0
+    preds = len(get_predicted_stems())
     reviewed = (labels | skipped) & image_stems
     has_stamp = labels & image_stems
     no_stamp = skipped & image_stems
@@ -102,17 +102,18 @@ stats:
 
 # Update status.json with current stats
 update-status:
-    #!/usr/bin/env python3
+    #!/usr/bin/env -S uv run --with 'psycopg[binary]>=3.1.0' python
     import json
+    import sys
     from pathlib import Path
     from datetime import date
+    sys.path.insert(0, 'scripts')
+    from _db import get_predicted_stems, load_skipped_stems
     labels = list(Path('dataset/labels').glob('*.txt'))
     labels_d = [l for l in labels if l.stem.startswith('d')]
-    skipped = set()
-    if Path('state/skipped.txt').exists():
-        skipped = {l.strip() for l in open('state/skipped.txt').readlines() if l.strip()}
+    skipped = load_skipped_stems()
     images = list(Path('scanmyphotos').glob('*.jpg')) if Path('scanmyphotos').exists() else []
-    preds = json.load(open('state/scanmyphotos_predictions.json')) if Path('state/scanmyphotos_predictions.json').exists() else {}
+    preds = get_predicted_stems()
     queue = json.load(open('state/corrections_queue.json')) if Path('state/corrections_queue.json').exists() else {'stats': {}}
     qs = queue.get('stats', {})
     manifest = json.load(open('state/scanmyphotos_manifest.json')) if Path('state/scanmyphotos_manifest.json').exists() else []
