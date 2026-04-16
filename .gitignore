@@ -1,4 +1,34 @@
-# Python-generated files
+# Working photo directories (too large to commit)
+scanmyphotos/
+stratified_samples/
+output/
+
+# Dataset images (symlinks to scanmyphotos/) and train/val splits
+dataset/images/
+dataset/labels/train/
+dataset/labels/val/
+dataset/corrections/*.jpg
+dataset/to_annotate/
+dataset/augmented/
+dataset/augmented_labels/
+
+# Model weights and training runs
+runs/
+*.pt
+
+# State files (runtime JSON, progress, queues)
+# Note: stamp_predictions, stamp_prediction_drift, stamp_ocr (haiku),
+# and stamp_no_stamp now live in the dedup Postgres database.
+state/corrections_queue.json
+state/scanmyphotos_manifest.json
+state/ocr_results_gemma.json
+state/ocr_cost_log.json
+state/progress.json
+state/progress_correct.json
+state/worker_status.json
+state/rotation_predictions.json
+
+# Python
 __pycache__/
 *.py[oc]
 build/

@@ -135,52 +135,29 @@ uv run scripts/rotation/detect_rotation.py           # Orientation detection
 
 ## Key Files
 
-- **[docs/PLAN.md](docs/PLAN.md)** — Master plan for all 3 phases
-- **[docs/HANDOFF.md](docs/HANDOFF.md)** — Current session handoff
-- **[docs/DATE_EXTRACTION_APPROACHES.md](docs/DATE_EXTRACTION_APPROACHES.md)** — Analysis of date extraction methods
-- **[CLAUDE.md](CLAUDE.md)** — Global project constraints and guidelines
-
-## Database
-
-- **Phase 2:** PostgreSQL in Docker (dedup pipeline)
-  - Tables: `source_files`, `unique_files`
-  - Connection: `postgres://dedup:dedup_local_dev@localhost:5432/dedup`
-  - See [dedup/README.md](dedup/README.md) for queries
-
-## Configuration
-
-Environment variables in `.env` (not tracked):
-- `HDD_SOURCE_PATH` — HDD mount point
-- `SSD_STAGING_PATH` — Staging directory
-- `SSD_ORIGINALS_PATH` — Originals directory
-- `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD` — PostgreSQL
-- `THREAD_WORKERS` — Threads for pipeline stages
-- `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID` — Notifications (optional)
-
-## Storage Locations
-
-| Path | Size | Status | Purpose |
-|------|------|--------|---------|
-| `/mnt/823c.../Photos/img/` | 467 GB | READ-ONLY | Original files (HDD) |
-| `/mnt/823c.../SHA256SUMS.txt` | 6 MB | READ-ONLY | Hash manifest |
-| `/mnt/823c.../Photos_BACKUP_DO_NOT_TOUCH.tar` | 467 GB | SEALED | Backup archive |
-| `staging/` | ~467 GB | Temporary | Ingestion stage |
-| `originals/` | ~280-350 GB | Permanent | Deduplicated canonicals |
-| `needs_date/` | Variable | Temporary | Photos awaiting dates |
-
-## Development Notes
-
-### Code Organization Principles
-- **dedup/** and **yolo_finetune/** are independent subsystems with their own configs, tests, and docs
-- **scripts/** contains standalone utilities organized by domain (no cross-dependencies)
-- **data/** holds results, samples, and metadata
-- **docs/** has all design decisions and operational guides
-
-### Resumability
-All pipelines are resumable via database state tracking:
-```bash
-# Resume where it left off
-docker-compose up dedup
+```
+.
+|-- scripts/
+|   |-- train/                   # Model training + GPU benchmark + val-plot regen
+|   |-- infer/                   # Batch inference + prediction drift analysis
+|   |-- annotate/                # Annotation server, corrections dashboard, feedback loop
+|   |-- ocr/                     # Haiku/Gemma/Ollama OCR + parallel orchestrator
+|   `-- data/                    # Dataset prep: import, sampling, augmentation, rotation
+|-- ui/
+|   |-- index.html               # Browser annotation UI (vanilla JS + Canvas)
+|   |-- dashboard.html           # Corrections dashboard UI
+|   `-- batch_review.html        # Bulk review UI for high-confidence predictions
+|-- state/                       # Runtime state files (gitignored). Predictions, OCR, drift, no-stamp set live in Postgres.
+|-- output/                      # Inference visualizations and previews (gitignored)
+|-- docker/                      # Dockerfiles and compose configs
+|-- dataset/
+|   |-- data.yaml                # YOLO dataset config
+|   |-- labels/                  # YOLO-format bounding box labels
+|   |-- corrections/             # Corrected labels from feedback loop
+|   `-- to_annotate/             # Staging area for correction annotation
+|-- examples/                    # Sample photos and model evaluation plots
+|-- scanmyphotos/                # Working image directory (gitignored)
+`-- runs/                        # Training runs + model weights (gitignored)
 ```
 
 ### Testing
