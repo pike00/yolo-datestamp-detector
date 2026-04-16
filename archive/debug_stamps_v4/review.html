@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html><head><title>Stamp Detection v4 Review</title>
+<style>
+body { background: #1a1a1a; color: #eee; font-family: monospace; margin: 20px; max-width: 1600px; }
+h2 { border-bottom: 1px solid #555; padding-bottom: 8px; }
+.pair { display: inline-block; margin: 8px; vertical-align: top; }
+.pair img { max-width: 500px; display: block; border: 2px solid #333; }
+.pair .label { font-size: 13px; margin: 4px 0; }
+.good { border-color: #2a2 !important; }
+.bad { border-color: #a22 !important; }
+.new { border-color: #2af !important; }
+table { border-collapse: collapse; margin: 10px 0; }
+td, th { border: 1px solid #555; padding: 4px 8px; font-size: 12px; }
+</style></head>
+<body>
+<h1>Stamp Detection v4 — 100/100 Disc 2</h1>
+<p>Improvements: x-continuity clustering, 3-level HSV sensitivity, aspect 2-12 cap, per-digit fill check, y-range check</p>
+
+<h2>Known Good Stamps (verified)</h2>
+<div class="pair"><div class="label">00000005 — "9 28 '99" (tight)</div><img class="good" src="00000005_annotated.jpg"></div>
+<div class="pair"><div class="label">Crop</div><img src="00000005_crop.png"></div>
+<br>
+<div class="pair"><div class="label">00000023 — "11 19 '99" (tight)</div><img class="good" src="00000023_annotated.jpg"></div>
+<div class="pair"><div class="label">Crop</div><img src="00000023_crop.png"></div>
+<br>
+<div class="pair"><div class="label">00000043 — "12 3 '99" (tight)</div><img class="good" src="00000043_annotated.jpg"></div>
+<div class="pair"><div class="label">Crop</div><img src="00000043_crop.png"></div>
+<br>
+<div class="pair"><div class="label">00000001 — "10 4 '99" rotated photo (tight)</div><img class="good" src="00000001_annotated.jpg"></div>
+<div class="pair"><div class="label">Crop</div><img src="00000001_crop.png"></div>
+
+<h2>Recovered by Loose Threshold (previously missed)</h2>
+<div class="pair"><div class="label">00000002 — "10 3 '99" dim stamp (loose)</div><img class="new" src="00000002_annotated.jpg"></div>
+<div class="pair"><div class="label">Crop</div><img src="00000002_crop.png"></div>
+<br>
+<div class="pair"><div class="label">00000012 (loose)</div><img class="new" src="00000012_annotated.jpg"></div>
+<div class="pair"><div class="label">Crop</div><img src="00000012_crop.png"></div>
+
+<h2>Known False Positive — will be filtered by OCR</h2>
+<div class="pair"><div class="label">00000013 — NO stamp exists (loose)</div><img class="bad" src="00000013_annotated.jpg"></div>
+<div class="pair"><div class="label">Crop</div><img src="00000013_crop.png"></div>
+
+<h2>All Detections</h2>
+<p>Scroll right to see all 100 annotated images:</p>
+<div style="display:flex; flex-wrap:wrap; gap:4px;">
+</div>
+</body></html>

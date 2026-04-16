@@ -1,0 +1,2636 @@
+[
+  {
+    "found": true,
+    "position": "bottom-right",
+    "digit_count": 9,
+    "cluster_aspect": 8.92,
+    "cluster_fill": 0.159,
+    "cluster_area": 204,
+    "sensitivity": "tight",
+    "bbox_in_region": [
+      538,
+      0,
+      107,
+      12
+    ],
+    "abs_bbox": [
+      1430,
+      1070,
+      107,
+      12
+    ],
+    "debug_crop_path": "/home/will/photo_project/debug_stamps_v2/00000001_crop.png",
+    "debug_annotated_path": "/home/will/photo_project/debug_stamps_v2/00000001_annotated.jpg",
+    "file": "/mnt/823c9bf9-838a-4591-a00f-ae361fcb4792/Photos/img/Photos/ScanMyPhotos/Disc 2/00000001.jpg",
+    "filename": "00000001.jpg",
+    "has_crop": true,
+    "ocr_crop_path": "/home/will/photo_project/debug_stamps_v2/00000001_ocr.png"
+  },
+  {
+    "found": false,
+    "file": "/mnt/823c9bf9-838a-4591-a00f-ae361fcb4792/Photos/img/Photos/ScanMyPhotos/Disc 2/00000002.jpg",
+    "filename": "00000002.jpg"
+  },
+  {
+    "found": true,
+    "position": "bottom-full",
+    "digit_count": 4,
+    "cluster_aspect": 2.12,
+    "cluster_fill": 0.089,
+    "cluster_area": 193,
+    "sensitivity": "tight",
+    "bbox_in_region": [
+      32,
+      0,
+      68,
+      32
+    ],
+    "abs_bbox": [
+      32,
+      1068,
+      68,
+      32
+    ],
+    "debug_crop_path": "/home/will/photo_project/debug_stamps_v2/00000003_crop.png",
+    "debug_annotated_path": "/home/will/photo_project/debug_stamps_v2/00000003_annotated.jpg",
+    "file": "/mnt/823c9bf9-838a-4591-a00f-ae361fcb4792/Photos/img/Photos/ScanMyPhotos/Disc 2/00000003.jpg",
+    "filename": "00000003.jpg",
+    "has_crop": true,
+    "ocr_crop_path": "/home/will/photo_project/debug_stamps_v2/00000003_ocr.png"
+  },
+  {
+    "found": true,
+    "position": "top-left",
+    "digit_count": 10,
+    "cluster_aspect": 9.63,
+    "cluster_fill": 0.06,
+    "cluster_area": 207,
+    "sensitivity": "tight",
+    "bbox_in_region": [
+      709,
+      97,
+      183,
+      19
+    ],
+    "abs_bbox": [
+      709,
+      97,
+      183,
+      19
+    ],
+    "debug_crop_path": "/home/will/photo_project/debug_stamps_v2/00000004_crop.png",
+    "debug_annotated_path": "/home/will/photo_project/debug_stamps_v2/00000004_annotated.jpg",
+    "file": "/mnt/823c9bf9-838a-4591-a00f-ae361fcb4792/Photos/img/Photos/ScanMyPhotos/Disc 2/00000004.jpg",
+    "filename": "00000004.jpg",
+    "has_crop": true,
+    "ocr_crop_path": "/home/will/photo_project/debug_stamps_v2/00000004_ocr.png"
+  },
+  {
+    "found": true,
+    "position": "bottom-right",
+    "digit_count": 8,
+    "cluster_aspect": 4.17,
+    "cluster_fill": 0.114,
+    "cluster_area": 584,
+    "sensitivity": "tight",
+    "bbox_in_region": [
+      535,
+      0,
+      146,
+      35
+    ],
+    "abs_bbox": [
+      1427,
+      1064,
+      146,
+      35
+    ],
+    "debug_crop_path": "/home/will/photo_project/debug_stamps_v2/00000005_crop.png",
+    "debug_annotated_path": "/home/will/photo_project/debug_stamps_v2/00000005_annotated.jpg",
+    "file": "/mnt/823c9bf9-838a-4591-a00f-ae361fcb4792/Photos/img/Photos/ScanMyPhotos/Disc 2/00000005.jpg",
+    "filename": "00000005.jpg",
+    "has_crop": true,
+    "ocr_crop_path": "/home/will/photo_project/debug_stamps_v2/00000005_ocr.png"
+  },
+  {
+    "found": true,
+    "position": "bottom-right",
+    "digit_count": 5,
+    "cluster_aspect": 7.5,
+    "cluster_fill": 0.065,
+    "cluster_area": 194,
+    "sensitivity": "tight",
+    "bbox_in_region": [
+      464,
+      0,
+      150,
+      20
+    ],
+    "abs_bbox": [
+      1356,
+      1068,
+      150,
+      20
+    ],
+    "debug_crop_path": "/home/will/photo_project/debug_stamps_v2/00000006_crop.png",
+    "debug_annotated_path": "/home/will/photo_project/debug_stamps_v2/00000006_annotated.jpg",
+    "file": "/mnt/823c9bf9-838a-4591-a00f-ae361fcb4792/Photos/img/Photos/ScanMyPhotos/Disc 2/00000006.jpg",
+    "filename": "00000006.jpg",
+    "has_crop": true,
+    "ocr_crop_path": "/home/will/photo_project/debug_stamps_v2/00000006_ocr.png"
+  },
+  {
+    "found": true,
+    "position": "bottom-right",
+    "digit_count": 17,
+    "cluster_aspect": 8.26,
+    "cluster_fill": 0.163,
+    "cluster_area": 712,
+    "sensitivity": "tight",
+    "bbox_in_region": [
+      489,
+      6,
+      190,
+      23
+    ],
+    "abs_bbox": [
+      1381,
+      1063,
+      190,
+      23
+    ],
+    "debug_crop_path": "/home/will/photo_project/debug_stamps_v2/00000007_crop.png",
+    "debug_annotated_path": "/home/will/photo_project/debug_stamps_v2/00000007_annotated.jpg",
+    "file": "/mnt/823c9bf9-838a-4591-a00f-ae361fcb4792/Photos/img/Photos/ScanMyPhotos/Disc 2/00000007.jpg",
+    "filename": "00000007.jpg",
+    "has_crop": true,
+    "ocr_crop_path": "/home/will/photo_project/debug_stamps_v2/00000007_ocr.png"
+  },
+  {
+    "found": true,
+    "position": "bottom-full",
+    "digit_count": 13,
+    "cluster_aspect": 7.87,
+    "cluster_fill": 0.155,
+    "cluster_area": 1762,
+    "sensitivity": "tight",
+    "bbox_in_region": [
+      1234,
+      0,
+      299,
+      38
+    ],
+    "abs_bbox": [
+      1234,
+      1066,
+      299,
+      38
+    ],
+    "debug_crop_path": "/home/will/photo_project/debug_stamps_v2/00000008_crop.png",
+    "debug_annotated_path": "/home/will/photo_project/debug_stamps_v2/00000008_annotated.jpg",
+    "file": "/mnt/823c9bf9-838a-4591-a00f-ae361fcb4792/Photos/img/Photos/ScanMyPhotos/Disc 2/00000008.jpg",
+    "filename": "00000008.jpg",
+    "has_crop": true,
+    "ocr_crop_path": "/home/will/photo_project/debug_stamps_v2/00000008_ocr.png"
+  },
+  {
+    "found": true,
+    "position": "bottom-right",
+    "digit_count": 15,
+    "cluster_aspect": 9.81,
+    "cluster_fill": 0.101,
+    "cluster_area": 438,
+    "sensitivity": "moderate",
+    "bbox_in_region": [
+      470,
+      0,
+      206,
+      21
+    ],
+    "abs_bbox": [
+      1362,
+      1066,
+      206,
+      21
+    ],
+    "debug_crop_path": "/home/will/photo_project/debug_stamps_v2/00000009_crop.png",
+    "debug_annotated_path": "/home/will/photo_project/debug_stamps_v2/00000009_annotated.jpg",
+    "file": "/mnt/823c9bf9-838a-4591-a00f-ae361fcb4792/Photos/img/Photos/ScanMyPhotos/Disc 2/00000009.jpg",
+    "filename": "00000009.jpg",
+    "has_crop": true,
+    "ocr_crop_path": "/home/will/photo_project/debug_stamps_v2/00000009_ocr.png"
+  },
+  {
+    "found": true,
+    "position": "bottom-full",
+    "digit_count": 12,
+    "cluster_aspect": 7.56,
+    "cluster_fill": 0.125,
+    "cluster_area": 1091,
+    "sensitivity": "moderate",
+    "bbox_in_region": [
+      1040,
+      55,
+      257,
+      34
+    ],
+    "abs_bbox": [
+      1040,
+      1124,
+      257,
+      34
+    ],
+    "debug_crop_path": "/home/will/photo_project/debug_stamps_v2/00000010_crop.png",
+    "debug_annotated_path": "/home/will/photo_project/debug_stamps_v2/00000010_annotated.jpg",
+    "file": "/mnt/823c9bf9-838a-4591-a00f-ae361fcb4792/Photos/img/Photos/ScanMyPhotos/Disc 2/00000010.jpg",
+    "filename": "00000010.jpg",
+    "has_crop": true,
+    "ocr_crop_path": "/home/will/photo_project/debug_stamps_v2/00000010_ocr.png"
+  },
+  {
+    "found": true,
+    "position": "bottom-right",
+    "digit_count": 15,
+    "cluster_aspect": 11.44,
+    "cluster_fill": 0.171,
+    "cluster_area": 635,
+    "sensitivity": "tight",
+    "bbox_in_region": [
+      467,
+      2,
+      206,
+      18
+    ],
+    "abs_bbox": [
+      1355,
+      1067,
+      206,
+      18
+    ],
+    "debug_crop_path": "/home/will/photo_project/debug_stamps_v2/00000011_crop.png",
+    "debug_annotated_path": "/home/will/photo_project/debug_stamps_v2/00000011_annotated.jpg",
+    "file": "/mnt/823c9bf9-838a-4591-a00f-ae361fcb4792/Photos/img/Photos/ScanMyPhotos/Disc 2/00000011.jpg",
+    "filename": "00000011.jpg",
+    "has_crop": true,
+    "ocr_crop_path": "/home/will/photo_project/debug_stamps_v2/00000011_ocr.png"
+  },
+  {
+    "found": false,
+    "file": "/mnt/823c9bf9-838a-4591-a00f-ae361fcb4792/Photos/img/Photos/ScanMyPhotos/Disc 2/00000012.jpg",
+    "filename": "00000012.jpg"
+  },
+  {
+    "found": true,
+    "position": "bottom-full",
+    "digit_count": 6,
+    "cluster_aspect": 3.39,
+    "cluster_fill": 0.167,
+    "cluster_area": 445,
+    "sensitivity": "moderate",
+    "bbox_in_region": [
+      443,
+      0,
+      95,
+      28
+    ],
+    "abs_bbox": [
+      443,
+      1045,
+      95,
+      28
+    ],
+    "debug_crop_path": "/home/will/photo_project/debug_stamps_v2/00000013_crop.png",
+    "debug_annotated_path": "/home/will/photo_project/debug_stamps_v2/00000013_annotated.jpg",
+    "file": "/mnt/823c9bf9-838a-4591-a00f-ae361fcb4792/Photos/img/Photos/ScanMyPhotos/Disc 2/00000013.jpg",
+    "filename": "00000013.jpg",
+    "has_crop": true,
+    "ocr_crop_path": "/home/will/photo_project/debug_stamps_v2/00000013_ocr.png"
+  },
+  {
+    "found": true,
+    "position": "bottom-full",
+    "digit_count": 15,
+    "cluster_aspect": 9.31,
+    "cluster_fill": 0.075,
+    "cluster_area": 711,
+    "sensitivity": "tight",
+    "bbox_in_region": [
+      1011,
+      29,
+      298,
+      32
+    ],
+    "abs_bbox": [
+      1011,
+      1073,
+      298,
+      32
+    ],
+    "debug_crop_path": "/home/will/photo_project/debug_stamps_v2/00000014_crop.png",
+    "debug_annotated_path": "/home/will/photo_project/debug_stamps_v2/00000014_annotated.jpg",
+    "file": "/mnt/823c9bf9-838a-4591-a00f-ae361fcb4792/Photos/img/Photos/ScanMyPhotos/Disc 2/00000014.jpg",
+    "filename": "00000014.jpg",
+    "has_crop": true,
+    "ocr_crop_path": "/home/will/photo_project/debug_stamps_v2/00000014_ocr.png"
+  },
+  {
+    "found": true,
+    "position": "bottom-left",
+    "digit_count": 16,
+    "cluster_aspect": 10.2,
+    "cluster_fill": 0.062,
+    "cluster_area": 396,
+    "sensitivity": "tight",
+    "bbox_in_region": [
+      147,
+      93,
+      255,
+      25
+    ],
+    "abs_bbox": [
+      147,
+      1150,
+      255,
+      25
+    ],
+    "debug_crop_path": "/home/will/photo_project/debug_stamps_v2/00000015_crop.png",
+    "debug_annotated_path": "/home/will/photo_project/debug_stamps_v2/00000015_annotated.jpg",
+    "file": "/mnt/823c9bf9-838a-4591-a00f-ae361fcb4792/Photos/img/Photos/ScanMyPhotos/Disc 2/00000015.jpg",
+    "filename": "00000015.jpg",
+    "has_crop": true,
+    "ocr_crop_path": "/home/will/photo_project/debug_stamps_v2/00000015_ocr.png"
+  },
+  {
+    "found": true,
+    "position": "bottom-right",
+    "digit_count": 17,
+    "cluster_aspect": 9.76,
+    "cluster_fill": 0.131,
+    "cluster_area": 563,
+    "sensitivity": "tight",
+    "bbox_in_region": [
+      433,
+      2,
+      205,
+      21
+    ],
+    "abs_bbox": [
+      1325,
+      1071,
+      205,
+      21
+    ],
+    "debug_crop_path": "/home/will/photo_project/debug_stamps_v2/00000016_crop.png",
+    "debug_annotated_path": "/home/will/photo_project/debug_stamps_v2/00000016_annotated.jpg",
+    "file": "/mnt/823c9bf9-838a-4591-a00f-ae361fcb4792/Photos/img/Photos/ScanMyPhotos/Disc 2/00000016.jpg",
+    "filename": "00000016.jpg",
+    "has_crop": true,
+    "ocr_crop_path": "/home/will/photo_project/debug_stamps_v2/00000016_ocr.png"
+  },
+  {
+    "found": true,
+    "position": "bottom-right",
+    "digit_count": 17,
+    "cluster_aspect": 9.76,
+    "cluster_fill": 0.127,
+    "cluster_area": 547,
+    "sensitivity": "tight",
+    "bbox_in_region": [
+      463,
+      12,
+      205,
+      21
+    ],
+    "abs_bbox": [
+      1355,
+      1082,
+      205,
+      21
+    ],
+    "debug_crop_path": "/home/will/photo_project/debug_stamps_v2/00000017_crop.png",
+    "debug_annotated_path": "/home/will/photo_project/debug_stamps_v2/00000017_annotated.jpg",
+    "file": "/mnt/823c9bf9-838a-4591-a00f-ae361fcb4792/Photos/img/Photos/ScanMyPhotos/Disc 2/00000017.jpg",
+    "filename": "00000017.jpg",
+    "has_crop": true,
+    "ocr_crop_path": "/home/will/photo_project/debug_stamps_v2/00000017_ocr.png"
+  },
+  {
+    "found": true,
+    "position": "top-right",
+    "digit_count": 9,
+    "cluster_aspect": 5.97,
+    "cluster_fill": 0.072,
+    "cluster_area": 558,
+    "sensitivity": "tight",
+    "bbox_in_region": [
+      0,
+      33,
+      215,
+      36
+    ],
+    "abs_bbox": [
+      892,
+      33,
+      215,
+      36
+    ],
+    "debug_crop_path": "/home/will/photo_project/debug_stamps_v2/00000018_crop.png",
+    "debug_annotated_path": "/home/will/photo_project/debug_stamps_v2/00000018_annotated.jpg",
+    "file": "/mnt/823c9bf9-838a-4591-a00f-ae361fcb4792/Photos/img/Photos/ScanMyPhotos/Disc 2/00000018.jpg",
+    "filename": "00000018.jpg",
+    "has_crop": true,
+    "ocr_crop_path": "/home/will/photo_project/debug_stamps_v2/00000018_ocr.png"
+  },
+  {
+    "found": true,
+    "position": "bottom-right",
+    "digit_count": 7,
+    "cluster_aspect": 9.0,
+    "cluster_fill": 0.179,
+    "cluster_area": 853,
+    "sensitivity": "tight",
+    "bbox_in_region": [
+      456,
+      0,
+      207,
+      23
+    ],
+    "abs_bbox": [
+      1348,
+      1065,
+      207,
+      23
+    ],
+    "debug_crop_path": "/home/will/photo_project/debug_stamps_v2/00000019_crop.png",
+    "debug_annotated_path": "/home/will/photo_project/debug_stamps_v2/00000019_annotated.jpg",
+    "file": "/mnt/823c9bf9-838a-4591-a00f-ae361fcb4792/Photos/img/Photos/ScanMyPhotos/Disc 2/00000019.jpg",
+    "filename": "00000019.jpg",
+    "has_crop": true,
+    "ocr_crop_path": "/home/will/photo_project/debug_stamps_v2/00000019_ocr.png"
+  },
+  {
+    "found": true,
+    "position": "bottom-right",
+    "digit_count": 14,
+    "cluster_aspect": 5.78,
+    "cluster_fill": 0.1,
+    "cluster_area": 745,
+    "sensitivity": "tight",
+    "bbox_in_region": [
+      471,
+      17,
+      208,
+      36
+    ],
+    "abs_bbox": [
+      1363,
+      1069,
+      208,
+      36
+    ],
+    "debug_crop_path": "/home/will/photo_project/debug_stamps_v2/00000020_crop.png",
+    "debug_annotated_path": "/home/will/photo_project/debug_stamps_v2/00000020_annotated.jpg",
+    "file": "/mnt/823c9bf9-838a-4591-a00f-ae361fcb4792/Photos/img/Photos/ScanMyPhotos/Disc 2/00000020.jpg",
+    "filename": "00000020.jpg",
+    "has_crop": true,
+    "ocr_crop_path": "/home/will/photo_project/debug_stamps_v2/00000020_ocr.png"
+  },
+  {
+    "found": true,
+    "position": "bottom-full",
+    "digit_count": 3,
+    "cluster_aspect": 2.95,
+    "cluster_fill": 0.255,
+    "cluster_area": 2798,
+    "sensitivity": "tight",
+    "bbox_in_region": [
+      834,
+      0,
+      180,
+      61
+    ],
+    "abs_bbox": [
+      834,
+      1069,
+      180,
+      61
+    ],
+    "debug_crop_path": "/home/will/photo_project/debug_stamps_v2/00000021_crop.png",
+    "debug_annotated_path": "/home/will/photo_project/debug_stamps_v2/00000021_annotated.jpg",
+    "file": "/mnt/823c9bf9-838a-4591-a00f-ae361fcb4792/Photos/img/Photos/ScanMyPhotos/Disc 2/00000021.jpg",
+    "filename": "00000021.jpg",
+    "has_crop": true,
+    "ocr_crop_path": "/home/will/photo_project/debug_stamps_v2/00000021_ocr.png"
+  },
+  {
+    "found": true,
+    "position": "top-right",
+    "digit_count": 12,
+    "cluster_aspect": 5.44,
+    "cluster_fill": 0.085,
+    "cluster_area": 289,
+    "sensitivity": "tight",
+    "bbox_in_region": [
+      196,
+      3,
+      136,
+      25
+    ],
+    "abs_bbox": [
+      1088,
+      3,
+      136,
+      25
+    ],
+    "debug_crop_path": "/home/will/photo_project/debug_stamps_v2/00000022_crop.png",
+    "debug_annotated_path": "/home/will/photo_project/debug_stamps_v2/00000022_annotated.jpg",
+    "file": "/mnt/823c9bf9-838a-4591-a00f-ae361fcb4792/Photos/img/Photos/ScanMyPhotos/Disc 2/00000022.jpg",
+    "filename": "00000022.jpg",
+    "has_crop": true,
+    "ocr_crop_path": "/home/will/photo_project/debug_stamps_v2/00000022_ocr.png"
+  },
+  {
+    "found": true,
+    "position": "bottom-right",
+    "digit_count": 8,
+    "cluster_aspect": 8.94,
+    "cluster_fill": 0.065,
+    "cluster_area": 149,
+    "sensitivity": "tight",
+    "bbox_in_region": [
+      445,
+      0,
+      143,
+      16
+    ],
+    "abs_bbox": [
+      1337,
+      1067,
+      143,
+      16
+    ],
+    "debug_crop_path": "/home/will/photo_project/debug_stamps_v2/00000023_crop.png",
+    "debug_annotated_path": "/home/will/photo_project/debug_stamps_v2/00000023_annotated.jpg",
+    "file": "/mnt/823c9bf9-838a-4591-a00f-ae361fcb4792/Photos/img/Photos/ScanMyPhotos/Disc 2/00000023.jpg",
+    "filename": "00000023.jpg",
+    "has_crop": true,
+    "ocr_crop_path": "/home/will/photo_project/debug_stamps_v2/00000023_ocr.png"
+  },
+  {
+    "found": true,
+    "position": "bottom-right",
+    "digit_count": 6,
+    "cluster_aspect": 7.17,
+    "cluster_fill": 0.087,
+    "cluster_area": 360,
+    "sensitivity": "tight",
+    "bbox_in_region": [
+      458,
+      10,
+      172,
+      24
+    ],
+    "abs_bbox": [
+      1350,
+      1081,
+      172,
+      24
+    ],
+    "debug_crop_path": "/home/will/photo_project/debug_stamps_v2/00000024_crop.png",
+    "debug_annotated_path": "/home/will/photo_project/debug_stamps_v2/00000024_annotated.jpg",
+    "file": "/mnt/823c9bf9-838a-4591-a00f-ae361fcb4792/Photos/img/Photos/ScanMyPhotos/Disc 2/00000024.jpg",
+    "filename": "00000024.jpg",
+    "has_crop": true,
+    "ocr_crop_path": "/home/will/photo_project/debug_stamps_v2/00000024_ocr.png"
+  },
+  {
+    "found": true,
+    "position": "bottom-right",
+    "digit_count": 8,
+    "cluster_aspect": 6.27,
+    "cluster_fill": 0.062,
+    "cluster_area": 87,
+    "sensitivity": "moderate",
+    "bbox_in_region": [
+      552,
+      0,
+      94,
+      15
+    ],
+    "abs_bbox": [
+      1444,
+      1067,
+      94,
+      15
+    ],
+    "debug_crop_path": "/home/will/photo_project/debug_stamps_v2/00000025_crop.png",
+    "debug_annotated_path": "/home/will/photo_project/debug_stamps_v2/00000025_annotated.jpg",
+    "file": "/mnt/823c9bf9-838a-4591-a00f-ae361fcb4792/Photos/img/Photos/ScanMyPhotos/Disc 2/00000025.jpg",
+    "filename": "00000025.jpg",
+    "has_crop": true,
+    "ocr_crop_path": "/home/will/photo_project/debug_stamps_v2/00000025_ocr.png"
+  },
+  {
+    "found": true,
+    "position": "top-right",
+    "digit_count": 12,
+    "cluster_aspect": 10.67,
+    "cluster_fill": 0.115,
+    "cluster_area": 398,
+    "sensitivity": "tight",
+    "bbox_in_region": [
+      46,
+      67,
+      192,
+      18
+    ],
+    "abs_bbox": [
+      938,
+      67,
+      192,
+      18
+    ],
+    "debug_crop_path": "/home/will/photo_project/debug_stamps_v2/00000026_crop.png",
+    "debug_annotated_path": "/home/will/photo_project/debug_stamps_v2/00000026_annotated.jpg",
+    "file": "/mnt/823c9bf9-838a-4591-a00f-ae361fcb4792/Photos/img/Photos/ScanMyPhotos/Disc 2/00000026.jpg",
+    "filename": "00000026.jpg",
+    "has_crop": true,
+    "ocr_crop_path": "/home/will/photo_project/debug_stamps_v2/00000026_ocr.png"
+  },
+  {
+    "found": true,
+    "position": "top-left",
+    "digit_count": 3,
+    "cluster_aspect": 4.73,
+    "cluster_fill": 0.068,
+    "cluster_area": 154,
+    "sensitivity": "tight",
+    "bbox_in_region": [
+      764,
+      44,
+      104,
+      22
+    ],
+    "abs_bbox": [
+      764,
+      44,
+      104,
+      22
+    ],
+    "debug_crop_path": "/home/will/photo_project/debug_stamps_v2/00000027_crop.png",
+    "debug_annotated_path": "/home/will/photo_project/debug_stamps_v2/00000027_annotated.jpg",
+    "file": "/mnt/823c9bf9-838a-4591-a00f-ae361fcb4792/Photos/img/Photos/ScanMyPhotos/Disc 2/00000027.jpg",
+    "filename": "00000027.jpg",
+    "has_crop": true,
+    "ocr_crop_path": "/home/will/photo_project/debug_stamps_v2/00000027_ocr.png"
+  },
+  {
+    "found": true,
+    "position": "top-right",
+    "digit_count": 7,
+    "cluster_aspect": 4.26,
+    "cluster_fill": 0.13,
+    "cluster_area": 292,
+    "sensitivity": "moderate",
+    "bbox_in_region": [
+      775,
+      27,
+      98,
+      23
+    ],
+    "abs_bbox": [
+      1667,
+      27,
+      98,
+      23
+    ],
+    "debug_crop_path": "/home/will/photo_project/debug_stamps_v2/00000028_crop.png",
+    "debug_annotated_path": "/home/will/photo_project/debug_stamps_v2/00000028_annotated.jpg",
+    "file": "/mnt/823c9bf9-838a-4591-a00f-ae361fcb4792/Photos/img/Photos/ScanMyPhotos/Disc 2/00000028.jpg",
+    "filename": "00000028.jpg",
+    "has_crop": true,
+    "ocr_crop_path": "/home/will/photo_project/debug_stamps_v2/00000028_ocr.png"
+  },
+  {
+    "found": true,
+    "position": "bottom-full",
+    "digit_count": 7,
+    "cluster_aspect": 5.38,
+    "cluster_fill": 0.095,
+    "cluster_area": 778,
+    "sensitivity": "tight",
+    "bbox_in_region": [
+      1358,
+      0,
+      210,
+      39
+    ],
+    "abs_bbox": [
+      1358,
+      1069,
+      210,
+      39
+    ],
+    "debug_crop_path": "/home/will/photo_project/debug_stamps_v2/00000029_crop.png",
+    "debug_annotated_path": "/home/will/photo_project/debug_stamps_v2/00000029_annotated.jpg",
+    "file": "/mnt/823c9bf9-838a-4591-a00f-ae361fcb4792/Photos/img/Photos/ScanMyPhotos/Disc 2/00000029.jpg",
+    "filename": "00000029.jpg",
+    "has_crop": true,
+    "ocr_crop_path": "/home/will/photo_project/debug_stamps_v2/00000029_ocr.png"
+  },
+  {
+    "found": true,
+    "position": "bottom-right",
+    "digit_count": 6,
+    "cluster_aspect": 5.69,
+    "cluster_fill": 0.121,
+    "cluster_area": 176,
+    "sensitivity": "tight",
+    "bbox_in_region": [
+      555,
+      0,
+      91,
+      16
+    ],
+    "abs_bbox": [
+      1447,
+      1066,
+      91,
+      16
+    ],
+    "debug_crop_path": "/home/will/photo_project/debug_stamps_v2/00000030_crop.png",
+    "debug_annotated_path": "/home/will/photo_project/debug_stamps_v2/00000030_annotated.jpg",
+    "file": "/mnt/823c9bf9-838a-4591-a00f-ae361fcb4792/Photos/img/Photos/ScanMyPhotos/Disc 2/00000030.jpg",
+    "filename": "00000030.jpg",
+    "has_crop": true,
+    "ocr_crop_path": "/home/will/photo_project/debug_stamps_v2/00000030_ocr.png"
+  },
+  {
+    "found": true,
+    "position": "bottom-right",
+    "digit_count": 6,
+    "cluster_aspect": 7.5,
+    "cluster_fill": 0.161,
+    "cluster_area": 173,
+    "sensitivity": "tight",
+    "bbox_in_region": [
+      593,
+      0,
+      90,
+      12
+    ],
+    "abs_bbox": [
+      1485,
+      1069,
+      90,
+      12
+    ],
+    "debug_crop_path": "/home/will/photo_project/debug_stamps_v2/00000031_crop.png",
+    "debug_annotated_path": "/home/will/photo_project/debug_stamps_v2/00000031_annotated.jpg",
+    "file": "/mnt/823c9bf9-838a-4591-a00f-ae361fcb4792/Photos/img/Photos/ScanMyPhotos/Disc 2/00000031.jpg",
+    "filename": "00000031.jpg",
+    "has_crop": true,
+    "ocr_crop_path": "/home/will/photo_project/debug_stamps_v2/00000031_ocr.png"
+  },
+  {
+    "found": true,
+    "position": "top-right",
+    "digit_count": 7,
+    "cluster_aspect": 11.56,
+    "cluster_fill": 0.045,
+    "cluster_area": 170,
+    "sensitivity": "tight",
+    "bbox_in_region": [
+      39,
+      86,
+      208,
+      18
+    ],
+    "abs_bbox": [
+      931,
+      86,
+      208,
+      18
+    ],
+    "debug_crop_path": "/home/will/photo_project/debug_stamps_v2/00000032_crop.png",
+    "debug_annotated_path": "/home/will/photo_project/debug_stamps_v2/00000032_annotated.jpg",
+    "file": "/mnt/823c9bf9-838a-4591-a00f-ae361fcb4792/Photos/img/Photos/ScanMyPhotos/Disc 2/00000032.jpg",
+    "filename": "00000032.jpg",
+    "has_crop": true,
+    "ocr_crop_path": "/home/will/photo_project/debug_stamps_v2/00000032_ocr.png"
+  },
+  {
+    "found": true,
+    "position": "bottom-right",
+    "digit_count": 7,
+    "cluster_aspect": 9.05,
+    "cluster_fill": 0.176,
+    "cluster_area": 769,
+    "sensitivity": "tight",
+    "bbox_in_region": [
+      477,
+      0,
+      199,
+      22
+    ],
+    "abs_bbox": [
+      1369,
+      1066,
+      199,
+      22
+    ],
+    "debug_crop_path": "/home/will/photo_project/debug_stamps_v2/00000033_crop.png",
+    "debug_annotated_path": "/home/will/photo_project/debug_stamps_v2/00000033_annotated.jpg",
+    "file": "/mnt/823c9bf9-838a-4591-a00f-ae361fcb4792/Photos/img/Photos/ScanMyPhotos/Disc 2/00000033.jpg",
+    "filename": "00000033.jpg",
+    "has_crop": true,
+    "ocr_crop_path": "/home/will/photo_project/debug_stamps_v2/00000033_ocr.png"
+  },
+  {
+    "found": true,
+    "position": "bottom-right",
+    "digit_count": 12,
+    "cluster_aspect": 5.45,
+    "cluster_fill": 0.221,
+    "cluster_area": 482,
+    "sensitivity": "tight",
+    "bbox_in_region": [
+      572,
+      0,
+      109,
+      20
+    ],
+    "abs_bbox": [
+      1464,
+      1068,
+      109,
+      20
+    ],
+    "debug_crop_path": "/home/will/photo_project/debug_stamps_v2/00000034_crop.png",
+    "debug_annotated_path": "/home/will/photo_project/debug_stamps_v2/00000034_annotated.jpg",
+    "file": "/mnt/823c9bf9-838a-4591-a00f-ae361fcb4792/Photos/img/Photos/ScanMyPhotos/Disc 2/00000034.jpg",
+    "filename": "00000034.jpg",
+    "has_crop": true,
+    "ocr_crop_path": "/home/will/photo_project/debug_stamps_v2/00000034_ocr.png"
+  },
+  {
+    "found": true,
+    "position": "bottom-left",
+    "digit_count": 4,
+    "cluster_aspect": 2.57,
+    "cluster_fill": 0.188,
+    "cluster_area": 95,
+    "sensitivity": "moderate",
+    "bbox_in_region": [
+      624,
+      44,
+      36,
+      14
+    ],
+    "abs_bbox": [
+      624,
+      1114,
+      36,
+      14
+    ],
+    "debug_crop_path": "/home/will/photo_project/debug_stamps_v2/00000035_crop.png",
+    "debug_annotated_path": "/home/will/photo_project/debug_stamps_v2/00000035_annotated.jpg",
+    "file": "/mnt/823c9bf9-838a-4591-a00f-ae361fcb4792/Photos/img/Photos/ScanMyPhotos/Disc 2/00000035.jpg",
+    "filename": "00000035.jpg",
+    "has_crop": true,
+    "ocr_crop_path": "/home/will/photo_project/debug_stamps_v2/00000035_ocr.png"
+  },
+  {
+    "found": true,
+    "position": "top-right",
+    "digit_count": 5,
+    "cluster_aspect": 3.12,
+    "cluster_fill": 0.128,
+    "cluster_area": 250,
+    "sensitivity": "moderate",
+    "bbox_in_region": [
+      771,
+      22,
+      78,
+      25
+    ],
+    "abs_bbox": [
+      1663,
+      22,
+      78,
+      25
+    ],
+    "debug_crop_path": "/home/will/photo_project/debug_stamps_v2/00000036_crop.png",
+    "debug_annotated_path": "/home/will/photo_project/debug_stamps_v2/00000036_annotated.jpg",
+    "file": "/mnt/823c9bf9-838a-4591-a00f-ae361fcb4792/Photos/img/Photos/ScanMyPhotos/Disc 2/00000036.jpg",
+    "filename": "00000036.jpg",
+    "has_crop": true,
+    "ocr_crop_path": "/home/will/photo_project/debug_stamps_v2/00000036_ocr.png"
+  },
+  {
+    "found": true,
+    "position": "bottom-right",
+    "digit_count": 6,
+    "cluster_aspect": 8.41,
+    "cluster_fill": 0.107,
+    "cluster_area": 436,
+    "sensitivity": "tight",
+    "bbox_in_region": [
+      497,
+      2,
+      185,
+      22
+    ],
+    "abs_bbox": [
+      1389,
+      1067,
+      185,
+      22
+    ],
+    "debug_crop_path": "/home/will/photo_project/debug_stamps_v2/00000037_crop.png",
+    "debug_annotated_path": "/home/will/photo_project/debug_stamps_v2/00000037_annotated.jpg",
+    "file": "/mnt/823c9bf9-838a-4591-a00f-ae361fcb4792/Photos/img/Photos/ScanMyPhotos/Disc 2/00000037.jpg",
+    "filename": "00000037.jpg",
+    "has_crop": true,
+    "ocr_crop_path": "/home/will/photo_project/debug_stamps_v2/00000037_ocr.png"
+  },
+  {
+    "found": true,
+    "position": "bottom-right",
+    "digit_count": 8,
+    "cluster_aspect": 2.69,
+    "cluster_fill": 0.085,
+    "cluster_area": 296,
+    "sensitivity": "tight",
+    "bbox_in_region": [
+      563,
+      0,
+      97,
+      36
+    ],
+    "abs_bbox": [
+      1455,
+      1068,
+      97,
+      36
+    ],
+    "debug_crop_path": "/home/will/photo_project/debug_stamps_v2/00000038_crop.png",
+    "debug_annotated_path": "/home/will/photo_project/debug_stamps_v2/00000038_annotated.jpg",
+    "file": "/mnt/823c9bf9-838a-4591-a00f-ae361fcb4792/Photos/img/Photos/ScanMyPhotos/Disc 2/00000038.jpg",
+    "filename": "00000038.jpg",
+    "has_crop": true,
+    "ocr_crop_path": "/home/will/photo_project/debug_stamps_v2/00000038_ocr.png"
+  },
+  {
+    "found": true,
+    "position": "bottom-right",
+    "digit_count": 5,
+    "cluster_aspect": 5.36,
+    "cluster_fill": 0.279,
+    "cluster_area": 2271,
+    "sensitivity": "moderate",
+    "bbox_in_region": [
+      452,
+      0,
+      209,
+      39
+    ],
+    "abs_bbox": [
+      1344,
+      1066,
+      209,
+      39
+    ],
+    "debug_crop_path": "/home/will/photo_project/debug_stamps_v2/00000039_crop.png",
+    "debug_annotated_path": "/home/will/photo_project/debug_stamps_v2/00000039_annotated.jpg",
+    "file": "/mnt/823c9bf9-838a-4591-a00f-ae361fcb4792/Photos/img/Photos/ScanMyPhotos/Disc 2/00000039.jpg",
+    "filename": "00000039.jpg",
+    "has_crop": true,
+    "ocr_crop_path": "/home/will/photo_project/debug_stamps_v2/00000039_ocr.png"
+  },
+  {
+    "found": false,
+    "file": "/mnt/823c9bf9-838a-4591-a00f-ae361fcb4792/Photos/img/Photos/ScanMyPhotos/Disc 2/00000040.jpg",
+    "filename": "00000040.jpg"
+  },
+  {
+    "found": true,
+    "position": "bottom-right",
+    "digit_count": 4,
+    "cluster_aspect": 6.0,
+    "cluster_fill": 0.122,
+    "cluster_area": 895,
+    "sensitivity": "moderate",
+    "bbox_in_region": [
+      467,
+      0,
+      210,
+      35
+    ],
+    "abs_bbox": [
+      1359,
+      1071,
+      210,
+      35
+    ],
+    "debug_crop_path": "/home/will/photo_project/debug_stamps_v2/00000041_crop.png",
+    "debug_annotated_path": "/home/will/photo_project/debug_stamps_v2/00000041_annotated.jpg",
+    "file": "/mnt/823c9bf9-838a-4591-a00f-ae361fcb4792/Photos/img/Photos/ScanMyPhotos/Disc 2/00000041.jpg",
+    "filename": "00000041.jpg",
+    "has_crop": true,
+    "ocr_crop_path": "/home/will/photo_project/debug_stamps_v2/00000041_ocr.png"
+  },
+  {
+    "found": true,
+    "position": "bottom-left",
+    "digit_count": 14,
+    "cluster_aspect": 11.27,
+    "cluster_fill": 0.082,
+    "cluster_area": 446,
+    "sensitivity": "moderate",
+    "bbox_in_region": [
+      0,
+      23,
+      248,
+      22
+    ],
+    "abs_bbox": [
+      0,
+      1074,
+      248,
+      22
+    ],
+    "debug_crop_path": "/home/will/photo_project/debug_stamps_v2/00000042_crop.png",
+    "debug_annotated_path": "/home/will/photo_project/debug_stamps_v2/00000042_annotated.jpg",
+    "file": "/mnt/823c9bf9-838a-4591-a00f-ae361fcb4792/Photos/img/Photos/ScanMyPhotos/Disc 2/00000042.jpg",
+    "filename": "00000042.jpg",
+    "has_crop": true,
+    "ocr_crop_path": "/home/will/photo_project/debug_stamps_v2/00000042_ocr.png"
+  },
+  {
+    "found": true,
+    "position": "bottom-right",
+    "digit_count": 8,
+    "cluster_aspect": 6.12,
+    "cluster_fill": 0.152,
+    "cluster_area": 1073,
+    "sensitivity": "tight",
+    "bbox_in_region": [
+      471,
+      0,
+      208,
+      34
+    ],
+    "abs_bbox": [
+      1351,
+      1034,
+      208,
+      34
+    ],
+    "debug_crop_path": "/home/will/photo_project/debug_stamps_v2/00000043_crop.png",
+    "debug_annotated_path": "/home/will/photo_project/debug_stamps_v2/00000043_annotated.jpg",
+    "file": "/mnt/823c9bf9-838a-4591-a00f-ae361fcb4792/Photos/img/Photos/ScanMyPhotos/Disc 2/00000043.jpg",
+    "filename": "00000043.jpg",
+    "has_crop": true,
+    "ocr_crop_path": "/home/will/photo_project/debug_stamps_v2/00000043_ocr.png"
+  },
+  {
+    "found": true,
+    "position": "bottom-full",
+    "digit_count": 20,
+    "cluster_aspect": 8.46,
+    "cluster_fill": 0.086,
+    "cluster_area": 891,
+    "sensitivity": "moderate",
+    "bbox_in_region": [
+      1397,
+      85,
+      296,
+      35
+    ],
+    "abs_bbox": [
+      1397,
+      1158,
+      296,
+      35
+    ],
+    "debug_crop_path": "/home/will/photo_project/debug_stamps_v2/00000044_crop.png",
+    "debug_annotated_path": "/home/will/photo_project/debug_stamps_v2/00000044_annotated.jpg",
+    "file": "/mnt/823c9bf9-838a-4591-a00f-ae361fcb4792/Photos/img/Photos/ScanMyPhotos/Disc 2/00000044.jpg",
+    "filename": "00000044.jpg",
+    "has_crop": true,
+    "ocr_crop_path": "/home/will/photo_project/debug_stamps_v2/00000044_ocr.png"
+  },
+  {
+    "found": true,
+    "position": "bottom-right",
+    "digit_count": 11,
+    "cluster_aspect": 4.95,
+    "cluster_fill": 0.231,
+    "cluster_area": 505,
+    "sensitivity": "tight",
+    "bbox_in_region": [
+      578,
+      0,
+      104,
+      21
+    ],
+    "abs_bbox": [
+      1470,
+      1068,
+      104,
+      21
+    ],
+    "debug_crop_path": "/home/will/photo_project/debug_stamps_v2/00000045_crop.png",
+    "debug_annotated_path": "/home/will/photo_project/debug_stamps_v2/00000045_annotated.jpg",
+    "file": "/mnt/823c9bf9-838a-4591-a00f-ae361fcb4792/Photos/img/Photos/ScanMyPhotos/Disc 2/00000045.jpg",
+    "filename": "00000045.jpg",
+    "has_crop": true,
+    "ocr_crop_path": "/home/will/photo_project/debug_stamps_v2/00000045_ocr.png"
+  },
+  {
+    "found": true,
+    "position": "bottom-right",
+    "digit_count": 9,
+    "cluster_aspect": 6.44,
+    "cluster_fill": 0.162,
+    "cluster_area": 267,
+    "sensitivity": "tight",
+    "bbox_in_region": [
+      546,
+      3,
+      103,
+      16
+    ],
+    "abs_bbox": [
+      1438,
+      1061,
+      103,
+      16
+    ],
+    "debug_crop_path": "/home/will/photo_project/debug_stamps_v2/00000046_crop.png",
+    "debug_annotated_path": "/home/will/photo_project/debug_stamps_v2/00000046_annotated.jpg",
+    "file": "/mnt/823c9bf9-838a-4591-a00f-ae361fcb4792/Photos/img/Photos/ScanMyPhotos/Disc 2/00000046.jpg",
+    "filename": "00000046.jpg",
+    "has_crop": true,
+    "ocr_crop_path": "/home/will/photo_project/debug_stamps_v2/00000046_ocr.png"
+  },
+  {
+    "found": true,
+    "position": "bottom-right",
+    "digit_count": 12,
+    "cluster_aspect": 4.73,
+    "cluster_fill": 0.198,
+    "cluster_area": 452,
+    "sensitivity": "tight",
+    "bbox_in_region": [
+      541,
+      23,
+      104,
+      22
+    ],
+    "abs_bbox": [
+      1433,
+      1071,
+      104,
+      22
+    ],
+    "debug_crop_path": "/home/will/photo_project/debug_stamps_v2/00000047_crop.png",
+    "debug_annotated_path": "/home/will/photo_project/debug_stamps_v2/00000047_annotated.jpg",
+    "file": "/mnt/823c9bf9-838a-4591-a00f-ae361fcb4792/Photos/img/Photos/ScanMyPhotos/Disc 2/00000047.jpg",
+    "filename": "00000047.jpg",
+    "has_crop": true,
+    "ocr_crop_path": "/home/will/photo_project/debug_stamps_v2/00000047_ocr.png"
+  },
+  {
+    "found": true,
+    "position": "bottom-right",
+    "digit_count": 12,
+    "cluster_aspect": 8.96,
+    "cluster_fill": 0.129,
+    "cluster_area": 611,
+    "sensitivity": "moderate",
+    "bbox_in_region": [
+      441,
+      15,
+      206,
+      23
+    ],
+    "abs_bbox": [
+      1333,
+      1081,
+      206,
+      23
+    ],
+    "debug_crop_path": "/home/will/photo_project/debug_stamps_v2/00000048_crop.png",
+    "debug_annotated_path": "/home/will/photo_project/debug_stamps_v2/00000048_annotated.jpg",
+    "file": "/mnt/823c9bf9-838a-4591-a00f-ae361fcb4792/Photos/img/Photos/ScanMyPhotos/Disc 2/00000048.jpg",
+    "filename": "00000048.jpg",
+    "has_crop": true,
+    "ocr_crop_path": "/home/will/photo_project/debug_stamps_v2/00000048_ocr.png"
+  },
+  {
+    "found": true,
+    "position": "bottom-right",
+    "digit_count": 7,
+    "cluster_aspect": 5.33,
+    "cluster_fill": 0.223,
+    "cluster_area": 1809,
+    "sensitivity": "tight",
+    "bbox_in_region": [
+      445,
+      1,
+      208,
+      39
+    ],
+    "abs_bbox": [
+      1337,
+      1061,
+      208,
+      39
+    ],
+    "debug_crop_path": "/home/will/photo_project/debug_stamps_v2/00000049_crop.png",
+    "debug_annotated_path": "/home/will/photo_project/debug_stamps_v2/00000049_annotated.jpg",
+    "file": "/mnt/823c9bf9-838a-4591-a00f-ae361fcb4792/Photos/img/Photos/ScanMyPhotos/Disc 2/00000049.jpg",
+    "filename": "00000049.jpg",
+    "has_crop": true,
+    "ocr_crop_path": "/home/will/photo_project/debug_stamps_v2/00000049_ocr.png"
+  },
+  {
+    "found": true,
+    "position": "bottom-right",
+    "digit_count": 9,
+    "cluster_aspect": 5.98,
+    "cluster_fill": 0.185,
+    "cluster_area": 2048,
+    "sensitivity": "tight",
+    "bbox_in_region": [
+      418,
+      0,
+      257,
+      43
+    ],
+    "abs_bbox": [
+      1310,
+      1071,
+      257,
+      43
+    ],
+    "debug_crop_path": "/home/will/photo_project/debug_stamps_v2/00000050_crop.png",
+    "debug_annotated_path": "/home/will/photo_project/debug_stamps_v2/00000050_annotated.jpg",
+    "file": "/mnt/823c9bf9-838a-4591-a00f-ae361fcb4792/Photos/img/Photos/ScanMyPhotos/Disc 2/00000050.jpg",
+    "filename": "00000050.jpg",
+    "has_crop": true,
+    "ocr_crop_path": "/home/will/photo_project/debug_stamps_v2/00000050_ocr.png"
+  },
+  {
+    "found": true,
+    "position": "top-right",
+    "digit_count": 5,
+    "cluster_aspect": 6.44,
+    "cluster_fill": 0.132,
+    "cluster_area": 276,
+    "sensitivity": "moderate",
+    "bbox_in_region": [
+      771,
+      40,
+      116,
+      18
+    ],
+    "abs_bbox": [
+      1663,
+      40,
+      116,
+      18
+    ],
+    "debug_crop_path": "/home/will/photo_project/debug_stamps_v2/00000051_crop.png",
+    "debug_annotated_path": "/home/will/photo_project/debug_stamps_v2/00000051_annotated.jpg",
+    "file": "/mnt/823c9bf9-838a-4591-a00f-ae361fcb4792/Photos/img/Photos/ScanMyPhotos/Disc 2/00000051.jpg",
+    "filename": "00000051.jpg",
+    "has_crop": true,
+    "ocr_crop_path": "/home/will/photo_project/debug_stamps_v2/00000051_ocr.png"
+  },
+  {
+    "found": true,
+    "position": "top-right",
+    "digit_count": 10,
+    "cluster_aspect": 7.5,
+    "cluster_fill": 0.106,
+    "cluster_area": 812,
+    "sensitivity": "moderate",
+    "bbox_in_region": [
+      510,
+      0,
+      240,
+      32
+    ],
+    "abs_bbox": [
+      1402,
+      0,
+      240,
+      32
+    ],
+    "debug_crop_path": "/home/will/photo_project/debug_stamps_v2/00000052_crop.png",
+    "debug_annotated_path": "/home/will/photo_project/debug_stamps_v2/00000052_annotated.jpg",
+    "file": "/mnt/823c9bf9-838a-4591-a00f-ae361fcb4792/Photos/img/Photos/ScanMyPhotos/Disc 2/00000052.jpg",
+    "filename": "00000052.jpg",
+    "has_crop": true,
+    "ocr_crop_path": "/home/will/photo_project/debug_stamps_v2/00000052_ocr.png"
+  },
+  {
+    "found": true,
+    "position": "bottom-right",
+    "digit_count": 9,
+    "cluster_aspect": 6.31,
+    "cluster_fill": 0.14,
+    "cluster_area": 227,
+    "sensitivity": "tight",
+    "bbox_in_region": [
+      565,
+      3,
+      101,
+      16
+    ],
+    "abs_bbox": [
+      1457,
+      1073,
+      101,
+      16
+    ],
+    "debug_crop_path": "/home/will/photo_project/debug_stamps_v2/00000053_crop.png",
+    "debug_annotated_path": "/home/will/photo_project/debug_stamps_v2/00000053_annotated.jpg",
+    "file": "/mnt/823c9bf9-838a-4591-a00f-ae361fcb4792/Photos/img/Photos/ScanMyPhotos/Disc 2/00000053.jpg",
+    "filename": "00000053.jpg",
+    "has_crop": true,
+    "ocr_crop_path": "/home/will/photo_project/debug_stamps_v2/00000053_ocr.png"
+  },
+  {
+    "found": true,
+    "position": "bottom-right",
+    "digit_count": 6,
+    "cluster_aspect": 3.94,
+    "cluster_fill": 0.187,
+    "cluster_area": 238,
+    "sensitivity": "tight",
+    "bbox_in_region": [
+      572,
+      1,
+      71,
+      18
+    ],
+    "abs_bbox": [
+      1464,
+      1066,
+      71,
+      18
+    ],
+    "debug_crop_path": "/home/will/photo_project/debug_stamps_v2/00000054_crop.png",
+    "debug_annotated_path": "/home/will/photo_project/debug_stamps_v2/00000054_annotated.jpg",
+    "file": "/mnt/823c9bf9-838a-4591-a00f-ae361fcb4792/Photos/img/Photos/ScanMyPhotos/Disc 2/00000054.jpg",
+    "filename": "00000054.jpg",
+    "has_crop": true,
+    "ocr_crop_path": "/home/will/photo_project/debug_stamps_v2/00000054_ocr.png"
+  },
+  {
+    "found": true,
+    "position": "bottom-right",
+    "digit_count": 7,
+    "cluster_aspect": 5.2,
+    "cluster_fill": 0.179,
+    "cluster_area": 1486,
+    "sensitivity": "moderate",
+    "bbox_in_region": [
+      461,
+      0,
+      208,
+      40
+    ],
+    "abs_bbox": [
+      1353,
+      1062,
+      208,
+      40
+    ],
+    "debug_crop_path": "/home/will/photo_project/debug_stamps_v2/00000055_crop.png",
+    "debug_annotated_path": "/home/will/photo_project/debug_stamps_v2/00000055_annotated.jpg",
+    "file": "/mnt/823c9bf9-838a-4591-a00f-ae361fcb4792/Photos/img/Photos/ScanMyPhotos/Disc 2/00000055.jpg",
+    "filename": "00000055.jpg",
+    "has_crop": true,
+    "ocr_crop_path": "/home/will/photo_project/debug_stamps_v2/00000055_ocr.png"
+  },
+  {
+    "found": true,
+    "position": "bottom-full",
+    "digit_count": 15,
+    "cluster_aspect": 9.76,
+    "cluster_fill": 0.161,
+    "cluster_area": 694,
+    "sensitivity": "moderate",
+    "bbox_in_region": [
+      1350,
+      0,
+      205,
+      21
+    ],
+    "abs_bbox": [
+      1350,
+      1065,
+      205,
+      21
+    ],
+    "debug_crop_path": "/home/will/photo_project/debug_stamps_v2/00000056_crop.png",
+    "debug_annotated_path": "/home/will/photo_project/debug_stamps_v2/00000056_annotated.jpg",
+    "file": "/mnt/823c9bf9-838a-4591-a00f-ae361fcb4792/Photos/img/Photos/ScanMyPhotos/Disc 2/00000056.jpg",
+    "filename": "00000056.jpg",
+    "has_crop": true,
+    "ocr_crop_path": "/home/will/photo_project/debug_stamps_v2/00000056_ocr.png"
+  },
+  {
+    "found": true,
+    "position": "bottom-right",
+    "digit_count": 10,
+    "cluster_aspect": 5.07,
+    "cluster_fill": 0.172,
+    "cluster_area": 1470,
+    "sensitivity": "moderate",
+    "bbox_in_region": [
+      447,
+      6,
+      208,
+      41
+    ],
+    "abs_bbox": [
+      1339,
+      1066,
+      208,
+      41
+    ],
+    "debug_crop_path": "/home/will/photo_project/debug_stamps_v2/00000057_crop.png",
+    "debug_annotated_path": "/home/will/photo_project/debug_stamps_v2/00000057_annotated.jpg",
+    "file": "/mnt/823c9bf9-838a-4591-a00f-ae361fcb4792/Photos/img/Photos/ScanMyPhotos/Disc 2/00000057.jpg",
+    "filename": "00000057.jpg",
+    "has_crop": true,
+    "ocr_crop_path": "/home/will/photo_project/debug_stamps_v2/00000057_ocr.png"
+  },
+  {
+    "found": true,
+    "position": "bottom-right",
+    "digit_count": 8,
+    "cluster_aspect": 5.72,
+    "cluster_fill": 0.123,
+    "cluster_area": 228,
+    "sensitivity": "tight",
+    "bbox_in_region": [
+      539,
+      0,
+      103,
+      18
+    ],
+    "abs_bbox": [
+      1431,
+      1067,
+      103,
+      18
+    ],
+    "debug_crop_path": "/home/will/photo_project/debug_stamps_v2/00000058_crop.png",
+    "debug_annotated_path": "/home/will/photo_project/debug_stamps_v2/00000058_annotated.jpg",
+    "file": "/mnt/823c9bf9-838a-4591-a00f-ae361fcb4792/Photos/img/Photos/ScanMyPhotos/Disc 2/00000058.jpg",
+    "filename": "00000058.jpg",
+    "has_crop": true,
+    "ocr_crop_path": "/home/will/photo_project/debug_stamps_v2/00000058_ocr.png"
+  },
+  {
+    "found": true,
+    "position": "bottom-right",
+    "digit_count": 10,
+    "cluster_aspect": 6.0,
+    "cluster_fill": 0.213,
+    "cluster_area": 414,
+    "sensitivity": "tight",
+    "bbox_in_region": [
+      575,
+      0,
+      108,
+      18
+    ],
+    "abs_bbox": [
+      1467,
+      1066,
+      108,
+      18
+    ],
+    "debug_crop_path": "/home/will/photo_project/debug_stamps_v2/00000059_crop.png",
+    "debug_annotated_path": "/home/will/photo_project/debug_stamps_v2/00000059_annotated.jpg",
+    "file": "/mnt/823c9bf9-838a-4591-a00f-ae361fcb4792/Photos/img/Photos/ScanMyPhotos/Disc 2/00000059.jpg",
+    "filename": "00000059.jpg",
+    "has_crop": true,
+    "ocr_crop_path": "/home/will/photo_project/debug_stamps_v2/00000059_ocr.png"
+  },
+  {
+    "found": true,
+    "position": "bottom-right",
+    "digit_count": 6,
+    "cluster_aspect": 5.65,
+    "cluster_fill": 0.233,
+    "cluster_area": 1805,
+    "sensitivity": "tight",
+    "bbox_in_region": [
+      430,
+      0,
+      209,
+      37
+    ],
+    "abs_bbox": [
+      1322,
+      1071,
+      209,
+      37
+    ],
+    "debug_crop_path": "/home/will/photo_project/debug_stamps_v2/00000060_crop.png",
+    "debug_annotated_path": "/home/will/photo_project/debug_stamps_v2/00000060_annotated.jpg",
+    "file": "/mnt/823c9bf9-838a-4591-a00f-ae361fcb4792/Photos/img/Photos/ScanMyPhotos/Disc 2/00000060.jpg",
+    "filename": "00000060.jpg",
+    "has_crop": true,
+    "ocr_crop_path": "/home/will/photo_project/debug_stamps_v2/00000060_ocr.png"
+  },
+  {
+    "found": true,
+    "position": "bottom-right",
+    "digit_count": 9,
+    "cluster_aspect": 10.3,
+    "cluster_fill": 0.174,
+    "cluster_area": 718,
+    "sensitivity": "moderate",
+    "bbox_in_region": [
+      473,
+      0,
+      206,
+      20
+    ],
+    "abs_bbox": [
+      1365,
+      1070,
+      206,
+      20
+    ],
+    "debug_crop_path": "/home/will/photo_project/debug_stamps_v2/00000061_crop.png",
+    "debug_annotated_path": "/home/will/photo_project/debug_stamps_v2/00000061_annotated.jpg",
+    "file": "/mnt/823c9bf9-838a-4591-a00f-ae361fcb4792/Photos/img/Photos/ScanMyPhotos/Disc 2/00000061.jpg",
+    "filename": "00000061.jpg",
+    "has_crop": true,
+    "ocr_crop_path": "/home/will/photo_project/debug_stamps_v2/00000061_ocr.png"
+  },
+  {
+    "found": true,
+    "position": "top-right",
+    "digit_count": 11,
+    "cluster_aspect": 4.94,
+    "cluster_fill": 0.075,
+    "cluster_area": 405,
+    "sensitivity": "tight",
+    "bbox_in_region": [
+      582,
+      24,
+      163,
+      33
+    ],
+    "abs_bbox": [
+      1474,
+      24,
+      163,
+      33
+    ],
+    "debug_crop_path": "/home/will/photo_project/debug_stamps_v2/00000062_crop.png",
+    "debug_annotated_path": "/home/will/photo_project/debug_stamps_v2/00000062_annotated.jpg",
+    "file": "/mnt/823c9bf9-838a-4591-a00f-ae361fcb4792/Photos/img/Photos/ScanMyPhotos/Disc 2/00000062.jpg",
+    "filename": "00000062.jpg",
+    "has_crop": true,
+    "ocr_crop_path": "/home/will/photo_project/debug_stamps_v2/00000062_ocr.png"
+  },
+  {
+    "found": true,
+    "position": "bottom-full",
+    "digit_count": 10,
+    "cluster_aspect": 8.41,
+    "cluster_fill": 0.095,
+    "cluster_area": 921,
+    "sensitivity": "tight",
+    "bbox_in_region": [
+      643,
+      78,
+      286,
+      34
+    ],
+    "abs_bbox": [
+      643,
+      1136,
+      286,
+      34
+    ],
+    "debug_crop_path": "/home/will/photo_project/debug_stamps_v2/00000063_crop.png",
+    "debug_annotated_path": "/home/will/photo_project/debug_stamps_v2/00000063_annotated.jpg",
+    "file": "/mnt/823c9bf9-838a-4591-a00f-ae361fcb4792/Photos/img/Photos/ScanMyPhotos/Disc 2/00000063.jpg",
+    "filename": "00000063.jpg",
+    "has_crop": true,
+    "ocr_crop_path": "/home/will/photo_project/debug_stamps_v2/00000063_ocr.png"
+  },
+  {
+    "found": true,
+    "position": "bottom-right",
+    "digit_count": 10,
+    "cluster_aspect": 5.22,
+    "cluster_fill": 0.185,
+    "cluster_area": 1549,
+    "sensitivity": "tight",
+    "bbox_in_region": [
+      437,
+      1,
+      209,
+      40
+    ],
+    "abs_bbox": [
+      1329,
+      1066,
+      209,
+      40
+    ],
+    "debug_crop_path": "/home/will/photo_project/debug_stamps_v2/00000064_crop.png",
+    "debug_annotated_path": "/home/will/photo_project/debug_stamps_v2/00000064_annotated.jpg",
+    "file": "/mnt/823c9bf9-838a-4591-a00f-ae361fcb4792/Photos/img/Photos/ScanMyPhotos/Disc 2/00000064.jpg",
+    "filename": "00000064.jpg",
+    "has_crop": true,
+    "ocr_crop_path": "/home/will/photo_project/debug_stamps_v2/00000064_ocr.png"
+  },
+  {
+    "found": true,
+    "position": "bottom-right",
+    "digit_count": 8,
+    "cluster_aspect": 6.0,
+    "cluster_fill": 0.07,
+    "cluster_area": 121,
+    "sensitivity": "moderate",
+    "bbox_in_region": [
+      545,
+      0,
+      102,
+      17
+    ],
+    "abs_bbox": [
+      1437,
+      1068,
+      102,
+      17
+    ],
+    "debug_crop_path": "/home/will/photo_project/debug_stamps_v2/00000065_crop.png",
+    "debug_annotated_path": "/home/will/photo_project/debug_stamps_v2/00000065_annotated.jpg",
+    "file": "/mnt/823c9bf9-838a-4591-a00f-ae361fcb4792/Photos/img/Photos/ScanMyPhotos/Disc 2/00000065.jpg",
+    "filename": "00000065.jpg",
+    "has_crop": true,
+    "ocr_crop_path": "/home/will/photo_project/debug_stamps_v2/00000065_ocr.png"
+  },
+  {
+    "found": true,
+    "position": "bottom-right",
+    "digit_count": 8,
+    "cluster_aspect": 6.15,
+    "cluster_fill": 0.155,
+    "cluster_area": 1104,
+    "sensitivity": "tight",
+    "bbox_in_region": [
+      454,
+      0,
+      209,
+      34
+    ],
+    "abs_bbox": [
+      1342,
+      1058,
+      209,
+      34
+    ],
+    "debug_crop_path": "/home/will/photo_project/debug_stamps_v2/00000066_crop.png",
+    "debug_annotated_path": "/home/will/photo_project/debug_stamps_v2/00000066_annotated.jpg",
+    "file": "/mnt/823c9bf9-838a-4591-a00f-ae361fcb4792/Photos/img/Photos/ScanMyPhotos/Disc 2/00000066.jpg",
+    "filename": "00000066.jpg",
+    "has_crop": true,
+    "ocr_crop_path": "/home/will/photo_project/debug_stamps_v2/00000066_ocr.png"
+  },
+  {
+    "found": true,
+    "position": "bottom-right",
+    "digit_count": 6,
+    "cluster_aspect": 5.22,
+    "cluster_fill": 0.236,
+    "cluster_area": 1977,
+    "sensitivity": "tight",
+    "bbox_in_region": [
+      447,
+      5,
+      209,
+      40
+    ],
+    "abs_bbox": [
+      1339,
+      1062,
+      209,
+      40
+    ],
+    "debug_crop_path": "/home/will/photo_project/debug_stamps_v2/00000067_crop.png",
+    "debug_annotated_path": "/home/will/photo_project/debug_stamps_v2/00000067_annotated.jpg",
+    "file": "/mnt/823c9bf9-838a-4591-a00f-ae361fcb4792/Photos/img/Photos/ScanMyPhotos/Disc 2/00000067.jpg",
+    "filename": "00000067.jpg",
+    "has_crop": true,
+    "ocr_crop_path": "/home/will/photo_project/debug_stamps_v2/00000067_ocr.png"
+  },
+  {
+    "found": true,
+    "position": "bottom-left",
+    "digit_count": 7,
+    "cluster_aspect": 10.16,
+    "cluster_fill": 0.044,
+    "cluster_area": 161,
+    "sensitivity": "tight",
+    "bbox_in_region": [
+      109,
+      100,
+      193,
+      19
+    ],
+    "abs_bbox": [
+      109,
+      1165,
+      193,
+      19
+    ],
+    "debug_crop_path": "/home/will/photo_project/debug_stamps_v2/00000068_crop.png",
+    "debug_annotated_path": "/home/will/photo_project/debug_stamps_v2/00000068_annotated.jpg",
+    "file": "/mnt/823c9bf9-838a-4591-a00f-ae361fcb4792/Photos/img/Photos/ScanMyPhotos/Disc 2/00000068.jpg",
+    "filename": "00000068.jpg",
+    "has_crop": true,
+    "ocr_crop_path": "/home/will/photo_project/debug_stamps_v2/00000068_ocr.png"
+  },
+  {
+    "found": true,
+    "position": "top-right",
+    "digit_count": 10,
+    "cluster_aspect": 9.16,
+    "cluster_fill": 0.07,
+    "cluster_area": 402,
+    "sensitivity": "tight",
+    "bbox_in_region": [
+      210,
+      93,
+      229,
+      25
+    ],
+    "abs_bbox": [
+      1102,
+      93,
+      229,
+      25
+    ],
+    "debug_crop_path": "/home/will/photo_project/debug_stamps_v2/00000069_crop.png",
+    "debug_annotated_path": "/home/will/photo_project/debug_stamps_v2/00000069_annotated.jpg",
+    "file": "/mnt/823c9bf9-838a-4591-a00f-ae361fcb4792/Photos/img/Photos/ScanMyPhotos/Disc 2/00000069.jpg",
+    "filename": "00000069.jpg",
+    "has_crop": true,
+    "ocr_crop_path": "/home/will/photo_project/debug_stamps_v2/00000069_ocr.png"
+  },
+  {
+    "found": true,
+    "position": "bottom-right",
+    "digit_count": 16,
+    "cluster_aspect": 11.27,
+    "cluster_fill": 0.128,
+    "cluster_area": 698,
+    "sensitivity": "tight",
+    "bbox_in_region": [
+      0,
+      0,
+      248,
+      22
+    ],
+    "abs_bbox": [
+      892,
+      1030,
+      248,
+      22
+    ],
+    "debug_crop_path": "/home/will/photo_project/debug_stamps_v2/00000070_crop.png",
+    "debug_annotated_path": "/home/will/photo_project/debug_stamps_v2/00000070_annotated.jpg",
+    "file": "/mnt/823c9bf9-838a-4591-a00f-ae361fcb4792/Photos/img/Photos/ScanMyPhotos/Disc 2/00000070.jpg",
+    "filename": "00000070.jpg",
+    "has_crop": true,
+    "ocr_crop_path": "/home/will/photo_project/debug_stamps_v2/00000070_ocr.png"
+  },
+  {
+    "found": true,
+    "position": "bottom-right",
+    "digit_count": 11,
+    "cluster_aspect": 9.0,
+    "cluster_fill": 0.07,
+    "cluster_area": 181,
+    "sensitivity": "tight",
+    "bbox_in_region": [
+      727,
+      0,
+      153,
+      17
+    ],
+    "abs_bbox": [
+      1619,
+      1070,
+      153,
+      17
+    ],
+    "debug_crop_path": "/home/will/photo_project/debug_stamps_v2/00000071_crop.png",
+    "debug_annotated_path": "/home/will/photo_project/debug_stamps_v2/00000071_annotated.jpg",
+    "file": "/mnt/823c9bf9-838a-4591-a00f-ae361fcb4792/Photos/img/Photos/ScanMyPhotos/Disc 2/00000071.jpg",
+    "filename": "00000071.jpg",
+    "has_crop": true,
+    "ocr_crop_path": "/home/will/photo_project/debug_stamps_v2/00000071_ocr.png"
+  },
+  {
+    "found": true,
+    "position": "bottom-right",
+    "digit_count": 10,
+    "cluster_aspect": 10.3,
+    "cluster_fill": 0.164,
+    "cluster_area": 674,
+    "sensitivity": "tight",
+    "bbox_in_region": [
+      446,
+      0,
+      206,
+      20
+    ],
+    "abs_bbox": [
+      1338,
+      1066,
+      206,
+      20
+    ],
+    "debug_crop_path": "/home/will/photo_project/debug_stamps_v2/00000072_crop.png",
+    "debug_annotated_path": "/home/will/photo_project/debug_stamps_v2/00000072_annotated.jpg",
+    "file": "/mnt/823c9bf9-838a-4591-a00f-ae361fcb4792/Photos/img/Photos/ScanMyPhotos/Disc 2/00000072.jpg",
+    "filename": "00000072.jpg",
+    "has_crop": true,
+    "ocr_crop_path": "/home/will/photo_project/debug_stamps_v2/00000072_ocr.png"
+  },
+  {
+    "found": true,
+    "position": "bottom-left",
+    "digit_count": 14,
+    "cluster_aspect": 9.86,
+    "cluster_fill": 0.105,
+    "cluster_area": 458,
+    "sensitivity": "tight",
+    "bbox_in_region": [
+      144,
+      0,
+      207,
+      21
+    ],
+    "abs_bbox": [
+      144,
+      1068,
+      207,
+      21
+    ],
+    "debug_crop_path": "/home/will/photo_project/debug_stamps_v2/00000073_crop.png",
+    "debug_annotated_path": "/home/will/photo_project/debug_stamps_v2/00000073_annotated.jpg",
+    "file": "/mnt/823c9bf9-838a-4591-a00f-ae361fcb4792/Photos/img/Photos/ScanMyPhotos/Disc 2/00000073.jpg",
+    "filename": "00000073.jpg",
+    "has_crop": true,
+    "ocr_crop_path": "/home/will/photo_project/debug_stamps_v2/00000073_ocr.png"
+  },
+  {
+    "found": true,
+    "position": "bottom-full",
+    "digit_count": 14,
+    "cluster_aspect": 9.19,
+    "cluster_fill": 0.032,
+    "cluster_area": 280,
+    "sensitivity": "tight",
+    "bbox_in_region": [
+      269,
+      29,
+      285,
+      31
+    ],
+    "abs_bbox": [
+      269,
+      1082,
+      285,
+      31
+    ],
+    "debug_crop_path": "/home/will/photo_project/debug_stamps_v2/00000074_crop.png",
+    "debug_annotated_path": "/home/will/photo_project/debug_stamps_v2/00000074_annotated.jpg",
+    "file": "/mnt/823c9bf9-838a-4591-a00f-ae361fcb4792/Photos/img/Photos/ScanMyPhotos/Disc 2/00000074.jpg",
+    "filename": "00000074.jpg",
+    "has_crop": true,
+    "ocr_crop_path": "/home/will/photo_project/debug_stamps_v2/00000074_ocr.png"
+  },
+  {
+    "found": true,
+    "position": "bottom-right",
+    "digit_count": 11,
+    "cluster_aspect": 8.96,
+    "cluster_fill": 0.113,
+    "cluster_area": 536,
+    "sensitivity": "tight",
+    "bbox_in_region": [
+      435,
+      6,
+      206,
+      23
+    ],
+    "abs_bbox": [
+      1327,
+      1076,
+      206,
+      23
+    ],
+    "debug_crop_path": "/home/will/photo_project/debug_stamps_v2/00000075_crop.png",
+    "debug_annotated_path": "/home/will/photo_project/debug_stamps_v2/00000075_annotated.jpg",
+    "file": "/mnt/823c9bf9-838a-4591-a00f-ae361fcb4792/Photos/img/Photos/ScanMyPhotos/Disc 2/00000075.jpg",
+    "filename": "00000075.jpg",
+    "has_crop": true,
+    "ocr_crop_path": "/home/will/photo_project/debug_stamps_v2/00000075_ocr.png"
+  },
+  {
+    "found": true,
+    "position": "bottom-full",
+    "digit_count": 7,
+    "cluster_aspect": 6.61,
+    "cluster_fill": 0.085,
+    "cluster_area": 1085,
+    "sensitivity": "tight",
+    "bbox_in_region": [
+      1288,
+      0,
+      291,
+      44
+    ],
+    "abs_bbox": [
+      1288,
+      1066,
+      291,
+      44
+    ],
+    "debug_crop_path": "/home/will/photo_project/debug_stamps_v2/00000076_crop.png",
+    "debug_annotated_path": "/home/will/photo_project/debug_stamps_v2/00000076_annotated.jpg",
+    "file": "/mnt/823c9bf9-838a-4591-a00f-ae361fcb4792/Photos/img/Photos/ScanMyPhotos/Disc 2/00000076.jpg",
+    "filename": "00000076.jpg",
+    "has_crop": true,
+    "ocr_crop_path": "/home/will/photo_project/debug_stamps_v2/00000076_ocr.png"
+  },
+  {
+    "found": true,
+    "position": "bottom-right",
+    "digit_count": 9,
+    "cluster_aspect": 6.44,
+    "cluster_fill": 0.151,
+    "cluster_area": 249,
+    "sensitivity": "tight",
+    "bbox_in_region": [
+      535,
+      0,
+      103,
+      16
+    ],
+    "abs_bbox": [
+      1427,
+      1072,
+      103,
+      16
+    ],
+    "debug_crop_path": "/home/will/photo_project/debug_stamps_v2/00000077_crop.png",
+    "debug_annotated_path": "/home/will/photo_project/debug_stamps_v2/00000077_annotated.jpg",
+    "file": "/mnt/823c9bf9-838a-4591-a00f-ae361fcb4792/Photos/img/Photos/ScanMyPhotos/Disc 2/00000077.jpg",
+    "filename": "00000077.jpg",
+    "has_crop": true,
+    "ocr_crop_path": "/home/will/photo_project/debug_stamps_v2/00000077_ocr.png"
+  },
+  {
+    "found": true,
+    "position": "bottom-right",
+    "digit_count": 9,
+    "cluster_aspect": 7.92,
+    "cluster_fill": 0.187,
+    "cluster_area": 853,
+    "sensitivity": "moderate",
+    "bbox_in_region": [
+      471,
+      0,
+      190,
+      24
+    ],
+    "abs_bbox": [
+      1363,
+      1065,
+      190,
+      24
+    ],
+    "debug_crop_path": "/home/will/photo_project/debug_stamps_v2/00000078_crop.png",
+    "debug_annotated_path": "/home/will/photo_project/debug_stamps_v2/00000078_annotated.jpg",
+    "file": "/mnt/823c9bf9-838a-4591-a00f-ae361fcb4792/Photos/img/Photos/ScanMyPhotos/Disc 2/00000078.jpg",
+    "filename": "00000078.jpg",
+    "has_crop": true,
+    "ocr_crop_path": "/home/will/photo_project/debug_stamps_v2/00000078_ocr.png"
+  },
+  {
+    "found": true,
+    "position": "bottom-right",
+    "digit_count": 8,
+    "cluster_aspect": 5.47,
+    "cluster_fill": 0.123,
+    "cluster_area": 974,
+    "sensitivity": "tight",
+    "bbox_in_region": [
+      417,
+      5,
+      208,
+      38
+    ],
+    "abs_bbox": [
+      1309,
+      1067,
+      208,
+      38
+    ],
+    "debug_crop_path": "/home/will/photo_project/debug_stamps_v2/00000079_crop.png",
+    "debug_annotated_path": "/home/will/photo_project/debug_stamps_v2/00000079_annotated.jpg",
+    "file": "/mnt/823c9bf9-838a-4591-a00f-ae361fcb4792/Photos/img/Photos/ScanMyPhotos/Disc 2/00000079.jpg",
+    "filename": "00000079.jpg",
+    "has_crop": true,
+    "ocr_crop_path": "/home/will/photo_project/debug_stamps_v2/00000079_ocr.png"
+  },
+  {
+    "found": true,
+    "position": "bottom-right",
+    "digit_count": 9,
+    "cluster_aspect": 9.04,
+    "cluster_fill": 0.166,
+    "cluster_area": 796,
+    "sensitivity": "tight",
+    "bbox_in_region": [
+      409,
+      9,
+      208,
+      23
+    ],
+    "abs_bbox": [
+      1301,
+      1077,
+      208,
+      23
+    ],
+    "debug_crop_path": "/home/will/photo_project/debug_stamps_v2/00000080_crop.png",
+    "debug_annotated_path": "/home/will/photo_project/debug_stamps_v2/00000080_annotated.jpg",
+    "file": "/mnt/823c9bf9-838a-4591-a00f-ae361fcb4792/Photos/img/Photos/ScanMyPhotos/Disc 2/00000080.jpg",
+    "filename": "00000080.jpg",
+    "has_crop": true,
+    "ocr_crop_path": "/home/will/photo_project/debug_stamps_v2/00000080_ocr.png"
+  },
+  {
+    "found": true,
+    "position": "bottom-right",
+    "digit_count": 7,
+    "cluster_aspect": 4.88,
+    "cluster_fill": 0.129,
+    "cluster_area": 181,
+    "sensitivity": "tight",
+    "bbox_in_region": [
+      580,
+      0,
+      83,
+      17
+    ],
+    "abs_bbox": [
+      1472,
+      1069,
+      83,
+      17
+    ],
+    "debug_crop_path": "/home/will/photo_project/debug_stamps_v2/00000081_crop.png",
+    "debug_annotated_path": "/home/will/photo_project/debug_stamps_v2/00000081_annotated.jpg",
+    "file": "/mnt/823c9bf9-838a-4591-a00f-ae361fcb4792/Photos/img/Photos/ScanMyPhotos/Disc 2/00000081.jpg",
+    "filename": "00000081.jpg",
+    "has_crop": true,
+    "ocr_crop_path": "/home/will/photo_project/debug_stamps_v2/00000081_ocr.png"
+  },
+  {
+    "found": true,
+    "position": "top-right",
+    "digit_count": 5,
+    "cluster_aspect": 3.2,
+    "cluster_fill": 0.067,
+    "cluster_area": 630,
+    "sensitivity": "tight",
+    "bbox_in_region": [
+      436,
+      0,
+      173,
+      54
+    ],
+    "abs_bbox": [
+      1328,
+      0,
+      173,
+      54
+    ],
+    "debug_crop_path": "/home/will/photo_project/debug_stamps_v2/00000082_crop.png",
+    "debug_annotated_path": "/home/will/photo_project/debug_stamps_v2/00000082_annotated.jpg",
+    "file": "/mnt/823c9bf9-838a-4591-a00f-ae361fcb4792/Photos/img/Photos/ScanMyPhotos/Disc 2/00000082.jpg",
+    "filename": "00000082.jpg",
+    "has_crop": true,
+    "ocr_crop_path": "/home/will/photo_project/debug_stamps_v2/00000082_ocr.png"
+  },
+  {
+    "found": true,
+    "position": "bottom-right",
+    "digit_count": 10,
+    "cluster_aspect": 9.23,
+    "cluster_fill": 0.131,
+    "cluster_area": 586,
+    "sensitivity": "moderate",
+    "bbox_in_region": [
+      456,
+      0,
+      203,
+      22
+    ],
+    "abs_bbox": [
+      1348,
+      1069,
+      203,
+      22
+    ],
+    "debug_crop_path": "/home/will/photo_project/debug_stamps_v2/00000083_crop.png",
+    "debug_annotated_path": "/home/will/photo_project/debug_stamps_v2/00000083_annotated.jpg",
+    "file": "/mnt/823c9bf9-838a-4591-a00f-ae361fcb4792/Photos/img/Photos/ScanMyPhotos/Disc 2/00000083.jpg",
+    "filename": "00000083.jpg",
+    "has_crop": true,
+    "ocr_crop_path": "/home/will/photo_project/debug_stamps_v2/00000083_ocr.png"
+  },
+  {
+    "found": true,
+    "position": "bottom-right",
+    "digit_count": 8,
+    "cluster_aspect": 7.43,
+    "cluster_fill": 0.162,
+    "cluster_area": 235,
+    "sensitivity": "tight",
+    "bbox_in_region": [
+      580,
+      0,
+      104,
+      14
+    ],
+    "abs_bbox": [
+      1472,
+      1067,
+      104,
+      14
+    ],
+    "debug_crop_path": "/home/will/photo_project/debug_stamps_v2/00000084_crop.png",
+    "debug_annotated_path": "/home/will/photo_project/debug_stamps_v2/00000084_annotated.jpg",
+    "file": "/mnt/823c9bf9-838a-4591-a00f-ae361fcb4792/Photos/img/Photos/ScanMyPhotos/Disc 2/00000084.jpg",
+    "filename": "00000084.jpg",
+    "has_crop": true,
+    "ocr_crop_path": "/home/will/photo_project/debug_stamps_v2/00000084_ocr.png"
+  },
+  {
+    "found": true,
+    "position": "top-right",
+    "digit_count": 5,
+    "cluster_aspect": 11.38,
+    "cluster_fill": 0.061,
+    "cluster_area": 178,
+    "sensitivity": "tight",
+    "bbox_in_region": [
+      71,
+      0,
+      182,
+      16
+    ],
+    "abs_bbox": [
+      963,
+      0,
+      182,
+      16
+    ],
+    "debug_crop_path": "/home/will/photo_project/debug_stamps_v2/00000085_crop.png",
+    "debug_annotated_path": "/home/will/photo_project/debug_stamps_v2/00000085_annotated.jpg",
+    "file": "/mnt/823c9bf9-838a-4591-a00f-ae361fcb4792/Photos/img/Photos/ScanMyPhotos/Disc 2/00000085.jpg",
+    "filename": "00000085.jpg",
+    "has_crop": true,
+    "ocr_crop_path": "/home/will/photo_project/debug_stamps_v2/00000085_ocr.png"
+  },
+  {
+    "found": true,
+    "position": "bottom-right",
+    "digit_count": 9,
+    "cluster_aspect": 6.87,
+    "cluster_fill": 0.189,
+    "cluster_area": 292,
+    "sensitivity": "tight",
+    "bbox_in_region": [
+      546,
+      0,
+      103,
+      15
+    ],
+    "abs_bbox": [
+      1434,
+      1067,
+      103,
+      15
+    ],
+    "debug_crop_path": "/home/will/photo_project/debug_stamps_v2/00000086_crop.png",
+    "debug_annotated_path": "/home/will/photo_project/debug_stamps_v2/00000086_annotated.jpg",
+    "file": "/mnt/823c9bf9-838a-4591-a00f-ae361fcb4792/Photos/img/Photos/ScanMyPhotos/Disc 2/00000086.jpg",
+    "filename": "00000086.jpg",
+    "has_crop": true,
+    "ocr_crop_path": "/home/will/photo_project/debug_stamps_v2/00000086_ocr.png"
+  },
+  {
+    "found": true,
+    "position": "bottom-right",
+    "digit_count": 8,
+    "cluster_aspect": 10.2,
+    "cluster_fill": 0.163,
+    "cluster_area": 166,
+    "sensitivity": "tight",
+    "bbox_in_region": [
+      572,
+      0,
+      102,
+      10
+    ],
+    "abs_bbox": [
+      1460,
+      1070,
+      102,
+      10
+    ],
+    "debug_crop_path": "/home/will/photo_project/debug_stamps_v2/00000087_crop.png",
+    "debug_annotated_path": "/home/will/photo_project/debug_stamps_v2/00000087_annotated.jpg",
+    "file": "/mnt/823c9bf9-838a-4591-a00f-ae361fcb4792/Photos/img/Photos/ScanMyPhotos/Disc 2/00000087.jpg",
+    "filename": "00000087.jpg",
+    "has_crop": true,
+    "ocr_crop_path": "/home/will/photo_project/debug_stamps_v2/00000087_ocr.png"
+  },
+  {
+    "found": true,
+    "position": "bottom-right",
+    "digit_count": 4,
+    "cluster_aspect": 5.91,
+    "cluster_fill": 0.13,
+    "cluster_area": 940,
+    "sensitivity": "tight",
+    "bbox_in_region": [
+      476,
+      0,
+      207,
+      35
+    ],
+    "abs_bbox": [
+      1368,
+      1061,
+      207,
+      35
+    ],
+    "debug_crop_path": "/home/will/photo_project/debug_stamps_v2/00000088_crop.png",
+    "debug_annotated_path": "/home/will/photo_project/debug_stamps_v2/00000088_annotated.jpg",
+    "file": "/mnt/823c9bf9-838a-4591-a00f-ae361fcb4792/Photos/img/Photos/ScanMyPhotos/Disc 2/00000088.jpg",
+    "filename": "00000088.jpg",
+    "has_crop": true,
+    "ocr_crop_path": "/home/will/photo_project/debug_stamps_v2/00000088_ocr.png"
+  },
+  {
+    "found": true,
+    "position": "bottom-right",
+    "digit_count": 9,
+    "cluster_aspect": 8.5,
+    "cluster_fill": 0.087,
+    "cluster_area": 426,
+    "sensitivity": "tight",
+    "bbox_in_region": [
+      437,
+      7,
+      204,
+      24
+    ],
+    "abs_bbox": [
+      1329,
+      1072,
+      204,
+      24
+    ],
+    "debug_crop_path": "/home/will/photo_project/debug_stamps_v2/00000089_crop.png",
+    "debug_annotated_path": "/home/will/photo_project/debug_stamps_v2/00000089_annotated.jpg",
+    "file": "/mnt/823c9bf9-838a-4591-a00f-ae361fcb4792/Photos/img/Photos/ScanMyPhotos/Disc 2/00000089.jpg",
+    "filename": "00000089.jpg",
+    "has_crop": true,
+    "ocr_crop_path": "/home/will/photo_project/debug_stamps_v2/00000089_ocr.png"
+  },
+  {
+    "found": true,
+    "position": "bottom-right",
+    "digit_count": 5,
+    "cluster_aspect": 6.29,
+    "cluster_fill": 0.07,
+    "cluster_area": 127,
+    "sensitivity": "tight",
+    "bbox_in_region": [
+      577,
+      4,
+      107,
+      17
+    ],
+    "abs_bbox": [
+      1465,
+      1064,
+      107,
+      17
+    ],
+    "debug_crop_path": "/home/will/photo_project/debug_stamps_v2/00000090_crop.png",
+    "debug_annotated_path": "/home/will/photo_project/debug_stamps_v2/00000090_annotated.jpg",
+    "file": "/mnt/823c9bf9-838a-4591-a00f-ae361fcb4792/Photos/img/Photos/ScanMyPhotos/Disc 2/00000090.jpg",
+    "filename": "00000090.jpg",
+    "has_crop": true,
+    "ocr_crop_path": "/home/will/photo_project/debug_stamps_v2/00000090_ocr.png"
+  },
+  {
+    "found": true,
+    "position": "bottom-right",
+    "digit_count": 12,
+    "cluster_aspect": 9.0,
+    "cluster_fill": 0.138,
+    "cluster_area": 659,
+    "sensitivity": "moderate",
+    "bbox_in_region": [
+      470,
+      9,
+      207,
+      23
+    ],
+    "abs_bbox": [
+      1362,
+      1075,
+      207,
+      23
+    ],
+    "debug_crop_path": "/home/will/photo_project/debug_stamps_v2/00000091_crop.png",
+    "debug_annotated_path": "/home/will/photo_project/debug_stamps_v2/00000091_annotated.jpg",
+    "file": "/mnt/823c9bf9-838a-4591-a00f-ae361fcb4792/Photos/img/Photos/ScanMyPhotos/Disc 2/00000091.jpg",
+    "filename": "00000091.jpg",
+    "has_crop": true,
+    "ocr_crop_path": "/home/will/photo_project/debug_stamps_v2/00000091_ocr.png"
+  },
+  {
+    "found": true,
+    "position": "top-left",
+    "digit_count": 12,
+    "cluster_aspect": 8.79,
+    "cluster_fill": 0.036,
+    "cluster_area": 180,
+    "sensitivity": "moderate",
+    "bbox_in_region": [
+      441,
+      14,
+      211,
+      24
+    ],
+    "abs_bbox": [
+      441,
+      14,
+      211,
+      24
+    ],
+    "debug_crop_path": "/home/will/photo_project/debug_stamps_v2/00000092_crop.png",
+    "debug_annotated_path": "/home/will/photo_project/debug_stamps_v2/00000092_annotated.jpg",
+    "file": "/mnt/823c9bf9-838a-4591-a00f-ae361fcb4792/Photos/img/Photos/ScanMyPhotos/Disc 2/00000092.jpg",
+    "filename": "00000092.jpg",
+    "has_crop": true,
+    "ocr_crop_path": "/home/will/photo_project/debug_stamps_v2/00000092_ocr.png"
+  },
+  {
+    "found": true,
+    "position": "bottom-right",
+    "digit_count": 7,
+    "cluster_aspect": 5.12,
+    "cluster_fill": 0.174,
+    "cluster_area": 228,
+    "sensitivity": "tight",
+    "bbox_in_region": [
+      538,
+      0,
+      82,
+      16
+    ],
+    "abs_bbox": [
+      1430,
+      1071,
+      82,
+      16
+    ],
+    "debug_crop_path": "/home/will/photo_project/debug_stamps_v2/00000093_crop.png",
+    "debug_annotated_path": "/home/will/photo_project/debug_stamps_v2/00000093_annotated.jpg",
+    "file": "/mnt/823c9bf9-838a-4591-a00f-ae361fcb4792/Photos/img/Photos/ScanMyPhotos/Disc 2/00000093.jpg",
+    "filename": "00000093.jpg",
+    "has_crop": true,
+    "ocr_crop_path": "/home/will/photo_project/debug_stamps_v2/00000093_ocr.png"
+  },
+  {
+    "found": true,
+    "position": "bottom-right",
+    "digit_count": 8,
+    "cluster_aspect": 6.38,
+    "cluster_fill": 0.158,
+    "cluster_area": 258,
+    "sensitivity": "moderate",
+    "bbox_in_region": [
+      542,
+      5,
+      102,
+      16
+    ],
+    "abs_bbox": [
+      1434,
+      1062,
+      102,
+      16
+    ],
+    "debug_crop_path": "/home/will/photo_project/debug_stamps_v2/00000094_crop.png",
+    "debug_annotated_path": "/home/will/photo_project/debug_stamps_v2/00000094_annotated.jpg",
+    "file": "/mnt/823c9bf9-838a-4591-a00f-ae361fcb4792/Photos/img/Photos/ScanMyPhotos/Disc 2/00000094.jpg",
+    "filename": "00000094.jpg",
+    "has_crop": true,
+    "ocr_crop_path": "/home/will/photo_project/debug_stamps_v2/00000094_ocr.png"
+  },
+  {
+    "found": true,
+    "position": "bottom-right",
+    "digit_count": 9,
+    "cluster_aspect": 6.44,
+    "cluster_fill": 0.146,
+    "cluster_area": 240,
+    "sensitivity": "tight",
+    "bbox_in_region": [
+      577,
+      0,
+      103,
+      16
+    ],
+    "abs_bbox": [
+      1469,
+      1067,
+      103,
+      16
+    ],
+    "debug_crop_path": "/home/will/photo_project/debug_stamps_v2/00000095_crop.png",
+    "debug_annotated_path": "/home/will/photo_project/debug_stamps_v2/00000095_annotated.jpg",
+    "file": "/mnt/823c9bf9-838a-4591-a00f-ae361fcb4792/Photos/img/Photos/ScanMyPhotos/Disc 2/00000095.jpg",
+    "filename": "00000095.jpg",
+    "has_crop": true,
+    "ocr_crop_path": "/home/will/photo_project/debug_stamps_v2/00000095_ocr.png"
+  },
+  {
+    "found": true,
+    "position": "bottom-right",
+    "digit_count": 8,
+    "cluster_aspect": 8.31,
+    "cluster_fill": 0.225,
+    "cluster_area": 479,
+    "sensitivity": "tight",
+    "bbox_in_region": [
+      574,
+      0,
+      133,
+      16
+    ],
+    "abs_bbox": [
+      1466,
+      1069,
+      133,
+      16
+    ],
+    "debug_crop_path": "/home/will/photo_project/debug_stamps_v2/00000096_crop.png",
+    "debug_annotated_path": "/home/will/photo_project/debug_stamps_v2/00000096_annotated.jpg",
+    "file": "/mnt/823c9bf9-838a-4591-a00f-ae361fcb4792/Photos/img/Photos/ScanMyPhotos/Disc 2/00000096.jpg",
+    "filename": "00000096.jpg",
+    "has_crop": true,
+    "ocr_crop_path": "/home/will/photo_project/debug_stamps_v2/00000096_ocr.png"
+  },
+  {
+    "found": true,
+    "position": "bottom-right",
+    "digit_count": 9,
+    "cluster_aspect": 6.44,
+    "cluster_fill": 0.12,
+    "cluster_area": 197,
+    "sensitivity": "tight",
+    "bbox_in_region": [
+      541,
+      0,
+      103,
+      16
+    ],
+    "abs_bbox": [
+      1433,
+      1067,
+      103,
+      16
+    ],
+    "debug_crop_path": "/home/will/photo_project/debug_stamps_v2/00000097_crop.png",
+    "debug_annotated_path": "/home/will/photo_project/debug_stamps_v2/00000097_annotated.jpg",
+    "file": "/mnt/823c9bf9-838a-4591-a00f-ae361fcb4792/Photos/img/Photos/ScanMyPhotos/Disc 2/00000097.jpg",
+    "filename": "00000097.jpg",
+    "has_crop": true,
+    "ocr_crop_path": "/home/will/photo_project/debug_stamps_v2/00000097_ocr.png"
+  },
+  {
+    "found": true,
+    "position": "bottom-right",
+    "digit_count": 5,
+    "cluster_aspect": 9.78,
+    "cluster_fill": 0.103,
+    "cluster_area": 81,
+    "sensitivity": "tight",
+    "bbox_in_region": [
+      563,
+      0,
+      88,
+      9
+    ],
+    "abs_bbox": [
+      1455,
+      1063,
+      88,
+      9
+    ],
+    "debug_crop_path": "/home/will/photo_project/debug_stamps_v2/00000098_crop.png",
+    "debug_annotated_path": "/home/will/photo_project/debug_stamps_v2/00000098_annotated.jpg",
+    "file": "/mnt/823c9bf9-838a-4591-a00f-ae361fcb4792/Photos/img/Photos/ScanMyPhotos/Disc 2/00000098.jpg",
+    "filename": "00000098.jpg",
+    "has_crop": true,
+    "ocr_crop_path": "/home/will/photo_project/debug_stamps_v2/00000098_ocr.png"
+  },
+  {
+    "found": true,
+    "position": "bottom-right",
+    "digit_count": 8,
+    "cluster_aspect": 6.69,
+    "cluster_fill": 0.114,
+    "cluster_area": 195,
+    "sensitivity": "tight",
+    "bbox_in_region": [
+      579,
+      0,
+      107,
+      16
+    ],
+    "abs_bbox": [
+      1471,
+      1065,
+      107,
+      16
+    ],
+    "debug_crop_path": "/home/will/photo_project/debug_stamps_v2/00000099_crop.png",
+    "debug_annotated_path": "/home/will/photo_project/debug_stamps_v2/00000099_annotated.jpg",
+    "file": "/mnt/823c9bf9-838a-4591-a00f-ae361fcb4792/Photos/img/Photos/ScanMyPhotos/Disc 2/00000099.jpg",
+    "filename": "00000099.jpg",
+    "has_crop": true,
+    "ocr_crop_path": "/home/will/photo_project/debug_stamps_v2/00000099_ocr.png"
+  },
+  {
+    "found": true,
+    "position": "bottom-right",
+    "digit_count": 10,
+    "cluster_aspect": 5.35,
+    "cluster_fill": 0.184,
+    "cluster_area": 394,
+    "sensitivity": "moderate",
+    "bbox_in_region": [
+      566,
+      0,
+      107,
+      20
+    ],
+    "abs_bbox": [
+      1458,
+      1067,
+      107,
+      20
+    ],
+    "debug_crop_path": "/home/will/photo_project/debug_stamps_v2/00000100_crop.png",
+    "debug_annotated_path": "/home/will/photo_project/debug_stamps_v2/00000100_annotated.jpg",
+    "file": "/mnt/823c9bf9-838a-4591-a00f-ae361fcb4792/Photos/img/Photos/ScanMyPhotos/Disc 2/00000100.jpg",
+    "filename": "00000100.jpg",
+    "has_crop": true,
+    "ocr_crop_path": "/home/will/photo_project/debug_stamps_v2/00000100_ocr.png"
+  }
+]

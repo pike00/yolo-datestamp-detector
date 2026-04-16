@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html><head><title>Stamp Detection Review</title>
+<style>
+body { background: #1a1a1a; color: #eee; font-family: monospace; margin: 20px; }
+h2 { border-bottom: 1px solid #555; padding-bottom: 8px; }
+.pair { display: inline-block; margin: 10px; vertical-align: top; }
+.pair img { max-width: 500px; display: block; border: 2px solid #333; }
+.pair .crop img { max-width: 300px; }
+.label { font-size: 13px; margin: 4px 0; }
+.good { border-color: #2a2 !important; }
+.bad { border-color: #a22 !important; }
+</style></head>
+<body>
+<h2>Known Correct Detection</h2>
+<div class="pair">
+  <div class="label">00000005 — stamp "9 28 '99" (correctly detected)</div>
+  <img class="good" src="00000005_annotated.jpg">
+</div>
+<div class="pair crop">
+  <div class="label">Crop</div>
+  <img src="00000005_crop.png">
+</div>
+<div class="pair crop">
+  <div class="label">OCR-ready</div>
+  <img src="00000005_ocr.png">
+</div>
+
+<h2>False Positives (no stamp or wrong region detected)</h2>
+
+<div class="pair">
+  <div class="label">00000013 — NO stamp exists, detected dirt/wood</div>
+  <img class="bad" src="00000013_annotated.jpg">
+</div>
+<div class="pair crop">
+  <div class="label">Crop (false)</div>
+  <img src="00000013_crop.png">
+</div>
+
+<br>
+
+<div class="pair">
+  <div class="label">00000001 — stamp "10 4 '99" on RIGHT (rotated), detected LEFT edge artifact</div>
+  <img class="bad" src="00000001_annotated.jpg">
+</div>
+<div class="pair crop">
+  <div class="label">Crop (false)</div>
+  <img src="00000001_crop.png">
+</div>
+
+<br>
+
+<div class="pair">
+  <div class="label">00000003 — stamp "10 3 '99" in bottom-right, detected wrong region</div>
+  <img class="bad" src="00000003_annotated.jpg">
+</div>
+<div class="pair crop">
+  <div class="label">Crop (false)</div>
+  <img src="00000003_crop.png">
+</div>
+
+<h2>Other Samples (check visually)</h2>
+<div class="pair">
+  <div class="label">00000023 — should have "11 19 '99"</div>
+  <img src="00000023_annotated.jpg">
+</div>
+<div class="pair crop">
+  <div class="label">Crop</div>
+  <img src="00000023_crop.png">
+</div>
+
+<br>
+
+<div class="pair">
+  <div class="label">00000043 — should have "12 3 '99"</div>
+  <img src="00000043_annotated.jpg">
+</div>
+<div class="pair crop">
+  <div class="label">Crop</div>
+  <img src="00000043_crop.png">
+</div>
+</body></html>
