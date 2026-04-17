@@ -18,7 +18,14 @@ except ImportError:
 
 
 def scan_media_dir(media_dir: Path) -> tuple[list[Path], list[Path]]:
-    raise NotImplementedError
+    images, videos = [], []
+    for p in sorted(media_dir.iterdir()):
+        ext = p.suffix.lower()
+        if ext in IMAGE_EXTS:
+            images.append(p)
+        elif ext in VIDEO_EXTS:
+            videos.append(p)
+    return images, videos
 
 
 def open_image(path: Path) -> Image.Image:
