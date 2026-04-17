@@ -63,6 +63,22 @@ def test_open_heic_delegates_to_pillow_heif(tmp_path):
     assert result.size == (200, 150)
 
 
+def test_open_heic_converts_to_rgb(tmp_path):
+    path = tmp_path / "test.heic"
+    path.write_bytes(b"fake")
+
+    mock_heif = MagicMock()
+    mock_heif.mode = "RGBA"  # non-RGB mode — common in HEIC files
+    mock_heif.size = (200, 150)
+    mock_heif.data = b"\x00" * (200 * 150 * 4)  # 4 bytes per pixel for RGBA
+
+    with patch("media_embeddings.loader._pillow_heif") as mock_ph:
+        mock_ph.read_heif.return_value = mock_heif
+        result = open_image(path)
+
+    assert result.mode == "RGB"
+
+
 def test_extract_keyframes_returns_three_pil_images(real_video):
     frames = extract_keyframes(real_video, n=3)
     assert len(frames) == 3
@@ -94,3 +110,10 @@ def test_extract_keyframes_timestamps_are_10_50_90_pct(tmp_path):
         timestamps.append(float(args[ts_idx]))
 
     assert timestamps == pytest.approx([1.0, 5.0, 9.0], abs=0.01)
+
+
+def test_extract_keyframes_raises_on_missing_duration(tmp_path):
+    with patch("media_embeddings.loader.subprocess.run") as mock_run:
+        mock_run.return_value = MagicMock(stdout="", returncode=0)
+        with pytest.raises(ValueError, match="ffprobe returned no duration"):
+            extract_keyframes(tmp_path / "bad.mov")

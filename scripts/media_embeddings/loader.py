@@ -33,7 +33,7 @@ def open_image(path: Path) -> Image.Image:
         if _pillow_heif is None:
             raise ImportError("pillow-heif required for HEIC: pip install pillow-heif")
         heif = _pillow_heif.read_heif(path)
-        return Image.frombytes(heif.mode, heif.size, heif.data, "raw")
+        return Image.frombytes(heif.mode, heif.size, heif.data, "raw").convert("RGB")
     return Image.open(path).convert("RGB")
 
 
@@ -43,7 +43,10 @@ def extract_keyframes(video_path: Path, n: int = 3) -> list[Image.Image]:
          "-of", "default=noprint_wrappers=1:nokey=1", str(video_path)],
         capture_output=True, text=True, check=True,
     )
-    duration = float(result.stdout.strip())
+    raw = result.stdout.strip()
+    if not raw:
+        raise ValueError(f"ffprobe returned no duration for {video_path}")
+    duration = float(raw)
 
     frames: list[Image.Image] = []
     for pct in [0.1, 0.5, 0.9][:n]:
