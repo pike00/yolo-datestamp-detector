@@ -38,4 +38,22 @@ def open_image(path: Path) -> Image.Image:
 
 
 def extract_keyframes(video_path: Path, n: int = 3) -> list[Image.Image]:
-    raise NotImplementedError
+    result = subprocess.run(
+        ["ffprobe", "-v", "error", "-show_entries", "format=duration",
+         "-of", "default=noprint_wrappers=1:nokey=1", str(video_path)],
+        capture_output=True, text=True, check=True,
+    )
+    duration = float(result.stdout.strip())
+
+    frames: list[Image.Image] = []
+    for pct in [0.1, 0.5, 0.9][:n]:
+        t = duration * pct
+        result = subprocess.run(
+            ["ffmpeg", "-noaccurate_seek", "-ss", str(t), "-i", str(video_path),
+             "-vframes", "1", "-f", "image2", "-vcodec", "png",
+             "pipe:1", "-loglevel", "error"],
+            capture_output=True, check=True,
+        )
+        img = Image.open(io.BytesIO(result.stdout)).convert("RGB")
+        frames.append(img)
+    return frames

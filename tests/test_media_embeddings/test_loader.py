@@ -8,7 +8,7 @@ import pytest
 from PIL import Image
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "scripts"))
-from media_embeddings.loader import IMAGE_EXTS, VIDEO_EXTS, scan_media_dir, open_image
+from media_embeddings.loader import IMAGE_EXTS, VIDEO_EXTS, scan_media_dir, open_image, extract_keyframes
 
 
 def test_scan_splits_images_and_videos(media_dir):
@@ -61,3 +61,36 @@ def test_open_heic_delegates_to_pillow_heif(tmp_path):
 
     mock_ph.read_heif.assert_called_once_with(path)
     assert result.size == (200, 150)
+
+
+def test_extract_keyframes_returns_three_pil_images(real_video):
+    frames = extract_keyframes(real_video, n=3)
+    assert len(frames) == 3
+    assert all(isinstance(f, Image.Image) for f in frames)
+    assert all(f.mode == "RGB" for f in frames)
+
+
+def test_extract_keyframes_timestamps_are_10_50_90_pct(tmp_path):
+    fake_frame = Image.new("RGB", (64, 64))
+
+    with patch("media_embeddings.loader.subprocess.run") as mock_run, \
+         patch("media_embeddings.loader.Image") as mock_img:
+
+        ffprobe_result = MagicMock(stdout="10.0\n", returncode=0)
+        ffmpeg_result = MagicMock(stdout=b"\x89PNG\r\n", returncode=0)
+        mock_run.side_effect = [ffprobe_result] + [ffmpeg_result] * 3
+        mock_img.open.return_value.convert.return_value = fake_frame
+
+        extract_keyframes(tmp_path / "v.mov", n=3)
+
+    ffmpeg_calls = [c for c in mock_run.call_args_list
+                    if any("ffmpeg" in str(a) for a in c[0])]
+    assert len(ffmpeg_calls) == 3
+
+    timestamps = []
+    for call in ffmpeg_calls:
+        args = call[0][0]
+        ts_idx = args.index("-ss") + 1
+        timestamps.append(float(args[ts_idx]))
+
+    assert timestamps == pytest.approx([1.0, 5.0, 9.0], abs=0.01)
