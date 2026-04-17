@@ -31,6 +31,12 @@ DATABASE_URL = os.environ.get(
 MODEL_HF_ID = "google/siglip-so400m-patch14-384"
 IMAGE_BATCH = 64
 VIDEO_BATCH = 16
+SHARD_INDEX = int(os.environ.get("SHARD_INDEX", "0"))
+SHARD_COUNT = int(os.environ.get("SHARD_COUNT", "1"))
+
+_num_threads = int(os.environ.get("OMP_NUM_THREADS", "0"))
+if _num_threads > 0:
+    torch.set_num_threads(_num_threads)
 
 
 def embed_batch(
@@ -119,6 +125,14 @@ def main() -> None:
 
     image_paths, video_paths = scan_media_dir(MEDIA_DIR)
     log.info("Found %d images, %d videos", len(image_paths), len(video_paths))
+
+    if SHARD_COUNT > 1:
+        image_paths = image_paths[SHARD_INDEX::SHARD_COUNT]
+        video_paths = video_paths[SHARD_INDEX::SHARD_COUNT]
+        log.info(
+            "Shard %d/%d: %d images, %d videos assigned to this worker",
+            SHARD_INDEX, SHARD_COUNT, len(image_paths), len(video_paths),
+        )
 
     with psycopg.connect(DATABASE_URL) as conn:
         register_vector(conn)

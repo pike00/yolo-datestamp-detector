@@ -31,6 +31,34 @@ embed-bg:
     docker compose -f docker/docker-compose.media-embeddings.yml up --build -d
     @echo "Logs: docker logs -f photo_project-media_embeddings-1"
 
+# Run N parallel embedding workers (default 4). Each gets 12/N CPU threads.
+embed-workers NUM='4':
+    #!/usr/bin/env bash
+    set -e
+    echo "Stopping existing embedding containers..."
+    docker ps -q --filter "name=media_embeddings" | xargs -r docker stop
+    docker ps -aq --filter "name=media_embeddings" | xargs -r docker rm
+    echo "Building image..."
+    docker compose -f docker/docker-compose.media-embeddings.yml build
+    THREADS=$((12 / {{NUM}}))
+    echo "Starting {{NUM}} workers, $THREADS threads each..."
+    for i in $(seq 0 $(({{NUM}}-1))); do
+        docker run -d \
+            --network host \
+            -v /home/will/photo_project/originals/media:/media:ro \
+            -v hf_cache:/root/.cache/huggingface \
+            -e DATABASE_URL=postgresql://dedup:dedup_local_dev@127.0.0.1:5432/dedup \
+            -e MEDIA_DIR=/media \
+            -e PYTHONUNBUFFERED=1 \
+            -e SHARD_INDEX=$i \
+            -e SHARD_COUNT={{NUM}} \
+            -e OMP_NUM_THREADS=$THREADS \
+            --name media_embeddings_$i \
+            docker-media_embeddings
+    done
+    echo "Started {{NUM}} workers ({{NUM}} x $THREADS threads = $(({{NUM}} * THREADS)) total)"
+    echo "Monitor: docker logs -f media_embeddings_0"
+
 # Train then infer in Docker (background)
 docker-cycle:
     docker compose -f docker/docker-compose.yml run -d --build --rm cycle
