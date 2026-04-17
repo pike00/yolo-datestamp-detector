@@ -8,7 +8,7 @@ import pytest
 from PIL import Image
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "scripts"))
-from media_embeddings.loader import IMAGE_EXTS, VIDEO_EXTS, scan_media_dir
+from media_embeddings.loader import IMAGE_EXTS, VIDEO_EXTS, scan_media_dir, open_image
 
 
 def test_scan_splits_images_and_videos(media_dir):
@@ -28,3 +28,36 @@ def test_scan_returns_sorted(media_dir):
     images, videos = scan_media_dir(media_dir)
     assert images == sorted(images)
     assert videos == sorted(videos)
+
+
+def test_open_jpg_returns_rgb(tmp_path):
+    img = Image.new("RGB", (100, 100), color=(255, 0, 0))
+    path = tmp_path / "test.jpg"
+    img.save(path)
+    result = open_image(path)
+    assert result.mode == "RGB"
+    assert result.size == (100, 100)
+
+
+def test_open_jpeg_returns_rgb(tmp_path):
+    img = Image.new("RGB", (50, 80))
+    path = tmp_path / "test.jpeg"
+    img.save(path)
+    assert open_image(path).mode == "RGB"
+
+
+def test_open_heic_delegates_to_pillow_heif(tmp_path):
+    path = tmp_path / "test.heic"
+    path.write_bytes(b"fake")
+
+    mock_heif = MagicMock()
+    mock_heif.mode = "RGB"
+    mock_heif.size = (200, 150)
+    mock_heif.data = b"\x00" * (200 * 150 * 3)
+
+    with patch("media_embeddings.loader._pillow_heif") as mock_ph:
+        mock_ph.read_heif.return_value = mock_heif
+        result = open_image(path)
+
+    mock_ph.read_heif.assert_called_once_with(path)
+    assert result.size == (200, 150)

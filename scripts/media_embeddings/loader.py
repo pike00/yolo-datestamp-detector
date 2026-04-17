@@ -29,7 +29,12 @@ def scan_media_dir(media_dir: Path) -> tuple[list[Path], list[Path]]:
 
 
 def open_image(path: Path) -> Image.Image:
-    raise NotImplementedError
+    if path.suffix.lower() == ".heic":
+        if _pillow_heif is None:
+            raise ImportError("pillow-heif required for HEIC: pip install pillow-heif")
+        heif = _pillow_heif.read_heif(path)
+        return Image.frombytes(heif.mode, heif.size, heif.data, "raw")
+    return Image.open(path).convert("RGB")
 
 
 def extract_keyframes(video_path: Path, n: int = 3) -> list[Image.Image]:
