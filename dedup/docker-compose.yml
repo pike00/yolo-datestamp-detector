@@ -1,0 +1,18 @@
+services:
+  postgres:
+    image: pgvector/pgvector:pg18
+    container_name: dedup-postgres
+    environment:
+      POSTGRES_USER: dedup
+      POSTGRES_PASSWORD: dedup_local_dev
+      POSTGRES_DB: dedup
+      PGDATA: /var/lib/postgresql/18/docker
+    volumes:
+      - dedup_postgres_data:/var/lib/postgresql/18/docker
+    ports:
+      - "5432:5432"
+    restart: unless-stopped
+
+volumes:
+  dedup_postgres_data:
+    external: true
