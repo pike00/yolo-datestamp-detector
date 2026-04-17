@@ -22,6 +22,15 @@ docker-train:
 docker-infer:
     docker compose -f docker/docker-compose.yml run -d --build --rm infer
 
+# Run media embedding pipeline (Docker, CPU — runs overnight for full collection)
+embed:
+    docker compose -f docker/docker-compose.media-embeddings.yml up --build
+
+# Run embedding pipeline in background
+embed-bg:
+    docker compose -f docker/docker-compose.media-embeddings.yml up --build -d
+    @echo "Logs: docker logs -f photo_project-media_embeddings-1"
+
 # Train then infer in Docker (background)
 docker-cycle:
     docker compose -f docker/docker-compose.yml run -d --build --rm cycle

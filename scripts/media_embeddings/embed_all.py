@@ -40,7 +40,8 @@ def embed_batch(
 ) -> np.ndarray:
     inputs = processor(images=images, return_tensors="pt", padding="max_length")
     with torch.no_grad():
-        features = model.get_image_features(**inputs)
+        out = model.get_image_features(**inputs)
+    features = out.pooler_output if hasattr(out, "pooler_output") else out
     features = features / features.norm(dim=-1, keepdim=True)
     return features.cpu().numpy()
 
