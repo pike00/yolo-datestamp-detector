@@ -90,3 +90,4 @@ data/metadata/
 
 # Separate git repo (pike00/yolo-datestamp-detector)
 yolo_finetune/
+.worktrees/
