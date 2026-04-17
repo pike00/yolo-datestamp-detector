@@ -97,16 +97,15 @@ def process_videos(
         for path in batch_paths:
             try:
                 frames = extract_keyframes(path, n=3)
+                vectors = embed_batch(model, processor, frames)
+                rows = [
+                    (path.stem, MODEL_NAME, vec.tolist(), "video_keyframe", idx)
+                    for idx, vec in enumerate(vectors)
+                ]
+                bulk_insert_embeddings(conn, rows)
+                processed += len(frames)
             except Exception as exc:
                 log.warning("Skipping video %s: %s", path.name, exc)
-                continue
-            vectors = embed_batch(model, processor, frames)
-            rows = [
-                (path.stem, MODEL_NAME, vec.tolist(), "video_keyframe", idx)
-                for idx, vec in enumerate(vectors)
-            ]
-            bulk_insert_embeddings(conn, rows)
-            processed += len(frames)
     return processed
 
 
@@ -114,7 +113,7 @@ def main() -> None:
     log.info("Loading SigLIP model: %s", MODEL_HF_ID)
     processor = AutoProcessor.from_pretrained(MODEL_HF_ID)
     model = AutoModel.from_pretrained(MODEL_HF_ID)
-    model.training = False
+    model.eval()
     log.info("Model loaded. Scanning %s", MEDIA_DIR)
 
     image_paths, video_paths = scan_media_dir(MEDIA_DIR)
