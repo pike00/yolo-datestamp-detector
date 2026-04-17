@@ -1,0 +1,18 @@
+FROM python:3.12-slim
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ffmpeg \
+    libheif-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+COPY scripts/media_embeddings/requirements.txt /app/requirements.txt
+RUN pip install --no-cache-dir -r /app/requirements.txt
+
+COPY scripts/ /app/scripts/
+
+ENV PYTHONUNBUFFERED=1
+ENV MEDIA_DIR=/media
+
+CMD ["python", "scripts/media_embeddings/embed_all.py"]

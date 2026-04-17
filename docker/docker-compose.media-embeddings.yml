@@ -1,0 +1,16 @@
+services:
+  media_embeddings:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.media-embeddings
+    network_mode: host
+    environment:
+      - DATABASE_URL=postgresql://dedup:dedup_local_dev@127.0.0.1:5432/dedup
+      - MEDIA_DIR=/media
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - /home/will/photo_project/originals/media:/media:ro
+      - hf_cache:/root/.cache/huggingface
+
+volumes:
+  hf_cache:
