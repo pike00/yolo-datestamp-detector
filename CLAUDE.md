@@ -104,3 +104,9 @@ Files still on disk:
 - `state/shards/` -- Shard manifests for the parallel OCR orchestrator
 - `state/status.json` -- Summary stats (run `just update-status` to refresh)
 - `dataset/labels/*.txt` -- YOLO bounding box labels
+
+## Superpowers Skills - Docs Paths
+
+Override the default save paths when using superpowers skills:
+- `brainstorming` saves specs to `docs/specs/` (not `docs/superpowers/specs/`)
+- `writing-plans` saves plans to `docs/plans/` (not `docs/superpowers/plans/`)
