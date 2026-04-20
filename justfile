@@ -217,3 +217,30 @@ install-hooks:
     repo_root=$(git rev-parse --show-toplevel)
     ln -sfv "$repo_root/scripts/hooks/pre-commit" "$repo_root/.git/hooks/pre-commit"
     echo "Hook installed. See scripts/hooks/pre-commit for what it guards."
+
+# ---------- VLM OCR bench ----------
+
+# Build the 200-stem bench corpus (run once)
+bench-build:
+    uv run scripts/ocr/build_bench_corpus.py
+
+# Partition pending Sonnet ground-truth stems into shard manifests
+bench-seed-plan:
+    uv run scripts/ocr/seed_bench_ground_truth.py plan
+
+# Render the ground-truth review HTML
+bench-seed-review:
+    uv run scripts/ocr/seed_bench_ground_truth.py review-html
+    xdg-open state/bench/ground_truth_review.html 2>/dev/null || true
+
+# Freeze ground truth once review is complete
+bench-seed-freeze:
+    uv run scripts/ocr/seed_bench_ground_truth.py freeze
+
+# Run a single Ollama model via the given profile, e.g. just bench-run ares-cpu kimi-vl:latest
+bench-run profile model:
+    scripts/ocr/bench_profiles/{{profile}}.sh {{model}}
+
+# Build the markdown + PNG report
+bench-report:
+    uv run scripts/ocr/report_vlm_bench.py --ingest-jsonl state/bench/results
