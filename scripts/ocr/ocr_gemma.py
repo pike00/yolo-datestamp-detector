@@ -28,6 +28,11 @@ import psycopg
 import requests
 from PIL import Image
 
+import sys as _sys
+from pathlib import Path as _Path
+_sys.path.insert(0, str(_Path(__file__).resolve().parent.parent.parent))
+from scripts.ocr.ocr_util import normalize_date
+
 BASE_DIR = Path(os.environ.get("DATA_DIR", "/data"))
 SCANMYPHOTOS_DIR = BASE_DIR / "scanmyphotos"
 CORRECTIONS_FILE = BASE_DIR / "corrections_queue.json"
@@ -194,66 +199,6 @@ def img_to_b64(img: Image.Image, max_side: int = 512) -> str:
     buf = io.BytesIO()
     img.save(buf, format="JPEG", quality=90)
     return base64.b64encode(buf.getvalue()).decode()
-
-
-def normalize_date(raw: str) -> str | None:
-    """Try to parse raw OCR output into a normalized date string.
-
-    Returns 'YYYY-MM-DD' if parseable, None otherwise.
-    """
-    text = raw.strip().replace(":", " ").replace(".", " ").replace("-", " ")
-    text = re.sub(r"['\u2018\u2019]", "'", text)  # normalize fancy quotes
-    # Collapse multiple spaces
-    text = re.sub(r"\s+", " ", text).strip()
-
-    # Pattern 1: 'YY M D  (e.g., "'94 6 22")
-    m = re.match(r"'?(\d{2})\s+(\d{1,2})\s+(\d{1,2})$", text)
-    if m:
-        y, mo, d = int(m.group(1)), int(m.group(2)), int(m.group(3))
-        year = 1900 + y if y >= 50 else 2000 + y
-        if 1 <= mo <= 12 and 1 <= d <= 31:
-            return f"{year}-{mo:02d}-{d:02d}"
-
-    # Pattern 2: M D'YY  (e.g., "10 3'99" or "8 24'95")
-    m = re.match(r"(\d{1,2})\s+(\d{1,2})'?(\d{2})$", text)
-    if m:
-        mo, d, y = int(m.group(1)), int(m.group(2)), int(m.group(3))
-        year = 1900 + y if y >= 50 else 2000 + y
-        if 1 <= mo <= 12 and 1 <= d <= 31:
-            return f"{year}-{mo:02d}-{d:02d}"
-
-    # Pattern 3: M D 'YY  (e.g., "5 22 '95")
-    m = re.match(r"(\d{1,2})\s+(\d{1,2})\s+'?(\d{2})$", text)
-    if m:
-        mo, d, y = int(m.group(1)), int(m.group(2)), int(m.group(3))
-        year = 1900 + y if y >= 50 else 2000 + y
-        if 1 <= mo <= 12 and 1 <= d <= 31:
-            return f"{year}-{mo:02d}-{d:02d}"
-
-    # Pattern 4: concatenated digits -- MMDDYY or MDDYY (e.g., "9695" -> 9/6/95)
-    m = re.match(r"(\d{1,2})(\d{1,2})(\d{2})$", text.replace(" ", "").replace("'", ""))
-    if m:
-        # Try all plausible splits
-        digits = text.replace(" ", "").replace("'", "")
-        for mlen in (1, 2):
-            for dlen in (1, 2):
-                if mlen + dlen + 2 == len(digits):
-                    mo = int(digits[:mlen])
-                    d = int(digits[mlen : mlen + dlen])
-                    y = int(digits[mlen + dlen :])
-                    year = 1900 + y if y >= 50 else 2000 + y
-                    if 1 <= mo <= 12 and 1 <= d <= 31:
-                        return f"{year}-{mo:02d}-{d:02d}"
-
-    # Pattern 5: partial -- M 'YY or M'YY (missing day, e.g., "9'95" or "9 95")
-    m = re.match(r"(\d{1,2})\s*'?(\d{2})$", text)
-    if m:
-        mo, y = int(m.group(1)), int(m.group(2))
-        year = 1900 + y if y >= 50 else 2000 + y
-        if 1 <= mo <= 12:
-            return f"{year}-{mo:02d}-00"  # day unknown
-
-    return None
 
 
 def ocr_single(stem: str, img_path: Path, bbox: dict) -> dict:
