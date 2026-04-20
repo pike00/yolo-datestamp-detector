@@ -209,3 +209,11 @@ feedback-status:
 # Snapshot bench tables + state/bench to the backup HDD (additive; pass a label)
 bench-backup label="snapshot":
     scripts/ocr/bench_backup.sh {{label}}
+
+# Install repo git hooks (symlinks scripts/hooks/pre-commit into .git/hooks/)
+install-hooks:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    repo_root=$(git rev-parse --show-toplevel)
+    ln -sfv "$repo_root/scripts/hooks/pre-commit" "$repo_root/.git/hooks/pre-commit"
+    echo "Hook installed. See scripts/hooks/pre-commit for what it guards."

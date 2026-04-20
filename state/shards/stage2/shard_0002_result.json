@@ -1,0 +1,30 @@
+{
+  "shard_id": "0002",
+  "results": {
+    "d1_00001453": {"view_crop": "'93 1?", "view_full": "'93 1?"},
+    "d1_00001457": {"view_crop": "'93 12 ??", "view_full": "'93 12 ??"},
+    "d1_00001458": {"view_crop": "'93 12 18", "view_full": "'93 12 18"},
+    "d1_00001479": {"view_crop": "'93 ??", "view_full": "'93 ??"},
+    "d1_00001483": {"view_crop": "'93", "view_full": "'93"},
+    "d1_00001493": {"view_crop": "93 12 18", "view_full": "93 12 18"},
+    "d1_00001504": {"view_crop": "'93 12 18", "view_full": "'93 12 18"},
+    "d1_00001543": {"view_crop": "?? 2 18", "view_full": "?? 2 18"},
+    "d1_00001566": {"view_crop": "NONE", "view_full": "NONE"},
+    "d1_00001614": {"view_crop": "'?? 12 27", "view_full": "'?? 12 27"},
+    "d1_00001634": {"view_crop": "10 ?'93", "view_full": "10 ?'93"},
+    "d1_00001646": {"view_crop": "1? ??'93", "view_full": "1? ??'93"},
+    "d1_00001692": {"view_crop": "10 24'9?", "view_full": "10 24'9?"},
+    "d1_00001733": {"view_crop": "11 ?'93", "view_full": "11 ?'93"},
+    "d1_00001749": {"view_crop": "11 8'?3", "view_full": "11 8'?3"},
+    "d1_00001753": {"view_crop": "'93 11 ?", "view_full": "'93 11 ?"},
+    "d1_00001763": {"view_crop": "'93 1? 24", "view_full": "'93 1? 24"},
+    "d1_00001774": {"view_crop": "?? ? '??", "view_full": "NONE"},
+    "d2_00000015": {"view_crop": "10 25'99", "view_full": "10 25'99"},
+    "d2_00000104": {"view_crop": "12 4'99", "view_full": "12 4'99"},
+    "d2_00000147": {"view_crop": "12 20'99", "view_full": "12 20'99"},
+    "d2_00000260": {"view_crop": "NONE", "view_full": "NONE"},
+    "d2_00000261": {"view_crop": "? 16'00", "view_full": "? 16'00"},
+    "d2_00000268": {"view_crop": "8 17'00", "view_full": "8 1?'00"},
+    "d2_00000284": {"view_crop": "? ??'?8", "view_full": "? ??'?8"}
+  }
+}

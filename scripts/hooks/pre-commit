@@ -1,0 +1,64 @@
+#!/usr/bin/env bash
+# pre-commit: guard against silently altering PGDATA or pg image on a stateful
+# compose service without a fresh dump. Installed via `just install-hooks`.
+#
+# Trigger: staged changes to any docker-compose*.yml that add/change a line
+# matching `image:.*(postgres|pgvector)` or `PGDATA:`.
+# Requirement: a dedup dump tarball with mtime < 1h at
+# /mnt/823c9bf9-838a-4591-a00f-ae361fcb4792/backups/dedup/*/volumes/dedup_db_backup.tar.gz.
+# Override: `git commit --no-verify` (use with care — this hook exists because
+# the dedup volume was wiped once already; see a38a08e).
+
+set -euo pipefail
+
+BACKUP_GLOB='/mnt/823c9bf9-838a-4591-a00f-ae361fcb4792/backups/dedup/*/volumes/dedup_db_backup.tar.gz'
+MAX_AGE_SECONDS=3600
+
+staged_compose=$(git diff --cached --name-only --diff-filter=ACMR | grep -E '(^|/)docker-compose([.-][^/]*)?\.ya?ml$' || true)
+[[ -z "$staged_compose" ]] && exit 0
+
+risky=""
+while IFS= read -r f; do
+    diff=$(git diff --cached -U0 -- "$f")
+    if echo "$diff" | grep -E '^\+' | grep -qE '(image:.*(postgres|pgvector)|PGDATA:)'; then
+        risky+="  $f"$'\n'
+    fi
+done <<<"$staged_compose"
+
+[[ -z "$risky" ]] && exit 0
+
+newest_tarball=""
+newest_mtime=0
+for tarball in $BACKUP_GLOB; do
+    [[ -f "$tarball" ]] || continue
+    mtime=$(stat -c %Y "$tarball")
+    if (( mtime > newest_mtime )); then
+        newest_mtime=$mtime
+        newest_tarball=$tarball
+    fi
+done
+
+now=$(date +%s)
+age=$(( now - newest_mtime ))
+
+if [[ -z "$newest_tarball" ]] || (( age > MAX_AGE_SECONDS )); then
+    cat >&2 <<EOF
+pre-commit: staged compose changes touch pg image or PGDATA:
+
+$risky
+These are the exact changes that wiped the dedup volume on 2026-04-16 (commit
+a38a08e). A fresh dump is required before committing.
+
+Last dedup dump: ${newest_tarball:-<none found>}
+Age: $(( age / 60 )) min (max allowed: $(( MAX_AGE_SECONDS / 60 )) min)
+
+Take a dump first:
+  cd ~/Documents/Homelab/infra/backup && just pgdump
+
+Then retry the commit. Override (only if you know what you're doing):
+  git commit --no-verify
+EOF
+    exit 1
+fi
+
+echo "pre-commit: pg change detected; fresh dump present ($(( age / 60 )) min old). OK."

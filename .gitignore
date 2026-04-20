@@ -6,13 +6,13 @@ pilot_review.html
 
 # Dataset images (symlinks to scanmyphotos/) and train/val splits
 dataset/images/
-dataset/labels/train/
-dataset/labels/val/
 dataset/corrections/*.jpg
 dataset/to_annotate/
 dataset/augmented/
 dataset/augmented_labels/
 dataset/labels/*.cache
+# dataset/labels/{train,val}/*.txt IS tracked — human-curated, small (~1.5 MB)
+# and non-regenerable. Lost once on 2026-04-16 with no recovery path.
 
 # Model weights and training runs
 runs/
@@ -30,7 +30,12 @@ state/progress_correct.json
 state/worker_status.json
 state/rotation_predictions.json
 state/ocr_manual_queue.json
-state/shards/
+state/undated_media.json
+state/video_dates.json
+# state/shards/: ignore input shards (regenerable from orchestrate_ocr.py);
+# track result JSONs — those are the expensive OCR output, ~2 KB/shard.
+state/shards/**/shard_*.json
+!state/shards/**/*_result.json
 state/bench/
 output/vlm_bench_*
 
@@ -85,11 +90,15 @@ models/
 # Generated results and metrics
 data/*.json
 data/*.csv
-archive/
+/archive/
 
 # Empty metadata placeholder dirs
 data/metadata/
 
 # Separate git repo (pike00/yolo-datestamp-detector)
-yolo_finetune/
+yolo-datestamp-detector/
+
+# Face clustering sample/test run artifacts
+face-sample/
+
 .worktrees/

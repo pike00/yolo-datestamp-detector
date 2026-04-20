@@ -1,0 +1,30 @@
+{
+  "shard_id": "0022",
+  "results": {
+    "d4_00001301": {"view_crop": "NONE", "view_full": "NONE"},
+    "d4_00001304": {"view_crop": "NONE", "view_full": "JUL 26 2005"},
+    "d4_00001308": {"view_crop": "NONE", "view_full": "NONE"},
+    "d4_00001318": {"view_crop": "JUL 26 2005", "view_full": "JUL 26 2005"},
+    "d4_00001338": {"view_crop": "JUL 27 2005", "view_full": "JUL 27 2005"},
+    "d4_00001339": {"view_crop": "NONE", "view_full": "NONE"},
+    "d4_00001342": {"view_crop": "NONE", "view_full": "NONE"},
+    "d4_00001345": {"view_crop": "NONE", "view_full": "???? ?? ???"},
+    "d4_00001347": {"view_crop": "NONE", "view_full": "???? ?? ???"},
+    "d4_00001350": {"view_crop": "NONE", "view_full": "JUL 30 2005"},
+    "d4_00001354": {"view_crop": "NONE", "view_full": "???? ?? ???"},
+    "d4_00001357": {"view_crop": "NONE", "view_full": "???? ?? ???"},
+    "d4_00001360": {"view_crop": "NONE", "view_full": "NONE"},
+    "d4_00001361": {"view_crop": "NONE", "view_full": "???? ?? ???"},
+    "d4_00001362": {"view_crop": "09.03.2005", "view_full": "09.03.2005"},
+    "d4_00001363": {"view_crop": "09.03.2005", "view_full": "09.03.2005"},
+    "d4_00001364": {"view_crop": "09.04.2005", "view_full": "09.04.2005"},
+    "d4_00001365": {"view_crop": "09.04.2005", "view_full": "09.04.2005"},
+    "d4_00001366": {"view_crop": "09.04.2005", "view_full": "09.04.2005"},
+    "d4_00001367": {"view_crop": "09.04.2005", "view_full": "09.04.2005"},
+    "d4_00001368": {"view_crop": "09.04.2005", "view_full": "09.04.2005"},
+    "d4_00001369": {"view_crop": "09.04.2005", "view_full": "09.04.2005"},
+    "d4_00001371": {"view_crop": "09.03.2005", "view_full": "09.03.2005"},
+    "d4_00001372": {"view_crop": "09.03.2005", "view_full": "09.03.2005"},
+    "d4_00001373": {"view_crop": "09.03.2005", "view_full": "09.03.2005"}
+  }
+}

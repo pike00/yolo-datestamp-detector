@@ -1,0 +1,21 @@
+{
+  "shard_id": "0024",
+  "results": {
+    "d4_00001512": {"view_crop": "8 26 '93", "view_full": "8 26 '93"},
+    "d4_00001530": {"view_crop": "? 7 '?", "view_full": "? 7 '99"},
+    "d4_00001531": {"view_crop": "NONE", "view_full": "NONE"},
+    "d4_00001532": {"view_crop": "NONE", "view_full": "NONE"},
+    "d4_00001541": {"view_crop": "8 7 '??", "view_full": "8 7 '??"},
+    "d4_00001542": {"view_crop": "? 7 '99", "view_full": "? 7 '99"},
+    "d4_00001546": {"view_crop": "NONE", "view_full": "? 7 '99"},
+    "d4_00001547": {"view_crop": "? 7 '99", "view_full": "? 7 '9?"},
+    "d4_00001549": {"view_crop": "? 7 '99", "view_full": "? 7 '99"},
+    "d4_00001553": {"view_crop": "? ?9", "view_full": "NONE"},
+    "d4_00001556": {"view_crop": "?", "view_full": "NONE"},
+    "d4_00001559": {"view_crop": "9 7 '99", "view_full": "? 7 '99"},
+    "d4_00001560": {"view_crop": "? 7 '99", "view_full": "? 7 '99"},
+    "d4_00001564": {"view_crop": "8 7 '99", "view_full": "8 7 '99"},
+    "d4_00001572": {"view_crop": "? 7 '99", "view_full": "? 7 '99"},
+    "d4_00001573": {"view_crop": "? '?9", "view_full": "? '?9"}
+  }
+}
