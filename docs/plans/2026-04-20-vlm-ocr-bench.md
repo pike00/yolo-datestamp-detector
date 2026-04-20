@@ -135,6 +135,18 @@ making every row unusable for downstream OCR. Truncate + retype to real,
 then re-run infer_all.py to repopulate."
 ```
 
+- [ ] **Step 7: Snapshot the refreshed bboxes (skip if Task 2.5 not yet implemented)**
+
+If Task 2.5 has been completed, capture the fresh YOLO run to the backup HDD so a repeat of the 2026-04-16 loss doesn't cost another 30-60min of inference:
+
+```bash
+just bench-backup post-yolo-refresh
+```
+
+Expected: `Backup complete` + a new timestamped directory under `/mnt/823.../backups/photo_project_bench/`.
+
+If Task 2.5 is scheduled to run after Task 0 (per this plan's order), skip Step 7 and return here after Task 2.5 finishes — the invocation is listed again in Task 2.5 Step 2 as a smoke test anyway.
+
 ---
 
 ## Task 1: Add `host_label` column to `stamp_ocr`
@@ -224,6 +236,165 @@ output/vlm_bench_*
 ```bash
 git add .gitignore
 git commit -m "chore: gitignore VLM bench artifacts"
+```
+
+---
+
+## Task 2.5: Bench backup helper script
+
+**Context:** Nightly homelab backups (02:04am) dump the `dedup_db_backup` and `dedup_postgres_data` Docker volumes to `/mnt/823.../backups/dedup/<timestamp>/`. That leaves a 24h gap between snapshots. The 2026-04-16 data-loss incident was a mid-day container recreation that wiped the volume — nightly backups did not protect against it because the next-morning snapshot captured the already-empty state.
+
+This task adds a helper script that the operator runs at every milestone: after Task 0 (fresh YOLO bboxes), after Task 6 (Sonnet ground truth frozen), and after each completed bench run in Task 11+. It does two things:
+
+1. Dumps the photo_project-relevant tables (`stamp_predictions`, `stamp_ocr`, `stamp_no_stamp`) to a timestamped SQL file on the backup HDD.
+2. Rsyncs `state/bench/` to the same backup HDD path (captures the corpus, crops, manifest, and subagent shard results even though they're not in git).
+
+Backups are additive (never overwrite), keyed by timestamp. The HDD is the canonical backup root per `feedback_backups_outside_documents.md`.
+
+**Files:**
+- Create: `scripts/ocr/bench_backup.sh`
+
+- [ ] **Step 1: Create `scripts/ocr/bench_backup.sh`**
+
+```bash
+#!/usr/bin/env bash
+# Snapshot photo_project bench state to the homelab backup HDD.
+#
+# Usage:
+#   bench_backup.sh [<label>]
+#
+# <label> is a free-form tag appended to the timestamp, e.g.:
+#   bench_backup.sh post-yolo-refresh
+#   bench_backup.sh post-ground-truth-freeze
+#   bench_backup.sh post-bench-ares-kimi-vl
+#
+# Outputs to:
+#   /mnt/823c9bf9-838a-4591-a00f-ae361fcb4792/backups/photo_project_bench/<timestamp>_<label>/
+#     ├── stamp_tables.sql.zst        # SQL dump of the three bench tables
+#     └── state_bench/                # rsync of state/bench/
+#
+# Safe to run mid-session. Never deletes existing backups.
+
+set -euo pipefail
+
+LABEL="${1:-snapshot}"
+TS="$(date -u +%Y%m%dT%H%M%SZ)"
+BACKUP_ROOT="/mnt/823c9bf9-838a-4591-a00f-ae361fcb4792/backups/photo_project_bench"
+DEST="$BACKUP_ROOT/${TS}_${LABEL}"
+DSN="${DATABASE_URL:-postgresql://dedup:dedup_local_dev@localhost:5432/dedup}"
+
+REPO_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
+cd "$REPO_ROOT"
+
+mkdir -p "$DEST"
+
+echo "==> Dumping stamp_* tables to $DEST/stamp_tables.sql.zst"
+# pg_dump from the dockerized Postgres via docker exec is the most reliable
+# path on ares. If the tool chain differs on this host, fall back to a
+# Python-based COPY. We try pg_dump first.
+if command -v pg_dump >/dev/null 2>&1; then
+    pg_dump "$DSN" \
+        --table=stamp_predictions \
+        --table=stamp_ocr \
+        --table=stamp_no_stamp \
+        --no-owner --no-privileges \
+        | zstd -T0 -19 -o "$DEST/stamp_tables.sql.zst"
+else
+    echo "pg_dump not on PATH; falling back to Python COPY"
+    source .venv/bin/activate
+    python - <<PY
+import subprocess, io, psycopg, zstandard as zstd_mod
+dsn = "$DSN"
+dest = "$DEST/stamp_tables.sql.zst"
+tables = ["stamp_predictions", "stamp_ocr", "stamp_no_stamp"]
+buf = io.BytesIO()
+with psycopg.connect(dsn) as conn:
+    for t in tables:
+        buf.write(f"-- TABLE {t}\n".encode())
+        # Dump schema
+        cols = conn.execute(
+            "SELECT column_name, data_type FROM information_schema.columns WHERE table_name=%s ORDER BY ordinal_position",
+            (t,),
+        ).fetchall()
+        buf.write(f"-- columns: {cols}\n".encode())
+        # Dump data as COPY-compatible text
+        buf.write(f"COPY {t} FROM stdin;\n".encode())
+        with conn.cursor() as cur, cur.copy(f"COPY {t} TO STDOUT") as copy:
+            for chunk in copy:
+                buf.write(bytes(chunk))
+        buf.write(b"\\.\n\n")
+cctx = zstd_mod.ZstdCompressor(level=19)
+with open(dest, "wb") as f:
+    f.write(cctx.compress(buf.getvalue()))
+print(f"wrote {dest}")
+PY
+fi
+
+echo "==> Rsyncing state/bench/ to $DEST/state_bench/"
+if [ -d state/bench ]; then
+    rsync -a --info=stats2 state/bench/ "$DEST/state_bench/"
+else
+    echo "  (state/bench/ does not exist yet — skipping)"
+fi
+
+echo
+echo "==> Backup complete."
+echo "    $DEST"
+du -sh "$DEST"/* 2>/dev/null || true
+```
+
+Make executable:
+
+```bash
+chmod +x scripts/ocr/bench_backup.sh
+```
+
+- [ ] **Step 2: Smoke-test with an empty-state-bench run**
+
+```bash
+cd /home/will/photo_project
+scripts/ocr/bench_backup.sh smoke
+```
+
+Expected: prints `Backup complete`, a directory appears under `/mnt/823c9bf9-838a-4591-a00f-ae361fcb4792/backups/photo_project_bench/<ts>_smoke/` containing `stamp_tables.sql.zst`. The `state_bench/` directory is skipped since nothing exists yet.
+
+Verify the dump is readable:
+
+```bash
+zstd -dc /mnt/823c9bf9-838a-4591-a00f-ae361fcb4792/backups/photo_project_bench/*_smoke/stamp_tables.sql.zst | head -40
+```
+
+Expected: SQL dump output starting with `-- PostgreSQL database dump` (or `-- TABLE stamp_predictions` if the fallback path ran).
+
+- [ ] **Step 3: Add a justfile recipe**
+
+Append to `justfile`:
+
+```just
+# Snapshot bench tables + state/bench to the backup HDD (additive; pass a label)
+bench-backup label="snapshot":
+    scripts/ocr/bench_backup.sh {{label}}
+```
+
+- [ ] **Step 4: Verify just sees it**
+
+```bash
+just --list | grep bench-backup
+```
+
+Expected: `bench-backup label="snapshot"` appears.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add scripts/ocr/bench_backup.sh justfile
+git commit -m "bench: add bench_backup.sh for mid-session snapshots
+
+Nightly homelab backups leave a 24h gap that the 2026-04-16 data loss
+fell into. This helper dumps stamp_predictions/stamp_ocr/stamp_no_stamp
+to the HDD backup root and rsyncs state/bench/, additive by timestamp.
+Called at each milestone in the bench plan (post-YOLO, post-ground-truth,
+post-each-bench-run)."
 ```
 
 ---
@@ -1435,6 +1606,24 @@ python scripts/ocr/seed_bench_ground_truth.py freeze
 ```
 
 Expected: `Ground truth frozen. Bench reports will trust these Sonnet rows.`
+
+- [ ] **Step 6b: CRITICAL — back up the Sonnet rows to the HDD**
+
+This is the single most expensive-to-regenerate artifact in the whole plan (1-1.5h of wall-clock + human review). Snapshot it the moment it's frozen, before any other mutation:
+
+```bash
+just bench-backup post-ground-truth-freeze
+```
+
+Expected: `Backup complete` + directory containing `stamp_tables.sql.zst` (>0 bytes) and `state_bench/` (contains the 200 crops and the manifest with `ground_truth_frozen=true`).
+
+Verify the dump actually contains the Sonnet rows:
+
+```bash
+zstd -dc /mnt/823c9bf9-838a-4591-a00f-ae361fcb4792/backups/photo_project_bench/*post-ground-truth-freeze*/stamp_tables.sql.zst | grep -c "^[a-z0-9]\+\s" | head
+```
+
+Expected: a number >= 200 (one row per stem). If it's 0, the dump is broken — stop and fix Task 2.5 before continuing.
 
 - [ ] **Step 7: Commit the shard result files (optional but recommended)**
 
@@ -2661,6 +2850,16 @@ rm -f state/bench/results/gemma3_dryrun.jsonl
 
 If anything failed above, loop back to the relevant task (4, 7, or 8) and fix.
 
+- [ ] **Step 7: Reminder — back up after every real bench run**
+
+Whenever a real bench run finishes (e.g., `just bench-run ares-cpu kimi-vl:latest` completes its 200 stems), immediately snapshot before starting the next model:
+
+```bash
+just bench-backup post-bench-ares-kimi-vl
+```
+
+Each completed bench run is another 30m-10h of CPU work; the backup avoids re-running anything if the DB is disturbed.
+
 ---
 
 ## Task 12: Write the final session handoff
@@ -2702,9 +2901,10 @@ git commit -m "handoff: VLM OCR bench scaffolding"
 Once all 12 tasks are complete and ground truth is frozen, the bench is now ready to run. This is a reference, not part of the implementation plan:
 
 ```bash
-# On ares (10h — kick off overnight):
+# On ares (10h — kick off overnight; backup after each completed model):
 for m in kimi-vl:latest qwen2.5-vl:7b minicpm-v gemma3 llama3.2-vision:11b internvl3:8b; do
   just bench-run ares-cpu "$m"
+  just bench-backup "post-ares-$(echo $m | tr '/:' '__')"
 done
 
 # On M2 Pro (1-2h total):
@@ -2715,6 +2915,9 @@ rsync state/bench/results/*_m2pro.jsonl ares:photo_project/state/bench/results/
 
 # On ares, generate the final report:
 just bench-report
+
+# Final belt-and-suspenders backup after the whole matrix is done:
+just bench-backup post-full-bench-matrix
 ```
 
 Check `output/vlm_bench_report.md` + `output/vlm_bench_pareto.png`, and write the follow-up decision memo (outside this plan's scope).
