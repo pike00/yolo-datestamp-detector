@@ -120,6 +120,11 @@ def merge_shard_result(result_path: Path) -> int:
         raw = item["raw_text"]
         cleaned = parse_subagent_output(raw)
         parsed = normalize_date(cleaned)
+        # normalize_date returns 'YYYY-MM-00' for partial (month+year only)
+        # matches; Postgres DATE rejects day=0, so store NULL and preserve
+        # the raw text for downstream review.
+        if parsed and parsed.endswith("-00"):
+            parsed = None
         rows.append(
             (
                 item["stem"],
