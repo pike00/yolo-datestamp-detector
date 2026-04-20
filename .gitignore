@@ -31,6 +31,8 @@ state/worker_status.json
 state/rotation_predictions.json
 state/ocr_manual_queue.json
 state/shards/
+state/bench/
+output/vlm_bench_*
 
 # Python
 __pycache__/
