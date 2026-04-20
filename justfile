@@ -205,3 +205,7 @@ feedback-finalize:
 # Feedback loop: show status
 feedback-status:
     uv run scripts/annotate/feedback.py status
+
+# Snapshot bench tables + state/bench to the backup HDD (additive; pass a label)
+bench-backup label="snapshot":
+    scripts/ocr/bench_backup.sh {{label}}
