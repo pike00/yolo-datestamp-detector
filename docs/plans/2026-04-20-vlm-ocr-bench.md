@@ -8,6 +8,8 @@
 
 **Tech Stack:** Python 3.14 via `uv` with PEP 723 inline script headers; `psycopg[binary]>=3.1.0` for Postgres; `Pillow>=12.0` for image ops; `requests` for Ollama HTTP; `matplotlib` for the Pareto PNG. Claude Code Task tool for Sonnet subagent dispatch (no direct Anthropic API). Follows existing `scripts/ocr/orchestrate_ocr.py` pattern for orchestrator/subagent split.
 
+**Ollama Cloud support:** The runner accepts an optional `OLLAMA_API_KEY` env var; when set, it adds an `Authorization: Bearer ...` header to every Ollama request, enabling Ollama Cloud (`:cloud` model tags, free tier at `https://ollama.com`) as a fourth host profile alongside `ares-cpu`, `m2pro`, and `cloud-gpu`. Rate-limit responses (HTTP 429) are recorded as `RATE_LIMIT` error rows and the run continues. Cloud model slate (all opportunistic — skip if a tag is unavailable or rate-limited): `gemini-3-pro:cloud`, `gpt-oss:cloud`, plus `:cloud` variants of the local slate where Ollama exposes them.
+
 **Prerequisite decision locked:** `stamp_ocr` PK stays `(stem, model)`. `host_label` column is added for readable grouping. Multi-host runs of the same Ollama model are disambiguated by suffixing `model` with `@<host-label>` (e.g., `kimi-vl:latest@ares-cpu`). `report_vlm_bench.py` splits on `@` to derive host at report time. No composite-PK migration.
 
 ---
@@ -1824,19 +1826,32 @@ def write_jsonl_row(path: Path, row: dict) -> None:
 # -------------------- Ollama --------------------
 
 
+def _auth_headers() -> dict:
+    """Return Authorization header for Ollama Cloud if OLLAMA_API_KEY is set."""
+    import os
+    key = os.environ.get("OLLAMA_API_KEY", "").strip()
+    return {"Authorization": f"Bearer {key}"} if key else {}
+
+
 def wait_for_model(host: str, model: str, max_wait: int = 600) -> None:
     deadline = time.time() + max_wait
+    headers = _auth_headers()
     while time.time() < deadline:
         try:
-            r = requests.get(f"{host}/api/tags", timeout=5)
+            r = requests.get(f"{host}/api/tags", headers=headers, timeout=5)
             if r.status_code == 200:
                 names = [m["name"] for m in r.json().get("models", [])]
                 if any(model == n or model.split(":")[0] == n.split(":")[0] for n in names):
                     return
-                # Pull and retry.
+                # Pull and retry. For :cloud tags on Ollama Cloud the pull is
+                # a no-op (model is already hosted); /api/tags will list it on
+                # next poll or the chat call will simply accept it.
+                if model.endswith(":cloud") or host.rstrip("/").endswith("ollama.com"):
+                    return
                 print(f"Pulling {model} ...")
                 pull = requests.post(
-                    f"{host}/api/pull", json={"name": model, "stream": False}, timeout=3600
+                    f"{host}/api/pull", headers=headers,
+                    json={"name": model, "stream": False}, timeout=3600
                 )
                 if pull.status_code != 200:
                     raise RuntimeError(f"Pull failed: {pull.status_code} {pull.text[:200]}")
@@ -1851,6 +1866,7 @@ def ocr_one(host: str, model: str, b64: str) -> dict:
     try:
         r = requests.post(
             f"{host}/api/chat",
+            headers=_auth_headers(),
             json={
                 "model": model,
                 "messages": [{"role": "user", "content": PROMPT, "images": [b64]}],
@@ -1870,6 +1886,14 @@ def ocr_one(host: str, model: str, b64: str) -> dict:
         }
 
     elapsed = round(time.time() - t0, 2)
+    if r.status_code == 429:
+        return {
+            "raw_text": "RATE_LIMIT",
+            "elapsed_s": elapsed,
+            "eval_count": 0,
+            "prompt_eval_count": 0,
+            "error": "rate_limit",
+        }
     if r.status_code == 500 and "out of memory" in r.text.lower():
         return {
             "raw_text": "OOM_ERROR",
@@ -2268,12 +2292,13 @@ def compute_metrics(sonnet_by_stem: dict[str, str], rows: list[dict]) -> dict:
             "unparsed_pct": 0.0,
             "timeout_pct": 0.0,
             "oom_pct": 0.0,
+            "rate_limit_pct": 0.0,
             "high_conf_wrong_pct": 0.0,
             "median_s": 0.0,
             "p95_s": 0.0,
             "imgs_per_sec": 0.0,
         }
-    agree = unparsed = timeout = oom = wrong = 0
+    agree = unparsed = timeout = oom = rate_limit = wrong = 0
     latencies = []
     for r in rows:
         raw = (r.get("raw_text") or "").strip()
@@ -2283,6 +2308,8 @@ def compute_metrics(sonnet_by_stem: dict[str, str], rows: list[dict]) -> dict:
             timeout += 1
         elif raw == "OOM_ERROR":
             oom += 1
+        elif raw == "RATE_LIMIT":
+            rate_limit += 1
         elif parsed is None:
             unparsed += 1
         elif parsed == truth:
@@ -2302,6 +2329,7 @@ def compute_metrics(sonnet_by_stem: dict[str, str], rows: list[dict]) -> dict:
         "unparsed_pct": 100.0 * unparsed / total,
         "timeout_pct": 100.0 * timeout / total,
         "oom_pct": 100.0 * oom / total,
+        "rate_limit_pct": 100.0 * rate_limit / total,
         "high_conf_wrong_pct": 100.0 * wrong / total,
         "median_s": median_s,
         "p95_s": p95_s,
@@ -2698,6 +2726,60 @@ Make executable:
 chmod +x scripts/ocr/bench_profiles/cloud-gpu.sh
 ```
 
+- [ ] **Step 3b: Create `ollama-cloud.sh`**
+
+```bash
+#!/usr/bin/env bash
+# Bench profile: run against Ollama Cloud's free tier.
+#
+# Requires OLLAMA_API_KEY set in the environment (create one at
+# https://ollama.com/settings/keys). The runner's _auth_headers()
+# picks it up automatically.
+#
+# Usage:
+#   OLLAMA_API_KEY=... bench_profiles/ollama-cloud.sh <ollama-tag>
+#
+# Example:
+#   bench_profiles/ollama-cloud.sh gemini-3-pro:cloud
+#   bench_profiles/ollama-cloud.sh kimi-vl:cloud
+#
+# Results go to JSONL (cloud instance has no tailnet path to ares
+# Postgres by default). After the run, ingest with:
+#   just bench-report  # auto-ingests state/bench/results/*.jsonl
+
+set -euo pipefail
+
+MODEL="${1:?usage: ollama-cloud.sh <ollama-tag>}"
+HOST="${OLLAMA_HOST:-https://ollama.com}"
+REPO_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../../.." && pwd)"
+
+if [ -z "${OLLAMA_API_KEY:-}" ]; then
+    echo "ERROR: OLLAMA_API_KEY not set. Create one at https://ollama.com/settings/keys" >&2
+    exit 2
+fi
+
+cd "$REPO_ROOT"
+source .venv/bin/activate
+
+SAFE_TAG=$(echo "$MODEL" | tr '/:' '__')
+OUT="state/bench/results/${SAFE_TAG}_ollama-cloud.jsonl"
+
+uv run scripts/ocr/bench_vlm_ocr.py \
+    --model "$MODEL" \
+    --host "$HOST" \
+    --manifest state/bench/manifest.json \
+    --crops-dir state/bench/crops \
+    --output "jsonl://$OUT" \
+    --host-label ollama-cloud \
+    --resume
+```
+
+Make executable:
+
+```bash
+chmod +x scripts/ocr/bench_profiles/ollama-cloud.sh
+```
+
 - [ ] **Step 4: Sanity-check the wrappers**
 
 ```bash
@@ -2705,6 +2787,7 @@ cd /home/will/photo_project
 bash -n scripts/ocr/bench_profiles/ares-cpu.sh
 bash -n scripts/ocr/bench_profiles/m2pro.sh
 bash -n scripts/ocr/bench_profiles/cloud-gpu.sh
+bash -n scripts/ocr/bench_profiles/ollama-cloud.sh
 echo "OK"
 ```
 
@@ -2912,6 +2995,14 @@ for m in kimi-vl:latest qwen2.5-vl:7b minicpm-v gemma3 llama3.2-vision:11b inter
   bash scripts/ocr/bench_profiles/m2pro.sh "$m"
 done
 rsync state/bench/results/*_m2pro.jsonl ares:photo_project/state/bench/results/
+
+# On Ollama Cloud free tier (bounded by rate limits; RATE_LIMIT rows land as
+# errors and the run continues):
+export OLLAMA_API_KEY=... # from https://ollama.com/settings/keys
+for m in gemini-3-pro:cloud gpt-oss:cloud kimi-vl:cloud qwen2.5-vl:cloud minicpm-v:cloud; do
+  bash scripts/ocr/bench_profiles/ollama-cloud.sh "$m" || true  # skip if tag unavailable
+done
+rsync state/bench/results/*_ollama-cloud.jsonl ares:photo_project/state/bench/results/ 2>/dev/null || true
 
 # On ares, generate the final report:
 just bench-report
