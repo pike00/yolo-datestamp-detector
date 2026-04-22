@@ -14,6 +14,7 @@ JSON status file so the dashboard can poll it without hitting the DB.
 """
 
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -29,7 +30,8 @@ from _db import (  # noqa: E402
 SCANMYPHOTOS_DIR = BASE_DIR / "scanmyphotos"
 LABELS_DIR = BASE_DIR / "dataset" / "labels"
 STATUS_FILE = BASE_DIR / "state" / "worker_status.json"
-MODEL_PATH = BASE_DIR / "runs" / "detect" / "train" / "weights" / "best.pt"
+DEFAULT_WEIGHTS = BASE_DIR / "runs" / "detect" / "gpu-40ep" / "weights" / "best.pt"
+MODEL_PATH = Path(os.environ.get("YOLO_WEIGHTS", str(DEFAULT_WEIGHTS)))
 
 INFERENCE_SIZE = 384
 CONF_THRESHOLD = 0.01
