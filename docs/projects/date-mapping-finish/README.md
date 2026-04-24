@@ -4,7 +4,7 @@ status: active
 repos: [photo_project]
 started: 2026-04-23
 last_updated: 2026-04-24
-next_step: Let T4 (gemma4-31b-cloud@litellm fleet OCR) complete in background; return for T5 (stage-2 reconciliation) once stage-1 coverage > ~6,500 stems
+next_step: Let `photo-ocr-fleet` Docker container finish T4 stage-1 (716/7,077 at save, parse rate ~97%); return for T5 once coverage >6,500 stems
 ocr_model: gemma4-31b-cloud@litellm
 ocr_bench_report: output/vlm_bench_report.html
 ---
@@ -20,13 +20,20 @@ Complete the ScanMyPhotos stamp OCR pipeline and EXIF extraction so the undated 
 - [x] T1: Populate `exif_dates` — 31,027 rows (DateTimeOriginal 30,392, DateTime 633, Digitized 2). Manifest-skip + keyframe-skip added to `extract_exif_dates.py`.
 - [x] T2: Finish YOLO inference — 7,164 / 7,454 rows (290 residual stems have no detection even at conf=0.01). `infer_all.py` now skips already-predicted stems on resume.
 - [x] T3: Auto-populate `stamp_no_stamp` — 477 stems (187 conf<0.05 + 290 missing predictions).
-- [ ] T4: Stage-1 OCR at fleet scale — **D1 resolved: `gemma4-31b-cloud@litellm`** (Pareto-frontier top, 68.5% vs frozen gemma4:31b-cloud GT, 1.19 img/s; free tier). Running in background via `scripts/ocr/ocr_fleet.py`. ~6,972 pending at launch, Ollama Cloud free-tier quota ~300 req/hr, ETA 20+ hours. Bench archived: [docs/projects/vlm-ocr-bench/](../vlm-ocr-bench/README.md).
+- [ ] T4: Stage-1 OCR at fleet scale — **D1 resolved: `gemma4-31b-cloud@litellm`** (Pareto-frontier top, 68.5% vs frozen gemma4:31b-cloud GT, 1.19 img/s; free tier). Running in Docker container `photo-ocr-fleet` via [docker/docker-compose.ocr-fleet.yml](../../../docker/docker-compose.ocr-fleet.yml). 716/7,077 done at save (~10%, ~97% parse rate). Bench archived: [docs/projects/vlm-ocr-bench/](../vlm-ocr-bench/README.md).
 - [ ] T5: Stage-2 reconciliation on flagged rows — blocked on T4
 - [ ] T6: Human review of `needs_review` queue via corrections dashboard — blocked on T5
 - [x] T7: Regenerate undated gallery — 10,393 undated photos post-T1 (matches plan's 10,378 baseline). Gallery at `output/undated_gallery/`. Will drop to ~2-3K after T4+T5 completes.
 - [x] T8: Commit this session's work + update CLAUDE.md — T1-T3 + T7 + fleet runner committed. T4 run proceeds in background; final commit with T4-T6 deliverables deferred to next session.
 
 ## Session Log
+
+### 2026-04-24 (late)
+
+- **T4 migrated to Docker container.** Added [docker/Dockerfile.ocr-fleet](../../../docker/Dockerfile.ocr-fleet) + [docker/docker-compose.ocr-fleet.yml](../../../docker/docker-compose.ocr-fleet.yml). `photo-ocr-fleet` runs on `python:3.12-slim` with `network_mode: host` (reaches Postgres + LiteLLM on 127.0.0.1) and survives Claude session exits. `restart: on-failure:5`, idempotent on restart via the SQL pending query.
+- **Gotcha:** `scanmyphotos/` is symlinks into `/mnt/823c9bf9-.../Photos/ScanMyPhotos/`. First container start processed 0/6,361 with "missing source" on every stem because the symlink targets weren't mounted. Fixed by mounting the HDD at its canonical absolute path inside the container. First successful batch after fix: 20/20 parsed.
+- **T4 live dashboard.** Added `/tmp/build_t4_dashboard.py` (disposable, not committed) that renders `output/t4_dashboard/index.html` with real stamp crops grouped by parse status (parsed OK / unparseable / partial). Served at `http://ares.savannah-mimosa.ts.net:8891/t4_dashboard/` — re-run the script to refresh the snapshot.
+- **Bare-process run handed off cleanly.** The pre-Docker bare process processed 611/6,972 at 83% parse rate before SIGTERM; the Docker container resumed at 716 total rows with no duplicates (DB query is source-of-truth for pending).
 
 ### 2026-04-24 (evening)
 
@@ -53,6 +60,12 @@ Complete the ScanMyPhotos stamp OCR pipeline and EXIF extraction so the undated 
 - State at creation: `exif_dates` empty (biggest gap), `stamp_predictions` at 2,531/7,454 (34%), `stamp_ocr` has 200 bench rows only, `stamp_no_stamp` empty, `video_dates` 4,206 rows.
 
 ## Notes
+
+### 2026-04-24 (late)
+
+- **Decisions:** Moved T4 from bare `uv run` to a Docker container so the fleet run is resilient across my session exits and easy to restart without losing progress.
+- **Gotchas:** Symlink mounts in Docker require the symlink *target* to be mounted at its canonical absolute path inside the container; just bind-mounting the directory of symlinks isn't enough. `restart: on-failure:5` will NOT resurrect a container that exits 0 — a false-success exit (e.g. every stem skipping for missing source) sticks.
+- **Accomplished:** `photo-ocr-fleet` stack shipped + writing to DB; T4 live dashboard at `:8891` showing real stamp crops per parse category; ocr-fleet commit + Docker config committed + pushed.
 
 - **Plan:** [docs/plans/2026-04-21-date-mapping-continue.md](../../plans/2026-04-21-date-mapping-continue.md)
 - **Skip ScanMyPhotos sha256s in EXIF pass** — their authoritative date comes from stamp_ocr, not scanner EXIF. Risk: scanner-stamped EXIF (2014–2024) would poison dates of 1990s photos.
