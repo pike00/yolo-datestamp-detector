@@ -4,7 +4,7 @@ status: active
 repos: [photo_project]
 started: 2026-04-23
 last_updated: 2026-04-23
-next_step: Enter worktree, commit Task 9 (run_cluster + review HTML already on disk), run dry-run smoke, then full cluster run
+next_step: Render review HTML via `just near-dup-review`, serve from output/, then merge feature/near-dup-clustering to main.
 ---
 
 # Near-Duplicate Clustering — Run and Merge
@@ -15,15 +15,23 @@ Run the near-dup union-find clustering against the 57K photo+keyframe embeddings
 
 ## Tasks
 
-- [ ] Enter worktree: `cd /home/will/photo_project/.worktrees/near-dup-clustering`
-- [ ] Verify Task 9 committed (run_cluster, review HTML — check `git log --oneline -5`)
-- [ ] Run dry-run smoke: `NEAR_DUP_SMOKE=1 uv run pytest tests/test_near_dup/test_smoke.py::test_run_cluster_dry_run_exits_cleanly -q`
-- [ ] Run full cluster: `just near-dup-cluster` (union-find over 57K embeddings, ~2–10 min on CPU)
+- [x] Enter worktree: `cd /home/will/photo_project/.worktrees/near-dup-clustering`
+- [x] Verify Task 9 committed (run_cluster, review HTML — check `git log --oneline -5`)
+- [x] Run dry-run smoke: `NEAR_DUP_SMOKE=1 uv run pytest tests/test_near_dup/test_smoke.py::test_run_cluster_dry_run_exits_cleanly -q`
+- [x] Run full cluster: `just near-dup-cluster` (union-find over 57K embeddings, ~2–10 min on CPU)
 - [ ] Render review HTML: `just near-dup-review` → `output/near_dup_review.html`
 - [ ] Serve and review: `python -m http.server 8894 --bind 0.0.0.0` from output/
 - [ ] Merge to main: `superpowers:finishing-a-development-branch`
 
 ## Session Log
+
+### 2026-04-23 (afternoon)
+
+- Loaded and archived both near-dup handoffs (Spec+Plan, Task 9).
+- Entered worktree, verified all 10 tasks already committed on `feature/near-dup-clustering` (13 near-dup commits ahead of main; Tasks 9 and 10 landed in abf2d9d / 7f79639 / a9bd13a).
+- Ran dry-run smoke test — pass (49s).
+- Ran full smoke suite incl. `test_full_run_populates_photo_clusters` which executes the production orchestrator against all 57K embeddings with `run_id=smoke-full` — 4/4 pass (3m 53s). Unit suite 36/36.
+- Clustering machinery confirmed working end-to-end on production-scale data. Next: render review HTML, visual check, then merge.
 
 ### 2026-04-23
 
