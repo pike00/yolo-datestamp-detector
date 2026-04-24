@@ -1,0 +1,23 @@
+services:
+  ocr-fleet:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.ocr-fleet
+    image: photo-ocr-fleet:latest
+    container_name: photo-ocr-fleet
+    network_mode: host
+    env_file:
+      - ../.env
+    environment:
+      - DATABASE_URL=postgresql://dedup:dedup_local_dev@127.0.0.1:5432/dedup
+      - LITELLM_BASE_URL=http://127.0.0.1:4000
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - ../scanmyphotos:/app/scanmyphotos:ro
+      # scanmyphotos/ is symlinks to the HDD; mount the HDD at its canonical
+      # path so the symlink targets resolve inside the container.
+      - /mnt/823c9bf9-838a-4591-a00f-ae361fcb4792/Photos:/mnt/823c9bf9-838a-4591-a00f-ae361fcb4792/Photos:ro
+      - ../state/logs:/app/state/logs:rw
+    restart: on-failure:5
+    # Override command args here if needed:
+    # command: ["python", "-u", "/app/scripts/ocr/ocr_fleet.py", "--limit", "100"]
