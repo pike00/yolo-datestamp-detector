@@ -1,10 +1,11 @@
 ---
 title: VLM OCR Benchmark — Finish and Report
-status: active
+status: archived
 repos: [photo_project]
 started: 2026-04-23
-last_updated: 2026-04-23
-next_step: Check 5h retry loop progress (tail state/bench/results_litellm/loop.log); fix LiteLLM ANTHROPIC/GOOGLE key regression
+last_updated: 2026-04-24
+archived: 2026-04-24
+outcome: "Production OCR model = gemma4-31b-cloud@litellm (Pareto-frontier, 68.5% agreement vs frozen gemma4:31b-cloud GT, 1.19 img/s)"
 ---
 
 # VLM OCR Benchmark — Finish and Report
@@ -13,16 +14,38 @@ next_step: Check 5h retry loop progress (tail state/bench/results_litellm/loop.l
 
 Complete the 9-model Ollama Cloud VLM OCR benchmark, generate the Pareto-frontier report comparing accuracy/latency/cost, and use the result to pick the production OCR model for the date-mapping fleet run.
 
+## Outcome
+
+Production OCR model for the date-mapping fleet: **`gemma4-31b-cloud@litellm`**
+(Pareto-frontier top; 68.5% agreement vs frozen gemma4:31b-cloud GT; 1.19 img/s
+median throughput; free tier on Ollama Cloud via LiteLLM).
+
+Ground truth for the bench is frozen to `gemma4:31b-cloud@ollama-cloud` in
+[state/bench/manifest.json](../../../state/bench/manifest.json). Final artifacts:
+
+- [output/vlm_bench_report.html](../../../output/vlm_bench_report.html) — full metadata report
+- [output/vlm_bench_report.md](../../../output/vlm_bench_report.md) — markdown summary
+- [output/vlm_bench_pareto.png](../../../output/vlm_bench_pareto.png) — Pareto chart
+
 ## Tasks
 
-- [ ] Wait for `run_litellm_bench_loop.sh` to complete remaining 8 models (PID 3386226, 5h retry cadence)
-- [ ] Fix LiteLLM key regression: add ANTHROPIC/GOOGLE/DEEPSEEK keys back to `ai/litellm/.env.sops`
-- [ ] Generate bench report: `uv run scripts/ocr/report_vlm_bench.py --ingest-jsonl state/bench/results_litellm`
-- [ ] Review Pareto chart; confirm production OCR model (default: Sonnet)
-- [ ] Commit uncommitted changes in photo_project and Homelab (listed in handoff)
-- [ ] Update date-mapping-finish project with confirmed D1 model decision
+- [x] Wait for `run_litellm_bench_loop.sh` to complete remaining 8 models — 8/9 at 200/200; `gpt-oss-120b-cloud` at 195/200 accepted (5 persistent failures, not worth re-run)
+- [x] Generate bench report — ran `uv run scripts/ocr/report_vlm_bench.py`; HTML/MD/PNG written to `output/`
+- [x] Review Pareto chart; confirm production OCR model — **`gemma4-31b-cloud@litellm` selected**
+- [x] Update date-mapping-finish project with confirmed D1 model decision — already reflected in T4
+- [ ] Fix LiteLLM key regression: add ANTHROPIC/GOOGLE/DEEPSEEK keys back to `ai/litellm/.env.sops` — **carried forward** (LiteLLM infra, not bench scope)
+- [ ] Commit uncommitted changes in photo_project and Homelab — **carried forward**
 
 ## Session Log
+
+### 2026-04-24
+
+- **Archived.** Production model confirmed: `gemma4-31b-cloud@litellm`.
+- **Bench finished.** 8/9 models at 200/200 clean; `gpt-oss-120b-cloud` at 195/200 (5 persistent failures accepted; not worth another retry round).
+- **Ground truth frozen** to `gemma4:31b-cloud@ollama-cloud` in `state/bench/manifest.json`. Rationale: top agreement vs (noisy, unreviewed) Sonnet baseline + lowest unparsed rate. Header note documents that "Agree%" is relative, not absolute correctness.
+- **Report script hardened:** `scripts/ocr/report_vlm_bench.py` now (a) hydrates `elapsed_s` + token counts from JSONL (stamp_ocr doesn't persist them), (b) takes `--ground-truth` from manifest, (c) excludes GT model from candidates, (d) emits a single-file HTML with per-model min/median/P95/max latency, avg in/out tokens, first/last-run timestamps, stratification buckets, and Pareto frontier badges.
+- **Pareto frontier (final):** `gemma4-31b-cloud@litellm` (68.5%, 1.19 img/s) = picked; `gemma3-27b-cloud@litellm` (44.5%, 1.22 img/s) and `gemma3-12b-cloud@litellm` (38.5%, 1.32 img/s) on frontier for raw speed only.
+- **Carried-forward items** (not bench scope): LiteLLM key regression for ANTHROPIC/GOOGLE/DEEPSEEK (blocks non-OCR flows), and uncommitted work in photo_project/Homelab.
 
 ### 2026-04-23
 
