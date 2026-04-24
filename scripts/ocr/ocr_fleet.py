@@ -43,6 +43,7 @@ from ocr.ocr_util import extract_final_answer, normalize_date  # noqa: E402
 
 SCANMYPHOTOS_DIR = BASE / "scanmyphotos"
 LOG_DIR = BASE / "state" / "logs"
+MILESTONE_DIR = BASE / "output" / "ocr_fleet_milestones"
 
 PROMPT = """This is a cropped photo showing a camera date stamp -- orange LED digits.
 Transcribe EXACTLY what you see, preserving spaces and apostrophes.
@@ -144,6 +145,96 @@ class TransientError(Exception):
     pass
 
 
+def count_rows(conn, model_key: str) -> int:
+    with conn.cursor() as cur:
+        cur.execute(
+            "SELECT count(*) FROM stamp_ocr WHERE model=%s AND host_label=%s",
+            (model_key, HOST_LABEL),
+        )
+        return cur.fetchone()[0]
+
+
+def post_milestone(conn, model_key: str, milestone: int, webhook_url: str, public_base: str, total_pending: int, logf) -> None:
+    """Post a Mattermost milestone: N/total progress + a few recent parsed examples."""
+    out_dir = MILESTONE_DIR / str(milestone)
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            SELECT o.stem, o.raw_text, o.parsed_date, p.x, p.y, p.w, p.h
+            FROM stamp_ocr o JOIN stamp_predictions p ON p.stem = o.stem
+            WHERE o.model=%s AND o.host_label=%s AND o.parsed_date IS NOT NULL
+            ORDER BY o.updated_at DESC
+            LIMIT 4
+            """,
+            (model_key, HOST_LABEL),
+        )
+        examples = cur.fetchall()
+
+        cur.execute(
+            """
+            SELECT
+              count(*) FILTER (WHERE parsed_date IS NOT NULL),
+              count(*)
+            FROM stamp_ocr WHERE model=%s AND host_label=%s
+            """,
+            (model_key, HOST_LABEL),
+        )
+        parsed_count, row_count = cur.fetchone()
+
+    # Crop each example into the milestone dir for webhook image URLs
+    example_urls: list[tuple[str, str, str]] = []
+    for stem, raw_text, parsed_date, x, y, w, h in examples:
+        src = SCANMYPHOTOS_DIR / f"{stem}.jpg"
+        if not src.exists():
+            continue
+        try:
+            img = Image.open(src).convert("RGB")
+        except Exception:
+            continue
+        iw, ih = img.size
+        cx, cy = x * iw, y * ih
+        bw, bh = w * iw, h * ih
+        pad_x, pad_y = bw * PAD_FACTOR, bh * PAD_FACTOR
+        x1 = max(0, int(cx - bw / 2 - pad_x))
+        y1 = max(0, int(cy - bh / 2 - pad_y))
+        x2 = min(iw, int(cx + bw / 2 + pad_x))
+        y2 = min(ih, int(cy + bh / 2 + pad_y))
+        crop = img.crop((x1, y1, x2, y2))
+        if max(crop.size) > CROP_MAX_SIDE:
+            crop.thumbnail((CROP_MAX_SIDE, CROP_MAX_SIDE), Image.LANCZOS)
+        dst = out_dir / f"{stem}.jpg"
+        crop.save(dst, format="JPEG", quality=85)
+        url = f"{public_base.rstrip('/')}/ocr_fleet_milestones/{milestone}/{stem}.jpg"
+        example_urls.append((url, raw_text, parsed_date.isoformat()))
+
+    total = total_pending + row_count - milestone  # rough: remaining = initial pending - rows done so far (offset by pre-run rows)
+    # simpler: show row_count / (row_count + pending_still_in_queue). We'll just show "N rows so far".
+    pct = (100 * parsed_count / row_count) if row_count else 0
+    lines = [
+        f"📸 **Date Stamp OCR — milestone {milestone:,}**",
+        f"{row_count:,} rows written · parsed {parsed_count:,} ({pct:.0f}%) · model `{model_key}`",
+        "",
+        "**Latest parsed reads:**",
+    ]
+    for url, raw, date_iso in example_urls:
+        raw_esc = (raw or "").replace("`", "'").strip()
+        lines.append(f"![](%s) `{raw_esc}` → **{date_iso}**" % url)
+    if not example_urls:
+        lines.append("_(no parsed examples available for this milestone)_")
+
+    payload = {"text": "\n".join(lines), "username": "ocr-fleet", "icon_emoji": ":frame_with_picture:"}
+    try:
+        r = requests.post(webhook_url, json=payload, timeout=15)
+        if r.status_code == 200:
+            logf(f"milestone {milestone} posted to Mattermost ({len(example_urls)} examples)")
+        else:
+            logf(f"milestone webhook failed {r.status_code}: {r.text[:200]}")
+    except requests.exceptions.RequestException as e:
+        logf(f"milestone webhook error: {e}")
+
+
 def persist(conn, batch, model_key: str) -> int:
     if not batch:
         return 0
@@ -203,6 +294,10 @@ def main() -> int:
     signal.signal(signal.SIGINT, handle_sig)
     signal.signal(signal.SIGTERM, handle_sig)
 
+    webhook_url = os.environ.get("MATTERMOST_WEBHOOK_URL", "").strip()
+    public_base = os.environ.get("PUBLIC_BASE_URL", "").strip()
+    milestone_every = int(os.environ.get("MILESTONE_EVERY", "1000"))
+
     conn = psycopg.connect(DB_URL)
     pending = compute_pending(conn, model_key, args.limit)
     total = len(pending)
@@ -211,6 +306,15 @@ def main() -> int:
     if total == 0:
         logf("nothing pending; done")
         return 0
+
+    # Next milestone is the first multiple of milestone_every > current row count
+    initial_rows = count_rows(conn, model_key)
+    next_milestone = ((initial_rows // milestone_every) + 1) * milestone_every
+    milestone_enabled = bool(webhook_url) and bool(public_base)
+    logf(
+        f"milestones {'enabled' if milestone_enabled else 'disabled'}; "
+        f"initial_rows={initial_rows}, next_milestone={next_milestone}, every={milestone_every}"
+    )
 
     batch: list[dict] = []
     done = 0
@@ -289,6 +393,13 @@ def main() -> int:
             persist(conn, batch, model_key)
             logf(f"flushed {len(batch)} rows ({done}/{total} done, parsed={parsed}, errors={errors})")
             batch = []
+
+            # Milestone check — fires when the DB row count crosses next_milestone
+            if milestone_enabled:
+                current = count_rows(conn, model_key)
+                while current >= next_milestone:
+                    post_milestone(conn, model_key, next_milestone, webhook_url, public_base, total, logf)
+                    next_milestone += milestone_every
 
     persist(conn, batch, model_key)
     elapsed = time.time() - t_start
