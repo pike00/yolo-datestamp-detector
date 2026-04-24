@@ -154,8 +154,35 @@ def count_rows(conn, model_key: str) -> int:
         return cur.fetchone()[0]
 
 
-def post_milestone(conn, model_key: str, milestone: int, webhook_url: str, public_base: str, total_pending: int, logf) -> None:
-    """Post a Mattermost milestone: N/total progress + a few recent parsed examples."""
+def _mm_upload(api_url: str, token: str, channel_id: str, file_path: Path) -> str | None:
+    """Upload one file to Mattermost; return its file_id or None on failure."""
+    url = f"{api_url.rstrip('/')}/api/v4/files"
+    headers = {"Authorization": f"Bearer {token}"}
+    with open(file_path, "rb") as f:
+        files = {"files": (file_path.name, f, "image/jpeg")}
+        data = {"channel_id": channel_id}
+        r = requests.post(url, headers=headers, files=files, data=data, timeout=30)
+    if r.status_code != 201:
+        return None
+    infos = r.json().get("file_infos") or []
+    return infos[0]["id"] if infos else None
+
+
+def _mm_create_post(api_url: str, token: str, channel_id: str, message: str, file_ids: list[str]) -> bool:
+    url = f"{api_url.rstrip('/')}/api/v4/posts"
+    headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
+    payload = {"channel_id": channel_id, "message": message, "file_ids": file_ids}
+    r = requests.post(url, headers=headers, json=payload, timeout=30)
+    return r.status_code == 201
+
+
+def post_milestone(conn, model_key: str, milestone: int, mm_cfg: dict, logf) -> None:
+    """Post a Mattermost milestone using the files+posts API.
+
+    mm_cfg: {api_url, token, channel_id}. Uploads each example crop to the
+    channel (HTTPS, same origin as Mattermost -- avoids mixed-content blocks)
+    then creates a post referencing those file_ids.
+    """
     out_dir = MILESTONE_DIR / str(milestone)
     out_dir.mkdir(parents=True, exist_ok=True)
 
@@ -183,8 +210,9 @@ def post_milestone(conn, model_key: str, milestone: int, webhook_url: str, publi
         )
         parsed_count, row_count = cur.fetchone()
 
-    # Crop each example into the milestone dir for webhook image URLs
-    example_urls: list[tuple[str, str, str]] = []
+    # Crop + upload each example
+    file_ids: list[str] = []
+    lines_examples: list[str] = []
     for stem, raw_text, parsed_date, x, y, w, h in examples:
         src = SCANMYPHOTOS_DIR / f"{stem}.jpg"
         if not src.exists():
@@ -206,33 +234,32 @@ def post_milestone(conn, model_key: str, milestone: int, webhook_url: str, publi
             crop.thumbnail((CROP_MAX_SIDE, CROP_MAX_SIDE), Image.LANCZOS)
         dst = out_dir / f"{stem}.jpg"
         crop.save(dst, format="JPEG", quality=85)
-        url = f"{public_base.rstrip('/')}/ocr_fleet_milestones/{milestone}/{stem}.jpg"
-        example_urls.append((url, raw_text, parsed_date.isoformat()))
 
-    total = total_pending + row_count - milestone  # rough: remaining = initial pending - rows done so far (offset by pre-run rows)
-    # simpler: show row_count / (row_count + pending_still_in_queue). We'll just show "N rows so far".
+        fid = _mm_upload(mm_cfg["api_url"], mm_cfg["token"], mm_cfg["channel_id"], dst)
+        if fid:
+            file_ids.append(fid)
+            raw_esc = (raw_text or "").replace("`", "'").strip()
+            lines_examples.append(f"- `{raw_esc}` → **{parsed_date.isoformat()}** _({stem})_")
+
     pct = (100 * parsed_count / row_count) if row_count else 0
-    lines = [
-        f"📸 **Date Stamp OCR — milestone {milestone:,}**",
-        f"{row_count:,} rows written · parsed {parsed_count:,} ({pct:.0f}%) · model `{model_key}`",
-        "",
-        "**Latest parsed reads:**",
-    ]
-    for url, raw, date_iso in example_urls:
-        raw_esc = (raw or "").replace("`", "'").strip()
-        lines.append(f"![](%s) `{raw_esc}` → **{date_iso}**" % url)
-    if not example_urls:
-        lines.append("_(no parsed examples available for this milestone)_")
+    msg = (
+        f"📸 **Date Stamp OCR — milestone {milestone:,}**\n"
+        f"{row_count:,} rows written · parsed {parsed_count:,} ({pct:.0f}%) · "
+        f"model `{model_key}`\n"
+    )
+    if lines_examples:
+        msg += "\n**Latest parsed reads:**\n" + "\n".join(lines_examples)
+    else:
+        msg += "\n_(no parsed examples rendered for this milestone)_"
 
-    payload = {"text": "\n".join(lines), "username": "ocr-fleet", "icon_emoji": ":frame_with_picture:"}
     try:
-        r = requests.post(webhook_url, json=payload, timeout=15)
-        if r.status_code == 200:
-            logf(f"milestone {milestone} posted to Mattermost ({len(example_urls)} examples)")
+        ok = _mm_create_post(mm_cfg["api_url"], mm_cfg["token"], mm_cfg["channel_id"], msg, file_ids)
+        if ok:
+            logf(f"milestone {milestone} posted to Mattermost ({len(file_ids)} examples)")
         else:
-            logf(f"milestone webhook failed {r.status_code}: {r.text[:200]}")
+            logf(f"milestone {milestone} post failed")
     except requests.exceptions.RequestException as e:
-        logf(f"milestone webhook error: {e}")
+        logf(f"milestone {milestone} post error: {e}")
 
 
 def persist(conn, batch, model_key: str) -> int:
@@ -294,8 +321,11 @@ def main() -> int:
     signal.signal(signal.SIGINT, handle_sig)
     signal.signal(signal.SIGTERM, handle_sig)
 
-    webhook_url = os.environ.get("MATTERMOST_WEBHOOK_URL", "").strip()
-    public_base = os.environ.get("PUBLIC_BASE_URL", "").strip()
+    mm_cfg = {
+        "api_url": os.environ.get("MATTERMOST_API_URL", "").strip(),
+        "token": os.environ.get("MATTERMOST_API_TOKEN", "").strip(),
+        "channel_id": os.environ.get("MATTERMOST_CHANNEL_ID", "").strip(),
+    }
     milestone_every = int(os.environ.get("MILESTONE_EVERY", "1000"))
 
     conn = psycopg.connect(DB_URL)
@@ -310,7 +340,7 @@ def main() -> int:
     # Next milestone is the first multiple of milestone_every > current row count
     initial_rows = count_rows(conn, model_key)
     next_milestone = ((initial_rows // milestone_every) + 1) * milestone_every
-    milestone_enabled = bool(webhook_url) and bool(public_base)
+    milestone_enabled = all(mm_cfg.values())
     logf(
         f"milestones {'enabled' if milestone_enabled else 'disabled'}; "
         f"initial_rows={initial_rows}, next_milestone={next_milestone}, every={milestone_every}"
@@ -398,7 +428,7 @@ def main() -> int:
             if milestone_enabled:
                 current = count_rows(conn, model_key)
                 while current >= next_milestone:
-                    post_milestone(conn, model_key, next_milestone, webhook_url, public_base, total, logf)
+                    post_milestone(conn, model_key, next_milestone, mm_cfg, logf)
                     next_milestone += milestone_every
 
     persist(conn, batch, model_key)

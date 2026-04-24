@@ -11,8 +11,8 @@ services:
     environment:
       - DATABASE_URL=postgresql://dedup:dedup_local_dev@127.0.0.1:5432/dedup
       - LITELLM_BASE_URL=http://127.0.0.1:4000
-      - PUBLIC_BASE_URL=http://ares.savannah-mimosa.ts.net:8891
       - MILESTONE_EVERY=1000
+      # Mattermost creds (API_URL/API_TOKEN/CHANNEL_ID) come from .env
       - PYTHONUNBUFFERED=1
     volumes:
       - ../scanmyphotos:/app/scanmyphotos:ro
