@@ -91,11 +91,20 @@ Several scripts accept configuration via environment variables:
 
 Postgres tables (`dedup` database, see `scripts/_db.py`):
 - `stamp_predictions` -- YOLO bbox predictions per stem (model label tracked in `model` column)
-- `stamp_ocr` -- OCR results, composite PK `(stem, model)`; haiku and gemma both live here
+- `stamp_ocr` -- OCR results, composite PK `(stem, model)`; `stage`, `host_label`, `parsed_date`, `parse_error`, `review_status` fields drive the two-stage pipeline
 - `stamp_prediction_drift` -- old vs new bbox diff with iou and flag
-- `stamp_no_stamp` -- stems confirmed to have no date stamp
+- `stamp_no_stamp` -- stems confirmed to have no date stamp (includes `source='auto'` rows from conf < 0.05 sweep)
 - `stamp_rotations` -- user-confirmed rotations from corrections_dashboard
+- `scanmyphotos_manifest` -- source-file map for the 7,454 ScanMyPhotos scans (stem → sha256, disc, source_path)
+- `exif_dates` -- PIL-extracted EXIF dates per sha256 (excludes manifest stems and video keyframes)
+- `video_dates` -- ffprobe-extracted video creation timestamps per sha256
 - `rotation_predictions` -- rotation classifier output (managed by the dedup pipeline, joined on sha256)
+
+Views:
+- `media_dates` -- unioned view over `exif_dates`, `video_dates`, and `stamp_ocr` (via `scanmyphotos_manifest`)
+- `media_has_date` -- distinct sha256s that resolve to at least one date via any source
+
+Nightly pg_dump of the `dedup` DB runs via the `dedup-db-backup` sidecar in Homelab infra/backup/ (added 2026-04-20).
 
 Files still on disk:
 - `state/corrections_queue.json` -- Full review queue with statuses (gitignored)

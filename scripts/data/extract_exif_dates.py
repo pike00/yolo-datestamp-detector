@@ -110,8 +110,24 @@ def main() -> int:
         existing = {
             r[0] for r in conn.execute("SELECT sha256 FROM exif_dates").fetchall()
         }
-    pending = paths if args.force else [p for p in paths if p.stem not in existing]
-    print(f"{len(existing)} already probed, {len(pending)} this run", file=sys.stderr)
+        # Skip ScanMyPhotos scans — their authoritative date is stamp_ocr, not scanner EXIF
+        # (scanner software writes 2014-2024 timestamps that would poison 1990s photos).
+        scan_shas = {
+            r[0] for r in conn.execute("SELECT sha256 FROM scanmyphotos_manifest").fetchall()
+        }
+        # Skip video keyframes — covered by video_dates.
+        keyframe_shas = {
+            r[0] for r in conn.execute(
+                "SELECT sha256 FROM photo_embeddings WHERE media_type='video_keyframe'"
+            ).fetchall()
+        }
+    skip = existing | scan_shas | keyframe_shas
+    pending = paths if args.force else [p for p in paths if p.stem not in skip]
+    print(
+        f"{len(existing)} already probed, {len(scan_shas)} manifest skips, "
+        f"{len(keyframe_shas)} keyframe skips, {len(pending)} this run",
+        file=sys.stderr,
+    )
 
     hits: list[dict] = []
     done = 0

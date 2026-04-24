@@ -50,10 +50,15 @@ def write_status(phase, progress, total, message):
 
 
 def get_pending_files():
-    """Return the list of images that have neither a label nor a no-stamp marker."""
+    """Return the list of images that need inference.
+
+    Skips: images already predicted, training-labeled, or marked no-stamp.
+    Set INFER_FORCE=1 to reprocess every image (upsert overwrites).
+    """
     labeled_stems = {p.stem for p in LABELS_DIR.glob("*.txt")}
     skipped_stems = load_skipped_stems()
-    reviewed = labeled_stems | skipped_stems
+    predicted_stems = set() if os.environ.get("INFER_FORCE") else get_predicted_stems()
+    reviewed = labeled_stems | skipped_stems | predicted_stems
 
     all_images = sorted(SCANMYPHOTOS_DIR.glob("*.jpg"))
     return [img for img in all_images if img.stem not in reviewed]

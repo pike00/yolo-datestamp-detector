@@ -3,8 +3,8 @@ title: Date Mapping — Finish the Run
 status: active
 repos: [photo_project]
 started: 2026-04-23
-last_updated: 2026-04-23
-next_step: Run extract_exif_dates.py (T1 — biggest single win, ~30K photos gain a date in one pass)
+last_updated: 2026-04-24
+next_step: Let T4 (gemma4:31b-cloud fleet OCR) complete in background; return for T5 (stage-2 reconciliation) once stage-1 coverage > ~6,500 stems
 ---
 
 # Date Mapping — Finish the Run
@@ -15,16 +15,28 @@ Complete the ScanMyPhotos stamp OCR pipeline and EXIF extraction so the undated 
 
 ## Tasks
 
-- [ ] T1: Populate `exif_dates` — run `scripts/data/extract_exif_dates.py` (~30K hits, ~20 min)
-- [ ] T2: Finish YOLO inference on remaining 4,923 stems — `just infer-bg`
-- [ ] T3: Auto-populate `stamp_no_stamp` for stems with confidence < 0.05
-- [ ] T4: Stage-1 OCR at fleet scale (~7,250 stems via Sonnet/production model subagents, 4–6 hr)
-- [ ] T5: Stage-2 reconciliation on flagged rows (digit confusion, low-conf)
-- [ ] T6: Human review of `needs_review` queue via corrections dashboard
-- [ ] T7: Regenerate undated gallery — `python scripts/find_undated_media.py && python scripts/build_undated_gallery.py`
-- [ ] T8: Commit all changes + update CLAUDE.md data stores section + handoff
+- [x] T1: Populate `exif_dates` — 31,027 rows (DateTimeOriginal 30,392, DateTime 633, Digitized 2). Manifest-skip + keyframe-skip added to `extract_exif_dates.py`.
+- [x] T2: Finish YOLO inference — 7,164 / 7,454 rows (290 residual stems have no detection even at conf=0.01). `infer_all.py` now skips already-predicted stems on resume.
+- [x] T3: Auto-populate `stamp_no_stamp` — 477 stems (187 conf<0.05 + 290 missing predictions).
+- [ ] T4: Stage-1 OCR at fleet scale — **D1 resolved: gemma4-31b-cloud via LiteLLM** (Pareto-frontier top, free tier). Running in background via `scripts/ocr/ocr_fleet.py`. ~6,972 pending at launch, Ollama Cloud free-tier quota ~300 req/hr, ETA 20+ hours.
+- [ ] T5: Stage-2 reconciliation on flagged rows — blocked on T4
+- [ ] T6: Human review of `needs_review` queue via corrections dashboard — blocked on T5
+- [x] T7: Regenerate undated gallery — 10,393 undated photos post-T1 (matches plan's 10,378 baseline). Gallery at `output/undated_gallery/`. Will drop to ~2-3K after T4+T5 completes.
+- [x] T8: Commit this session's work + update CLAUDE.md — T1-T3 + T7 + fleet runner committed. T4 run proceeds in background; final commit with T4-T6 deliverables deferred to next session.
 
 ## Session Log
+
+### 2026-04-24
+
+- **Discovered README was stale:** YOLO was already at 7,164/7,454 (not 2,531), VLM bench was 14/14 complete (not 1/9 running), retry loop had already exited. Generated the bench report without waiting.
+- **T1 `exif_dates` — done.** 31,027 rows (DateTimeOriginal 30,392, DateTime 633, Digitized 2). Patched `scripts/data/extract_exif_dates.py` to skip `scanmyphotos_manifest` sha256s (prevents scanner-EXIF poisoning) AND `photo_embeddings.media_type='video_keyframe'` (covered by `video_dates`). Yearly distribution looks organic (peak 2010s, tail into 80s).
+- **T2 YOLO — done.** Patched `scripts/infer/infer_all.py` to skip already-predicted stems on resume (was a wasteful full re-run). 290 residual stems had no detection even at conf=0.01 (true no-stamps). Final credible-bbox count: 6,679 (above plan target).
+- **T3 `stamp_no_stamp` — done.** Auto-populated 477 rows via the plan's SQL (187 conf<0.05 + 290 missing predictions).
+- **D1 resolved.** Bench report (`output/vlm_bench_report.md`) gave top-3 at ~55-56% agreement with (unreviewed) Sonnet ground truth: `gemma4:31b-cloud@ollama-cloud`, `gemini-3-flash-preview:cloud`, `gpt-oss-120b-cloud`. Selected `gemma4-31b-cloud` via LiteLLM for fleet run (top bench score + free tier).
+- **T4 running.** New `scripts/ocr/ocr_fleet.py` — purpose-built stage-1 runner talking to LiteLLM directly (bypasses the shard orchestrator since the subagent pattern isn't needed for a non-Haiku model). Launched in background; 6,972 pending at start. Ollama Cloud free-tier quota ~300 req/hr → ETA ~20 hours continuous, likely longer with 429 backoff. Log: `state/logs/ocr_fleet_gemma4-31b-cloud.log`.
+- **T7 — done (interim).** Regenerated undated gallery: 10,393 undated photos remain (unchanged from plan baseline; OCR hasn't closed yet). Gallery at `output/undated_gallery/` (39 pages).
+- **T5/T6 deferred:** Must wait for T4 to reach usable stage-1 coverage (>6,500 stems or so). Resume next session.
+- **T8 — partial commit.** CLAUDE.md Key Data Stores updated with `scanmyphotos_manifest`, `exif_dates`, `video_dates`, and the `media_dates` / `media_has_date` views. Backup of dedup DB runs nightly via the `dedup-db-backup` sidecar.
 
 ### 2026-04-23
 
