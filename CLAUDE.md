@@ -1,121 +1,131 @@
-# Photo Project
+# yolo-datestamp-detector
 
-## Overview
-Consolidating ~77K media files (467 GB) into deduplicated, organized, metadata-enriched collection.
-Current focus: extracting date stamps from ~7,500 scanned 4x6 photos (ScanMyPhotos Discs 1-4).
+YOLO fine-tuned detector for orange LED date stamps in scanned 4x6 photos, plus an OCR
+pipeline (Claude Haiku or local Gemma4) that reads the cropped stamp. See `README.md` for
+the user-facing summary; this file captures non-obvious facts for Claude Code.
 
 ## Critical Constraints
-- **NEVER modify files on HDD** at `/mnt/823c9bf9-838a-4591-a00f-ae361fcb4792/` — read-only source
-- **No external API calls** (Gemini, OpenAI, Anthropic) without explicit user approval
-- Local LLM via Ollama is OK if installed
 
-## Source Photo Paths
-- Disc 1: `/mnt/823c9bf9-838a-4591-a00f-ae361fcb4792/Photos/img/Photos/ScanMyPhotos/Disc 1/` (1,775 files)
-- Disc 2: `/mnt/823c9bf9-838a-4591-a00f-ae361fcb4792/Photos/img/Photos/ScanMyPhotos/Disc 2/` (2,040 files)
-- Disc 3: `/mnt/823c9bf9-838a-4591-a00f-ae361fcb4792/Photos/img/Photos/ScanMyPhotos/Disc 3/` (2,076 files)
-- Disc 4: `/mnt/823c9bf9-838a-4591-a00f-ae361fcb4792/Photos/img/Photos/ScanMyPhotos/Disc 4/` (1,576 files)
-- Samples: `data/samples/` (100 pre-selected JPGs across discs)
+- **NEVER modify files on HDD** at `/mnt/823c9bf9-838a-4591-a00f-ae361fcb4792/` (read-only source).
+- **No external API calls** (Gemini, OpenAI, Anthropic) without explicit user approval.
+  The Haiku OCR path is the exception and gates on `ANTHROPIC_API_KEY` being set.
+- Local LLM via Ollama is fine when installed (used by `ocr_gemma.py` and the bench harness).
+
+## Repo Layout vs Parent
+
+This repo lives at `/home/will/photo_project/yolo-datestamp-detector/`. Some directories
+the scripts expect live at the **parent** `/home/will/photo_project/`, not inside the repo:
+
+- `scanmyphotos/` -- source images (gitignored; symlinks/copies from dedup originals)
+- `runs/` -- training artifacts and weights (gitignored)
+- `originals/`, `organized/`, `needs_date/` -- dedup pipeline scratch
+
+Scripts compute `BASE_DIR = scripts/<role>/<script>.py -> ../../..`, which resolves to the
+**repo root**, so `BASE_DIR / "runs"` and `BASE_DIR / "scanmyphotos"` are expected inside
+the repo. If they are missing, symlink from the parent or set env-var overrides (below).
 
 ## Environment
-- Python 3.14 via uv — activate venv: `source .venv/bin/activate`
-- CPU-only (AMD Ryzen 12 cores, 27GB RAM, integrated AMD Radeon Vega — no discrete GPU)
-- Tesseract 5.3.4 installed system-wide
-- Deps managed in `pyproject.toml` with uv
 
-- Python 3.12+ via uv -- deps managed via inline PEP 723 script headers
-- CPU-only training and inference (no GPU required)
-- PostgreSQL optional (for corrections dashboard rotation tracking)
-- Task runner: `just` (run `just` to list all recipes)
+- Python 3.14 (`.python-version`). No top-level `pyproject.toml`. Every script under
+  `scripts/` uses an inline PEP 723 header (`# /// script ... # ///`) and is run via
+  `uv run`. `just train`, `just infer`, etc. wrap this.
+- CPU-only on workstation (AMD Ryzen, no discrete GPU). GPU paths exist for spot bench
+  (`scripts/train/gpu_bench_one_epoch.py`) and the OCR fleet container.
+- Postgres `dedup` DB on localhost:5432, user `dedup`, default password `dedup_local_dev`.
+  Override with `DATABASE_URL`. Schema in `schema/*.sql`. Nightly pg_dump via the
+  `dedup-db-backup` sidecar in Homelab infra (added 2026-04-20).
+- Task runner: `just` (run `just` to list all recipes).
 
-## Project Structure
+## Key Env Vars
 
-- `scripts/` -- Python scripts, grouped by role (train/infer/annotate/ocr/data)
-- `ui/` -- Browser UIs (annotation, corrections dashboard, batch review)
-- `state/` -- Runtime state files (JSON queues, progress, shard manifests). Predictions, OCR results, drift, and the no-stamp set live in Postgres now.
-- `output/` -- Generated outputs (inference visualizations, crops, enhancements, pilot_review.html)
-- `docker/` -- Dockerfiles and compose configs
-- `dataset/` -- Training data (images, labels, augmented, corrections)
-- `runs/` -- Model training artifacts and weights
-- `scanmyphotos/` -- Source images (gitignored)
-- `examples/` -- README images and sample detections
-- `tests/` -- Pytest suite
-
-## Architecture
-
-- `scripts/train/train.py` -- YOLO fine-tuning using `ultralytics`
-- `scripts/train/gpu_bench_one_epoch.py` -- AWS GPU spot one-epoch bench
-- `scripts/train/regen_val_plots.py` -- Refresh validation plots in `examples/`
-- `scripts/infer/infer_all.py` -- Batch inference on pending images
-- `scripts/infer/compare_predictions.py` -- Diff old vs new model predictions
-- `scripts/infer/render_drift_examples.py` -- Render drift visualization crops
-- `scripts/annotate/annotate.py` -- HTTP server + REST API for bounding box annotation (:8888)
-- `scripts/annotate/corrections_dashboard.py` -- Review/correct predictions (:8889)
-- `scripts/annotate/feedback.py` -- Feedback loop orchestration (prepare/finalize/status)
-- `scripts/ocr/orchestrate_ocr.py` -- Parallel Haiku OCR orchestrator (crop/merge/reconcile)
-- `scripts/ocr/ocr_stamps.py` -- OCR via Claude Haiku (requires ANTHROPIC_API_KEY)
-- `scripts/ocr/ocr_gemma.py` -- OCR via local Gemma4 (requires Ollama)
-- `scripts/ocr/ocr_ollama_bench.py` -- Local Ollama vision accuracy bench
-- `scripts/ocr/build_pilot_review_html.py` -- Render OCR pilot review HTML
-- `scripts/data/setup_scanmyphotos.py` -- Optional: import images from dedup database
-- `scripts/data/stratified_sample.py` -- Stratified sampling across image sources
-- `scripts/data/augment_hard_cases.py` -- Data augmentation for failure modes
-- `scripts/data/detect_rotation_batch.py` -- Pre-compute rotation predictions
-- `scripts/data/enhance_stamps.py` -- Stamp enhancement experiments
-- `ui/index.html` -- Annotation UI (vanilla JS + Canvas)
-- `ui/dashboard.html` / `ui/batch_review.html` -- Dashboard UIs
-
-## Configuration
-
-Several scripts accept configuration via environment variables:
-- `DATABASE_URL` -- PostgreSQL connection (defaults to `postgresql://dedup:dedup_local_dev@localhost:5432/dedup`); used by every script that touches `stamp_predictions`, `stamp_ocr`, `stamp_prediction_drift`, or `stamp_no_stamp` via `scripts/_db.py`
-- `YOLO_MODEL_LABEL` -- Label written into `stamp_predictions.model` for new infer runs (default `yolo26m-best`)
-- `IMAGE_DIR` -- Source image directory for annotation (annotate.py)
-- `ORIGINALS_DIR` -- Deduplicated originals path (setup_scanmyphotos.py)
-- `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD` -- DB config (setup_scanmyphotos.py)
-- `DISC_DIRS` -- Colon-separated source directories (stratified_sample.py)
+- `YOLO_WEIGHTS` -- absolute path to weights; default `runs/detect/gpu-40ep/weights/best.pt`.
+  Set this when iterating across model versions without copying files (`infer_all.py:33`).
+- `YOLO_MODEL_LABEL` -- label written into `stamp_predictions.model` (default `yolo26m-best`).
+- `INFER_FORCE` -- if set, re-runs inference even on stems already in `stamp_predictions`.
+- `DATABASE_URL` -- Postgres connection; used by every script that touches stamp tables.
+- `IMAGE_DIR` -- source dir for `annotate.py`.
+- `DISC_DIRS` -- colon-separated source dirs for `stratified_sample.py`.
+- `ANTHROPIC_API_KEY` -- required by `ocr_stamps.py` and the Haiku orchestrator.
+- `APPRISE_URL` -- training notifications (Mattermost / etc.); `--no-notify` to silence.
 
 ## Training Config
 
-- Base model: `yolo26m.pt` (medium, 20.4M params)
-- Single class: `0` = date stamp region (called "target" in data.yaml)
-- Image size 640, batch 4, epochs 100 with early stopping patience=10
-- Labels: YOLO-format normalized bbox in `dataset/labels/`
+- Base: `yolo26m.pt` (20.4M params, medium).
+- Single class `0` = stamp region (called `target` in `dataset/data.yaml`).
+- Training: `imgsz=640`, `batch=4`, `epochs=100`, `patience=10`, `device=cpu`.
+- **Inference uses `imgsz=384`, `conf=0.01`** (`infer_all.py:36-37`). The lower conf
+  feeds the no-stamp sweep that writes `stamp_no_stamp` rows with `source='auto'`.
+- `dataset/labels/{train,val}/*.txt` IS tracked in git (human-curated, ~1.5 MB,
+  non-regenerable, lost once on 2026-04-16). Do not add `dataset/labels/` to gitignore.
+- `*.pt` weights and `runs/` are gitignored. Weights live on the host filesystem only.
 
 ## Date Stamp Characteristics
-- Orange/red/amber LED digits imprinted by camera, typically bottom edge of photo
-- Format: `M D 'YY` (e.g., "10 3 '99"), spanning ~1986-2010
-- Many photos have NO stamp — detector must handle `found: False`
-- Some photos are rotated 90° — stamps may appear on side edges
 
-## Key Data Stores
+- Orange/red/amber LED digits, camera-imprinted, typically bottom edge of photo.
+- Format: `M D 'YY` (e.g., `10 3 '99`), spanning ~1986-2010.
+- ~30% of photos have no stamp -- detector must handle `found: False` cleanly.
+- Rotated photos (90/180/270) may have stamps on side or top edges;
+  `scripts/data/detect_rotation_batch.py` pre-computes rotation predictions.
 
-Postgres tables (`dedup` database, see `scripts/_db.py`):
-- `stamp_predictions` -- YOLO bbox predictions per stem (model label tracked in `model` column)
-- `stamp_ocr` -- OCR results, composite PK `(stem, model)`; `stage`, `host_label`, `parsed_date`, `parse_error`, `review_status` fields drive the two-stage pipeline
-- `stamp_prediction_drift` -- old vs new bbox diff with iou and flag
-- `stamp_no_stamp` -- stems confirmed to have no date stamp (includes `source='auto'` rows from conf < 0.05 sweep)
-- `stamp_rotations` -- user-confirmed rotations from corrections_dashboard
-- `scanmyphotos_manifest` -- source-file map for the 7,454 ScanMyPhotos scans (stem → sha256, disc, source_path)
-- `exif_dates` -- PIL-extracted EXIF dates per sha256 (excludes manifest stems and video keyframes)
-- `video_dates` -- ffprobe-extracted video creation timestamps per sha256
-- `rotation_predictions` -- rotation classifier output (managed by the dedup pipeline, joined on sha256)
+## Postgres Tables (in `dedup` DB)
 
-Views:
-- `media_dates` -- unioned view over `exif_dates`, `video_dates`, and `stamp_ocr` (via `scanmyphotos_manifest`)
-- `media_has_date` -- distinct sha256s that resolve to at least one date via any source
+See `scripts/_db.py` for helpers and `schema/stamp_tables.sql` for DDL.
 
-Nightly pg_dump of the `dedup` DB runs via the `dedup-db-backup` sidecar in Homelab infra/backup/ (added 2026-04-20).
+- `stamp_predictions` -- YOLO bbox per stem, `model` column tracks model label.
+- `stamp_ocr` -- OCR results, composite PK `(stem, model)`; `stage`, `host_label`,
+  `parsed_date`, `parse_error`, `review_status` drive the two-stage pipeline.
+- `stamp_prediction_drift` -- old vs new bbox diff with IoU and flag.
+- `stamp_no_stamp` -- stems confirmed to have no date stamp (includes auto-swept
+  `source='auto'` rows from the conf < 0.05 pass).
+- `stamp_rotations` -- user-confirmed rotations from corrections_dashboard.
+- `scanmyphotos_manifest` -- stem -> sha256/disc/source_path for the 7,454 ScanMyPhotos scans.
+- `exif_dates`, `video_dates` -- PIL/ffprobe extracted timestamps per sha256.
+- Views: `media_dates` (union over exif/video/stamp_ocr), `media_has_date`.
 
-Files still on disk:
-- `state/corrections_queue.json` -- Full review queue with statuses (gitignored)
-- `state/scanmyphotos_manifest.json` -- Source file mapping (gitignored)
-- `state/rotation_predictions.json` -- Local rotation cache keyed by stem (gitignored)
-- `state/shards/` -- Shard manifests for the parallel OCR orchestrator
-- `state/status.json` -- Summary stats (run `just update-status` to refresh)
-- `dataset/labels/*.txt` -- YOLO bounding box labels
+## State Files Still on Disk
 
-## Superpowers Skills - Docs Paths
+Bench results and a few orchestrator inputs persist as JSON, not Postgres:
 
-Override the default save paths when using superpowers skills:
-- `brainstorming` saves specs to `docs/specs/` (not `docs/superpowers/specs/`)
-- `writing-plans` saves plans to `docs/plans/` (not `docs/superpowers/plans/`)
+- `state/corrections_queue.json` -- review queue (gitignored).
+- `state/scanmyphotos_manifest.json` -- source-file map (gitignored).
+- `state/rotation_predictions.json` -- local rotation cache keyed by stem (gitignored).
+- `state/shards/` -- shard manifests for parallel OCR orchestrator; input shards are
+  gitignored, `*_result.json` IS tracked (expensive OCR output, ~2 KB/shard).
+- `state/status.json` -- summary stats (`just update-status`).
+- `state/bench/` -- VLM bench corpus, ground truth, per-model runs (gitignored).
+
+## OCR Pipeline
+
+- `ocr_stamps.py` -- single-host Haiku runner.
+- `orchestrate_ocr.py` -- sharded parallel Haiku orchestrator (crop -> merge -> reconcile).
+- `ocr_fleet.py` -- containerized fleet runner; can post milestone crops to Mattermost
+  (see commits 977aaf1, d815450).
+- `ocr_gemma.py` -- local Gemma4 via Ollama (`docker compose -f docker/docker-compose.ocr.yml`).
+- VLM bench: `bench_vlm_ocr.py`, `bench_vlm_litellm.py`, profile wrappers in
+  `bench_profiles/{ares-cpu,m2pro,cloud-gpu,ollama-cloud}.sh`. Build corpus once with
+  `just bench-build`, freeze ground truth with `just bench-seed-{plan,review,freeze}`,
+  run with `just bench-run <profile> <model>`, report with `just bench-report`.
+
+## Common Commands
+
+```bash
+just                       # list all recipes
+just train                 # uv run scripts/train/train.py
+just infer                 # batch inference; honors YOLO_WEIGHTS
+just cycle                 # train + infer
+just annotate              # :8888 annotation UI
+just dashboard             # :8889 corrections review UI
+just ocr                   # Haiku OCR (needs ANTHROPIC_API_KEY)
+just ocr-gemma             # Gemma4 OCR via Docker + Ollama
+just stats                 # dataset stats (reads Postgres)
+just update-status         # refresh state/status.json
+just infer-one <path>      # single-image inference (imgsz=384, conf=0.35 default)
+just tensorboard           # serves runs/detect over uvx tensorboard
+```
+
+## Superpowers Skill Save Paths
+
+Override defaults when using superpowers skills in this repo:
+
+- `brainstorming` saves specs to `docs/specs/` (not `docs/superpowers/specs/`).
+- `writing-plans` saves plans to `docs/plans/` (not `docs/superpowers/plans/`).
